@@ -360,7 +360,6 @@ Definition single_assignment_program (p : program) : Prop :=
   exist.
 *)
 Definition well_formed_phis (p : program) : Prop :=
-  (single_assignment_program p) /\
   forall (b : block), (In b p) -> (
     forall (ph : phi), (In ph (phis b)) -> (
       forall (pr : block), (In pr (predecessors b p)) -> (
@@ -426,5 +425,15 @@ Definition dominates_inst (i i' : inst) (p : program) : Prop :=
     (dominates_block b b' p)
     /\ (In i (insts b))
     /\ (In i' (insts b'))
+  )
+.
+
+Definition assignment_dominates_usage (p : program) : Prop :=
+  forall (b : block), (In b p) -> (
+    forall (i : inst), (In i (insts b)) -> (
+      forall (r : reg), (In r (inst_args i)) -> (
+        exists (i' : inst), (inst_reg i') = Some r /\ dominates_inst i' i p
+      )
+    )
   )
 .
