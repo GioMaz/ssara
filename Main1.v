@@ -191,7 +191,8 @@ Fixpoint eq_list_inst (i1 i2 : list inst) : bool :=
 .
 
 Inductive block : Type :=
-  | Block (p : list phi) (i : list inst) (j : jinst)
+  | Block (ps : list phi) (is : list inst) (js : jinst)
+
 with jinst : Type :=
   | Jnz (r : reg) (b1 : block) (b2 : block)
   | Jmp (b : block)
@@ -199,20 +200,36 @@ with jinst : Type :=
 .
 
 (*
-Definition eq_jinst (j1 j2 : inst) : bool :=
+  Block instruction, represents all the possible instruction that we can find
+  inside a basic block
+*)
+Inductive binst : Type :=
+  | Bphi (p : phi)
+  | Binst (i : inst)
+  | Bjinst (j : jinst)
+.
+
+Definition phis (b : block) : list phi :=
+  let (ps, _, _) := b in ps
+.
+
+Definition insts (b : block) : list inst :=
+  let (_, is, _) := b in is
+.
+
+Fixpoint eq_jinst (j1 j2 : jinst) : bool :=
   match j1, j2 with
   | Jnz r b1 b2, Jnz r' b1' b2' => (Nat.eqb r r') && (eq_block b1 b1') && (eq_block b2 b2')
   | Jmp b, Jmp b' => eq_block b b'
   | Halt, Halt => true
   | _, _ => false
   end
-.
-*)
-
-Definition eq_block (b1 : block) (b2 : block) : bool :=
+with eq_block (b1 : block) (b2 : block) : bool :=
   match (b1, b2) with
-  | (Block p1 i1 j1, Block p2 i2 j2) =>
-    (eq_list_phi p1 p2) && (eq_list_inst i1 i2)
+  | (Block ps1 is1 j1, Block ps2 is2 j2) =>
+    (eq_list_phi ps1 ps2)
+    && (eq_list_inst is1 is2)
+    && (eq_jinst j1 j2)
   end
 .
 
@@ -226,6 +243,22 @@ Definition eq_block (b1 : block) (b2 : block) : bool :=
 *)
 
 Definition program : Type := list block
+.
+
+Definition entry (p : program) : option binst :=
+  match p with
+  | nil => None
+  | b :: _ =>
+    let (ps, is, j) := b in
+    match ps with
+    | p :: _ => Some (Bphi p)
+    | nil =>
+      match is with
+      | i :: _ => Some (Binst i)
+      | nil => Some (Bjinst j)
+      end
+    end
+  end
 .
 
 (*
@@ -275,9 +308,6 @@ Definition example_block_1 : block :=
 
 Definition program_1 := example_block_1 :: example_block_2 :: nil.
 
-Require Extraction.
-Extraction Language OCaml.
-Extraction "program.ml" program.
 
 Definition successors (b : block) : list block :=
   let (_, _, j) := b in
@@ -304,6 +334,30 @@ Fixpoint predecessors (b : block) (p : program) : list block :=
   end
 .
 
+Definition single_assignment_program (p : program) : Prop :=
+  forall (b b' : block) (i i' : inst),
+    (In b p) /\ (In i (insts b)) /\ (In b' p) /\ (In i' (insts b')) -> (
+      (inst_reg i = inst_reg i') -> (
+        (b = b')
+        /\ (exists i1 i2,
+          (nth_error (insts b) i1 = Some i) /\
+          (nth_error (insts b) i2 = Some i') /\
+          (i1 = i2)
+        )
+      )
+    )
+.
+
+(*
+Definition dominates_inst (i1 i2 : inst) (p : program) : Prop :=
+  exists (b1 b2 : block),
+    (In i1 (insts b1))
+    /\ (In i2 (insts b2))
+    /\ (
+.
+*)
+
+(*
 Definition dominates_phi (p1 p2 : phi) (ps : list phi) : Prop :=
   exists i j, nth_error ps i = Some p1 /\ nth_error ps j = Some p2 /\ i < j
 .
@@ -355,6 +409,7 @@ Definition inst_single_assigment (is : list inst) : Prop :=
     )
   )
 .
+*)
 
 (*
 Example succ_example : (successors example_block_1) = (example_block_2 :: example_block_2 :: nil).
