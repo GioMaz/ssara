@@ -200,8 +200,8 @@ with jinst : Type :=
 .
 
 (*
-  Block instruction, represents all the possible instruction that we can find
-  inside a basic block
+  Block instruction, represents all the possible instructions that we could
+  find inside a basic block
 *)
 Inductive binst : Type :=
   | Bphi (p : phi)
@@ -224,6 +224,7 @@ Fixpoint eq_jinst (j1 j2 : jinst) : bool :=
   | Halt, Halt => true
   | _, _ => false
   end
+
 with eq_block (b1 : block) (b2 : block) : bool :=
   match (b1, b2) with
   | (Block ps1 is1 j1, Block ps2 is2 j2) =>
@@ -265,7 +266,7 @@ Definition entry (p : program) : option binst :=
 
 ### Problems:
 
-- Allows reassigning the same register (TODO: define some propositions that enforce this)
+- Allows reassigning the same register (solved by the single_assignment_program proposition)
 - Allows using unassigned registers (TODO: define some propositions that enforce this)
 
 - Allows duplicate labels (solved by defining block recursivey)
@@ -308,7 +309,6 @@ Definition example_block_1 : block :=
 
 Definition program_1 := example_block_1 :: example_block_2 :: nil.
 
-
 Definition successors (b : block) : list block :=
   let (_, _, j) := b in
   match j with
@@ -334,6 +334,9 @@ Fixpoint predecessors (b : block) (p : program) : list block :=
   end
 .
 
+(*
+  1st property of an SSA program, every instruction is assigned exactly once
+*)
 Definition single_assignment_program (p : program) : Prop :=
   forall (b b' : block) (i i' : inst),
     (In b p) /\ (In i (insts b)) /\ (In b' p) /\ (In i' (insts b')) -> (
@@ -349,80 +352,79 @@ Definition single_assignment_program (p : program) : Prop :=
 .
 
 (*
-Definition dominates_inst (i1 i2 : inst) (p : program) : Prop :=
-  exists (b1 b2 : block),
-    (In i1 (insts b1))
-    /\ (In i2 (insts b2))
-    /\ (
-.
+  If we know that no virtual register is assigned twice, we can say that:
+  for every block, for every phi instruction, for every predecessor, there
+  exist a variable defined in that predecessor that is contained in the
+  argument of the phi instruction.
+  This can be done since we know that two variables with the same name do not
+  exist.
 *)
-
-(*
-Definition dominates_phi (p1 p2 : phi) (ps : list phi) : Prop :=
-  exists i j, nth_error ps i = Some p1 /\ nth_error ps j = Some p2 /\ i < j
-.
-
-Definition dominates_inst (i1 i2 : inst) (is : list inst) : Prop :=
-  exists i j, nth_error is i = Some i1 /\ nth_error is j = Some i2 /\ i < j
-.
-
-Definition phi_uses_only_assigned (ps : list phi) : Prop :=
-  forall (p : phi), (In p ps) -> (
-    forall (r : reg), In r (phi_args p) -> (
-      exists (dr : phi), (In dr ps) /\ dominates_phi dr p ps
-    )
-  )
-.
-
-Definition inst_uses_only_assigned (is : list inst) : Prop :=
-  forall (i : inst), (In i is) -> (
-    forall (r : reg), In r (inst_args i) -> (
-      exists (dr : inst), (In dr is) /\ dominates_inst dr i is
-    )
-  )
-.
-
-Definition phi_single_assigment (ps : list phi) : Prop :=
-  forall (p : phi), (In p ps) -> (
-    ~(exists (p' : phi),
-      (In p' ps)
-      /\ (phi_reg p) = (phi_reg p')
-      /\ (exists (i i' : nat),
-        i <> i'
-        /\ nth_error ps i = Some p
-        /\ nth_error ps i' = Some p'
+Definition well_formed_phis (p : program) : Prop :=
+  (single_assignment_program p) /\
+  forall (b : block), (In b p) -> (
+    forall (ph : phi), (In ph (phis b)) -> (
+      forall (pr : block), (In pr (predecessors b p)) -> (
+        exists (r : reg),
+          (In r (phi_args ph))
+          /\ (exists (r' : reg), (In r (phi_args ph)) -> r = r')
       )
     )
   )
 .
 
-Definition inst_single_assigment (is : list inst) : Prop :=
-  forall (i : inst), (In i is) -> (
-    ~(exists (i' : inst),
-      (In i' is)
-      /\ (inst_reg i) = (inst_reg i')
-      /\ (exists (j j' : nat),
-        j <> j'
-        /\ nth_error is j = Some i
-        /\ nth_error is j' = Some i'
-      )
+(*
+  2nd property of an SSA program, an instruction must be used only after its
+  first assignment, to enforce this we must first define the dominance
+  relation as a relation that is defined for every couple of instructions
+  (i, i') such that for every path from the entry to i' we find i.
+  Since there cannot exist two instructions that share the same virtual
+  register in our representation we only need to check recursively on the
+  predecessors of the basic block where i is situated for the existance of i'.
+*)
+
+Fixpoint is_path_of (path : list block) (p : program) : Prop :=
+  match path with
+  | nil => True
+  | x :: nil =>
+    (In x p)
+  | x :: (y :: ys) as L =>
+    (In x p)
+    /\ (In y (successors x))
+    /\ (is_path_of L p)
+  end
+.
+
+Fixpoint comes_before (b b' : block) (path : list block) : Prop :=
+  match path with
+  | nil => False
+  | x :: nil => False
+  | x :: xs =>
+    ((x = b) /\ (In b' xs))
+    \/ (comes_before b b' xs)
+  end
+.
+
+Definition dominates_block (b b' : block) (p : program) : Prop :=
+  forall (path : list block),
+    (is_path_of path p)
+    /\ (hd_error path) = Some b
+    /\ (last path b) = b'
+    /\ (forall (x : block), (In x path) -> (
+      comes_before b b' path
     )
   )
 .
-*)
 
-(*
-Example succ_example : (successors example_block_1) = (example_block_2 :: example_block_2 :: nil).
-Proof. simpl. reflexivity. Qed.
-Compute predecessors program_1 example_block_2.
-
-Example pred_example : (predecessors program_1 example_block_2) = (example_block_1 :: nil).
-Proof. simpl. reflexivity. Qed.
-
-
-TODO: Write down propositions (predicates) that enforce that a program is in
-SSA form
-TODO: Try with assembly instruction instead of definitions and expressions to
-avoid unnecessary nesting of data types
-
-*)
+Definition dominates_inst (i i' : inst) (p : program) : Prop :=
+  exists (b : block), (In b p) /\ exists i1 i2, (
+    (i1 < i2)
+    /\ (nth_error (insts b) i1 = Some i)
+    /\ (nth_error (insts b) i2 = Some i')
+  )
+  \/
+  exists (b b' : block), (
+    (dominates_block b b' p)
+    /\ (In i (insts b))
+    /\ (In i' (insts b'))
+  )
+.
