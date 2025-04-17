@@ -318,6 +318,7 @@ Definition successors (b : block) : list block :=
   end
 .
 
+(*
 Definition predecessor (b : block) (b' : block) : bool :=
   let (_, _, j) := b in
   match j with
@@ -333,11 +334,16 @@ Fixpoint predecessors (b : block) (p : program) : list block :=
   | b' :: bs => if predecessor b' b then b :: (predecessors b bs) else (predecessors b bs)
   end
 .
+*)
+
+Definition predecessor (b b' : block) (p : program) : Prop :=
+  In b' (successors b)
+.
 
 (*
   1st property of an SSA program, every instruction is assigned exactly once
 *)
-Definition single_assignment_program (p : program) : Prop :=
+Definition single_assignment_program_inst (p : program) : Prop :=
   forall (b b' : block) (i i' : inst),
     (In b p) /\ (In i (insts b)) /\ (In b' p) /\ (In i' (insts b')) -> (
       (inst_reg i = inst_reg i') -> (
@@ -351,6 +357,32 @@ Definition single_assignment_program (p : program) : Prop :=
     )
 .
 
+Definition single_assignment_program_phi (pr : program) : Prop :=
+  forall (b b' : block) (p p' : phi),
+    (In b pr) /\ (In p (phis b)) /\ (In b' pr) /\ (In p' (phis b')) -> (
+      (phi_reg p = phi_reg p') -> (
+        (b = b')
+        /\ (exists i1 i2,
+          (nth_error (phis b) i1 = Some p) /\
+          (nth_error (phis b) i2 = Some p') /\
+          (i1 = i2)
+        )
+      )
+    )
+.
+
+Definition single_assignment_program_phi_inst (pr : program) : Prop :=
+  forall (b b' : block) (p : phi) (i : inst),
+    (In b pr) /\ (In p (phis b)) /\ (In b' pr) /\ (In i (insts b'))
+    /\ ~ exists (r : reg), ((phi_reg p) = r) /\ ((inst_reg i) = Some r)
+.
+
+Definition single_assignment_program (p : program) : Prop :=
+  single_assignment_program_inst p
+  /\ single_assignment_program_phi p
+  /\ single_assignment_program_phi_inst p
+.
+
 (*
   If we know that no virtual register is assigned twice, we can say that:
   for every block, for every phi instruction, for every predecessor, there
@@ -362,7 +394,7 @@ Definition single_assignment_program (p : program) : Prop :=
 Definition well_formed_phis (p : program) : Prop :=
   forall (b : block), (In b p) -> (
     forall (ph : phi), (In ph (phis b)) -> (
-      forall (pr : block), (In pr (predecessors b p)) -> (
+      forall (pr : block), (predecessor pr b p) -> (
         exists (r : reg),
           (In r (phi_args ph))
           /\ (exists (r' : reg), (In r (phi_args ph)) -> r = r')
@@ -379,6 +411,8 @@ Definition well_formed_phis (p : program) : Prop :=
   Since there cannot exist two instructions that share the same virtual
   register in our representation we only need to check recursively on the
   predecessors of the basic block where i is situated for the existance of i'.
+  TODO: handle dominance relationship between all types of instructions (phis
+  and definitions)
 *)
 
 Fixpoint is_path_of (path : list block) (p : program) : Prop :=
@@ -393,13 +427,13 @@ Fixpoint is_path_of (path : list block) (p : program) : Prop :=
   end
 .
 
-Fixpoint comes_before (b b' : block) (path : list block) : Prop :=
+Fixpoint comes_before_in (b b' : block) (path : list block) : Prop :=
   match path with
   | nil => False
   | x :: nil => False
   | x :: xs =>
     ((x = b) /\ (In b' xs))
-    \/ (comes_before b b' xs)
+    \/ (comes_before_in b b' xs)
   end
 .
 
@@ -409,7 +443,7 @@ Definition dominates_block (b b' : block) (p : program) : Prop :=
     /\ (hd_error path) = Some b
     /\ (last path b) = b'
     /\ (forall (x : block), (In x path) -> (
-      comes_before b b' path
+      comes_before_in b b' path
     )
   )
 .
