@@ -406,11 +406,11 @@ Definition well_formed_phis (p : program) : Prop :=
 (*
   2nd property of an SSA program, an instruction must be used only after its
   first assignment, to enforce this we must first define the dominance
-  relation as a relation that is defined for every couple of instructions
-  (i, i') such that for every path from the entry to i' we find i.
-  Since there cannot exist two instructions that share the same virtual
-  register in our representation we only need to check recursively on the
-  predecessors of the basic block where i is situated for the existance of i'.
+  relation as the set of couple of instructions (i, i') such that for every
+  path from the entry to i' we find i. Since there cannot exist two
+  instructions that share the same virtual register in our representation we
+  only need to check recursively on the predecessors of the basic block where i
+  is situated for the existance of i'.
   TODO: handle dominance relationship between all types of instructions (phis
   and definitions)
 *)
@@ -430,20 +430,20 @@ Fixpoint is_path_of (path : list block) (p : program) : Prop :=
 Fixpoint comes_before_in (b b' : block) (path : list block) : Prop :=
   match path with
   | nil => False
-  | x :: nil => False
+  | x :: nil => (x = b) /\ (b = b')
   | x :: xs =>
-    ((x = b) /\ (In b' xs))
+    ((x = b) /\ (b = b'))
+    \/ ((x = b) /\ (In b' xs))
     \/ (comes_before_in b b' xs)
   end
 .
 
 Definition dominates_block (b b' : block) (p : program) : Prop :=
-  forall (path : list block),
-    (is_path_of path p)
-    /\ (hd_error path) = Some b
-    /\ (last path b) = b'
-    /\ (forall (x : block), (In x path) -> (
-      comes_before_in b b' path
+  forall (path : list block), (
+    (is_path_of path p) /\ (hd_error path) = Some b /\ (last path b) = b' -> (
+      forall (x : block), (In x path) -> (
+        comes_before_in b b' path
+      )
     )
   )
 .
@@ -471,3 +471,7 @@ Definition assignment_dominates_usage (p : program) : Prop :=
     )
   )
 .
+
+
+
+
