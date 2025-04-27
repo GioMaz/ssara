@@ -1,4 +1,4 @@
-Require Import Top.Syntax.
+Require Import Ssara.Syntax.
 Require Import Coq.Lists.List. 
 
 (*
@@ -6,36 +6,42 @@ Require Import Coq.Lists.List.
 *)
 Definition single_assignment_program_inst (p : program) : Prop :=
   forall (b b' : block) (i i' : inst),
-    (In b p) /\ (In i (insts b)) /\ (In b' p) /\ (In i' (insts b')) -> (
-      (inst_reg i = inst_reg i') -> (
-        (b = b')
-        /\ (exists i1 i2,
-          (nth_error (insts b) i1 = Some i) /\
-          (nth_error (insts b) i2 = Some i') /\
-          (i1 = i2)
+    match b, b' with
+    | Block _ is _, Block _ is' _ =>
+      (In b p) /\ (In i is) /\ (In b' p) /\ (In i' is') -> (
+        (inst_reg i = inst_reg i') -> (
+          (b = b')
+          /\ exists i1 i2, (
+            (nth_error is i1 = Some i) /\
+            (nth_error is' i2 = Some i') /\
+            (i1 = i2)
+          )
         )
       )
-    )
+   end
 .
 
 Definition single_assignment_program_phi (pr : program) : Prop :=
   forall (b b' : block) (p p' : phi),
-    (In b pr) /\ (In p (phis b)) /\ (In b' pr) /\ (In p' (phis b')) -> (
-      (phi_reg p = phi_reg p') -> (
-        (b = b')
-        /\ (exists i1 i2,
-          (nth_error (phis b) i1 = Some p) /\
-          (nth_error (phis b) i2 = Some p') /\
-          (i1 = i2)
+    match b, b' with
+    | Block ps _ _, Block ps' _ _ =>
+      (In b pr) /\ (In p ps) /\ (In b' pr) /\ (In p' ps') -> (
+        (phi_reg p = phi_reg p') -> (
+          (b = b')
+          /\ exists i1 i2, (
+            (nth_error ps) i1 = Some p /\
+            (nth_error ps') i2 = Some p' /\
+            (i1 = i2)
+          )
         )
       )
-    )
+    end
 .
 
 Definition single_assignment_program_phi_inst (pr : program) : Prop :=
   forall (b b' : block) (p : phi) (i : inst),
     (In b pr) /\ (In p (phis b)) /\ (In b' pr) /\ (In i (insts b')) -> (
-      ~ exists (r : reg), ((phi_reg p) = r) /\ ((inst_reg i) = Some r)
+      Some (phi_reg p) <> (inst_reg i)
     )
 .
 
