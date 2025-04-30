@@ -77,9 +77,9 @@ Inductive phi : Type :=
 Notation "'r(' x ) <- 'phi' y" :=
   (Phi x y) (at level 50).
 
-Definition phi_reg (p : phi) : reg :=
+Definition phi_reg (p : phi) : option reg :=
   match p with
-  | Phi r _ => r
+  | Phi r _ => Some r
   end
 .
 
@@ -207,16 +207,6 @@ Definition jinst_args (j : jinst) : option reg :=
   end
 .
 
-(*
-  Block instruction, represents all the possible instructions that we could
-  find inside a basic block
-*)
-Inductive binst : Type :=
-  | Bphi (p : phi)
-  | Binst (i : inst)
-  | Bjinst (j : jinst)
-.
-
 Definition phis (b : block) : list phi :=
   let (ps, _, _) := b in ps
 .
@@ -246,10 +236,21 @@ with eq_block (b1 : block) (b2 : block) : bool :=
   end
 .
 
+(* The first block is the *)
 Definition program : Type := list block
 .
 
-Definition entry (p : program) : option binst :=
+(*
+  Block instruction, represents all the possible instructions that could be
+  found inside a basic block
+*)
+Inductive binst : Type :=
+  | Bphi (p : phi)
+  | Binst (i : inst)
+  | Bjinst (j : jinst)
+.
+
+Definition start (p : program) : option binst :=
   match p with
   | nil => None
   | b :: _ =>
