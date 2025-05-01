@@ -1,9 +1,9 @@
 Require Import ZArith.
 Require Import Coq.Lists.List.
 
-Definition reg := nat.
-Definition ptr := nat.
 Definition lbl := nat.
+Definition ptr := nat.
+Definition reg := nat.
 
 (*
   This represents a value that can either be an immediate number `x` or the

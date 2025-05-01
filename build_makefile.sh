@@ -2,4 +2,4 @@
 
 set -xe
 
-coq_makefile -Q . Ssara *.v -o Makefile
+coq_makefile -f _CoqProject -o Makefile
