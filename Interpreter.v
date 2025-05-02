@@ -49,9 +49,11 @@ Definition get_cell (m : vm) (i : nat) : cell :=
 .
 
 Fixpoint set_cell_aux (cells : list cell) (i : nat) (c : cell) : list cell :=
-  match cells with
-  | nil => List.repeat Z0 (i+1)
-  | x :: xs => if i =? 0 then c :: xs else x :: (set_cell_aux xs (i-1) c)
+  match cells, i with
+  | nil, 0 => c :: nil
+  | nil, S i' => Z0 :: (set_cell_aux nil i' c)
+  | _ :: xs, 0 => c :: xs
+  | x :: xs, S i' => x :: (set_cell_aux xs i' c)
   end
 .
 
@@ -186,17 +188,13 @@ Fixpoint run_aux (m : vm) (b : block) : vm :=
   | Block _ is j =>
     let m' := run_insts m is in
     match j with
-
     | Jnz r b1 b2 =>
       if Z.eqb (get_reg m' r) 0 then
         run_aux (run_phis m' b (phis b1)) b1
       else
         run_aux (run_phis m' b (phis b2)) b2
-
     | Jmp b1 => run_aux (run_phis m' b (phis b1)) b1
-
     | Halt => m'
-
     end
   end
 .
@@ -217,11 +215,9 @@ Definition example_block : block :=
     (r(2) <- (Imm 34)) ::
     (r(3) <- r(2) * (Imm 2)) ::
     (r(4) <- r(3) + (Imm 1)) ::
-    (store (Ptr 0) r(4)) ::
-    (*
+    (store (Ptr 5) r(4)) ::
     (r(5) <- load (Ptr 0)) ::
     (r(6) <- r(4) < (Imm 420)) ::
-    *)
     nil
   ) (
     Halt
@@ -232,4 +228,4 @@ Definition example_vm : vm :=
   Vm nil nil
 .
 
-Compute run example_vm (example_block :: nil).
+Compute run_aux example_vm example_block.
