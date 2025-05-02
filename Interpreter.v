@@ -1,6 +1,7 @@
 Require Import Ssara.Syntax.
 Require Import Coq.Lists.List.
 Require Import ZArith.
+Require Import Ssara.SSA.
 
 Definition cell : Type := Z.
 
@@ -149,6 +150,11 @@ Definition defines (b : block) (r : reg) : bool :=
     defines_aux phi_reg ps r || defines_aux inst_reg is r
   end
 .
+
+Example defines_soundness_completeness :
+  forall (b : block) (r : reg), defines b r = true <-> SSA.defines b r.
+Admitted.
+    
 
 Fixpoint run_phi (m : vm) (pred : block) (r : reg) (rs : list reg) : vm :=
   match rs with
