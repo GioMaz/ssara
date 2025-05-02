@@ -3,6 +3,8 @@ Require Import Coq.Lists.List.
 Require Import ZArith.
 Require Import Ssara.SSA.
 
+(* Virtual machine primitives *)
+
 Definition cell : Type := Z.
 
 Inductive vm : Type :=
@@ -63,6 +65,8 @@ Definition set_cell (m : vm) (i : nat) (c : cell) : vm :=
   end
 .
 
+(* Inst semantics *)
+
 Definition eval_binop (m : vm) (op : Z -> Z -> Z) (r : reg) (v : val) : cell :=
   match v with
   | Imm i => op (get_reg m r) i
@@ -109,8 +113,6 @@ Definition eval_expr (m : vm) (e : expr) : cell :=
   end
 .
 
-(* INST SEMANTICS *)
-
 Definition run_inst (m : vm) (i : inst) : vm :=
   match i with
   | Def r e => set_reg m r (eval_expr m e)
@@ -130,7 +132,7 @@ Fixpoint run_insts (m : vm) (is : list inst) : vm :=
   end
 .
 
-(* PHI SEMANTICS *)
+(* Phi semantics *)
 
 Definition option_eqb {A : Type} (eqb : A -> A -> bool) (x y : option A) : bool :=
   match x, y with
@@ -176,8 +178,6 @@ Fixpoint run_phis (m : vm) (pred : block) (ps : list phi) : vm :=
   end
 .
 
-(* BLOCK SEMANTICS *)
-
 (*
 Since the entry block has no predecessors the order of evaluation of
 instruction between two blocks b and b' is (instructions of b) (jump
@@ -206,7 +206,7 @@ Definition run (m : vm) (p : program) : vm :=
   end
 .
 
-(* EXAMPLE EXECUTION *)
+(* Example 1 *)
 
 Definition example_block : block :=
   Block (
@@ -229,3 +229,23 @@ Definition example_vm : vm :=
 .
 
 Compute run_aux example_vm example_block.
+
+(* Example 2 *)
+
+Fixpoint example_block_1 (fuel : nat) : block := 
+  match fuel with 
+  | O => Block nil nil Halt
+  | S f => Block nil nil (Jmp (example_block_2 f))
+  end
+  with example_block_2 (fuel : nat) : block :=
+  match fuel with 
+  | O => Block nil nil Halt
+  | S f => Block nil nil (Jmp (example_block_1 f))
+  end
+.
+
+Definition example_vm_1 : vm :=
+  Vm nil nil
+.
+
+Compute run_aux example_vm_1 (example_block_1 10).

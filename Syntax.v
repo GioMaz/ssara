@@ -282,36 +282,6 @@ and external jumps (unknown basic blocks that will be linked later)
 
 *)
 
-Definition example_block_2 : block :=
-  Block (
-    nil
-  ) (
-    nil
-  ) (
-    Halt
-  )
-.
-
-Definition example_block_1 : block :=
-  Block (
-    r(0) <- phi (1 :: 2 :: nil) ::
-    r(1) <- phi (1 :: 2 :: nil) ::
-    nil
-  ) (
-    (r(2) <- (Imm 34)) ::
-    (r(3) <- r(2) * (Imm 2)) ::
-    (r(4) <- r(3) + (Imm 1)) ::
-    (store (Ptr 0) r(4)) ::
-    (r(5) <- load (Ptr 0)) ::
-    (r(6) <- r(4) < (Imm 420)) ::
-    nil
-  ) (
-    Jnz 6 example_block_2 example_block_2
-  )
-.
-
-Definition program_1 := example_block_1 :: example_block_2 :: nil.
-
 Definition successors (b : block) : list block :=
   let (_, _, j) := b in
   match j with
