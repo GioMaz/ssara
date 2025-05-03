@@ -216,7 +216,7 @@ Definition example_block : block :=
     (r(3) <- r(2) * (Imm 2)) ::
     (r(4) <- r(3) + (Imm 1)) ::
     (store (Ptr 5) r(4)) ::
-    (r(5) <- load (Ptr 0)) ::
+    (r(5) <- load (Ptr 5)) ::
     (r(6) <- r(4) < (Imm 420)) ::
     nil
   ) (
@@ -225,6 +225,15 @@ Definition example_block : block :=
 .
 
 Compute run_aux (Vm nil nil) example_block.
+Example run_example_1 :
+  run_aux (Vm nil nil) example_block =
+    Vm ((2, 34%Z) :: (3, 68%Z) :: (4, 69%Z) :: (5, 69%Z) :: (6, 1%Z) :: nil)
+    (0%Z :: 0%Z :: 0%Z :: 0%Z :: 0%Z :: 69%Z :: nil)
+.
+Proof.
+  simpl.
+  reflexivity.
+Qed.
 
 (* Example 2 *)
 
@@ -240,7 +249,11 @@ Fixpoint example_block_1 (fuel : nat) : block :=
   end
 .
 
-Compute run_aux (Vm nil nil) (example_block_1 10).
+Example run_example_2 : run_aux (Vm nil nil) (example_block_1 10) = (Vm nil nil).
+Proof.
+  simpl.
+  reflexivity.
+Qed.
 
 (* Example 3 *)
 
@@ -277,8 +290,6 @@ Definition example_block_5 : block :=
     Jmp example_block_3
   )
 .
-
-Compute run (Vm nil nil) (example_block_4 :: example_block_5 :: example_block_3 :: nil).
 
 Example phi_from_predecessor_1 :
   run (Vm nil nil) (example_block_4 :: example_block_5 :: example_block_3 :: nil)
