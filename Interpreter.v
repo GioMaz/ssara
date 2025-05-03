@@ -27,7 +27,7 @@ Definition get_reg (m : vm) (r : reg) : cell :=
 Fixpoint set_reg_aux (regs : list (reg * cell)) (r : reg) (c : cell) : list (reg * cell) :=
   match regs with
   | nil => (r, c) :: nil
-  | (r', c') :: rs => if r =? r' then (r, c)::rs else (r', c') :: (set_reg_aux rs r c)
+  | (r', c') :: rs => if r =? r' then (r, c) :: rs else (r', c') :: (set_reg_aux rs r c)
   end
 .
 
@@ -38,9 +38,10 @@ Definition set_reg (m : vm) (r : reg) (c : cell) : vm :=
 .
 
 Fixpoint get_cell_aux (cells : list cell) (i : nat) : cell :=
-  match cells with
-  | nil => Z0
-  | c :: cs => if i =? 0 then c else get_cell_aux cs (i-1)
+  match cells, i with
+  | nil, _ => Z0
+  | c :: _, O => c
+  | _ :: cs, S i' => get_cell_aux cs i'
   end
 .
 
@@ -52,9 +53,9 @@ Definition get_cell (m : vm) (i : nat) : cell :=
 
 Fixpoint set_cell_aux (cells : list cell) (i : nat) (c : cell) : list cell :=
   match cells, i with
-  | nil, 0 => c :: nil
+  | nil, O => c :: nil
   | nil, S i' => Z0 :: (set_cell_aux nil i' c)
-  | _ :: xs, 0 => c :: xs
+  | _ :: xs, O => c :: xs
   | x :: xs, S i' => x :: (set_cell_aux xs i' c)
   end
 .
@@ -158,7 +159,6 @@ Definition defines (b : block) (r : reg) : bool :=
 Example defines_soundness_completeness :
   forall (b : block) (r : reg), defines b r = true <-> SSA.defines b r.
 Admitted.
-    
 
 Fixpoint run_phi (m : vm) (pred : block) (r : reg) (rs : list reg) : vm :=
   match rs with
@@ -231,8 +231,7 @@ Example run_example_1 :
     (0%Z :: 0%Z :: 0%Z :: 0%Z :: 0%Z :: 69%Z :: nil)
 .
 Proof.
-  simpl.
-  reflexivity.
+  simpl. reflexivity.
 Qed.
 
 (* Example 2 *)
@@ -251,8 +250,7 @@ Fixpoint example_block_1 (fuel : nat) : block :=
 
 Example run_example_2 : run_aux (Vm nil nil) (example_block_1 10) = (Vm nil nil).
 Proof.
-  simpl.
-  reflexivity.
+  simpl. reflexivity.
 Qed.
 
 (* Example 3 *)
@@ -296,8 +294,7 @@ Example phi_from_predecessor_1 :
   = Vm ((0, 34%Z) :: (2, 34%Z) :: nil) (34%Z :: nil)
 .
 Proof.
-  simpl.
-  reflexivity.
+  simpl. reflexivity.
 Qed.
 
 Example phi_from_predecessor_2 :
@@ -305,6 +302,5 @@ Example phi_from_predecessor_2 :
   = Vm ((1, 35%Z) :: (2, 35%Z) :: nil) (35%Z :: nil)
 .
 Proof.
-  simpl.
-  reflexivity.
+  simpl.  reflexivity.
 Qed.
