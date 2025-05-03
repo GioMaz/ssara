@@ -224,11 +224,7 @@ Definition example_block : block :=
   )
 .
 
-Definition example_vm : vm :=
-  Vm nil nil
-.
-
-Compute run_aux example_vm example_block.
+Compute run_aux (Vm nil nil) example_block.
 
 (* Example 2 *)
 
@@ -244,8 +240,60 @@ Fixpoint example_block_1 (fuel : nat) : block :=
   end
 .
 
-Definition example_vm_1 : vm :=
-  Vm nil nil
+Compute run_aux (Vm nil nil) (example_block_1 10).
+
+(* Example 3 *)
+
+Definition example_block_3 : block :=
+  Block (
+    (r(2) <- phi (0 :: 1 :: nil)) ::
+    nil
+  ) (
+    (store (Ptr 0) r(2)) ::
+    nil
+  ) (
+    Halt
+  )
 .
 
-Compute run_aux example_vm_1 (example_block_1 10).
+Definition example_block_4 : block :=
+  Block (
+    nil
+  ) (
+    (r(0) <- (Imm 34)) ::
+    nil
+  ) (
+    Jmp example_block_3
+  )
+.
+
+Definition example_block_5 : block :=
+  Block (
+    nil
+  ) (
+    (r(1) <- (Imm 35)) ::
+    nil
+  ) (
+    Jmp example_block_3
+  )
+.
+
+Compute run (Vm nil nil) (example_block_4 :: example_block_5 :: example_block_3 :: nil).
+
+Example phi_from_predecessor_1 :
+  run (Vm nil nil) (example_block_4 :: example_block_5 :: example_block_3 :: nil)
+  = Vm ((0, 34%Z) :: (2, 34%Z) :: nil) (34%Z :: nil)
+.
+Proof.
+  simpl.
+  reflexivity.
+Qed.
+
+Example phi_from_predecessor_2 :
+  run (Vm nil nil) (example_block_5 :: example_block_4 :: example_block_3 :: nil)
+  = Vm ((1, 35%Z) :: (2, 35%Z) :: nil) (35%Z :: nil)
+.
+Proof.
+  simpl.
+  reflexivity.
+Qed.
