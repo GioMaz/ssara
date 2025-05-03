@@ -37,6 +37,16 @@ Definition set_reg (m : vm) (r : reg) (c : cell) : vm :=
   end
 .
 
+From QuickChick Require Import QuickChick.
+Require Import Bool.
+
+Definition set_reg_P (r : reg) (c : Z) : bool :=
+  let (regs, _) := (set_reg (Vm nil nil) r c) in
+  existsb (fun '(r', c') => Nat.eqb r r' && Z.eqb c c') regs
+.
+
+QuickChick set_reg_P.
+
 Fixpoint get_cell_aux (cells : list cell) (i : nat) : cell :=
   match cells, i with
   | nil, _ => Z0
@@ -65,6 +75,16 @@ Definition set_cell (m : vm) (i : nat) (c : cell) : vm :=
   | Vm regs cells => Vm regs (set_cell_aux cells i c)
   end
 .
+
+Definition set_cell_P (i : nat) (c : cell) : bool :=
+  let (_, cells) := (set_cell (Vm nil nil) i c) in
+  match nth_error cells i with
+  | Some c' => Z.eqb c c'
+  | _ => false
+  end
+.
+
+QuickChick set_reg_P.
 
 (* Inst semantics *)
 
@@ -156,7 +176,7 @@ Definition defines (b : block) (r : reg) : bool :=
   end
 .
 
-Example defines_soundness_completeness :
+Example defines_sound_complete :
   forall (b : block) (r : reg), defines b r = true <-> SSA.defines b r.
 Admitted.
 
@@ -302,5 +322,5 @@ Example phi_from_predecessor_2 :
   = Vm ((1, 35%Z) :: (2, 35%Z) :: nil) (35%Z :: nil)
 .
 Proof.
-  simpl.  reflexivity.
+  simpl. reflexivity.
 Qed.
