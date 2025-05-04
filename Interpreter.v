@@ -324,3 +324,20 @@ Example phi_from_predecessor_2 :
 Proof.
   simpl. reflexivity.
 Qed.
+
+(* Tests *)
+
+(*
+Check whether after a store the ith cell actually contains the intended value
+*)
+Definition store_P (i : nat) (c : cell) : bool :=
+  let m := Vm nil nil in
+  let p := (Block nil ((r(0) <- (Imm c)) :: (store (Ptr i) r(0)) :: nil) Halt) :: nil in
+  let (_, cells) := run m p in
+  match nth_error cells i with
+  | Some c' => Z.eqb c c'
+  | _ => false
+  end
+.
+
+QuickChick store_P.
