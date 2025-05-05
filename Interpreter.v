@@ -124,14 +124,14 @@ Definition eval_expr (m : vm) (e : expr) : cell :=
   | Syntax.Mul r v => eval_binop m Z.mul r v
   | Syntax.Div r v => eval_binop m Z.div r v
 
-  | CmpLt r v => eval_binop m (fun a b => if Z.ltb a b then 1%Z else 0%Z) r v
-  | CmpLe r v => eval_binop m (fun a b => if Z.leb a b then 1%Z else 0%Z) r v
-  | CmpGt r v => eval_binop m (fun a b => if Z.gtb a b then 1%Z else 0%Z) r v
-  | CmpGe r v => eval_binop m (fun a b => if Z.geb a b then 1%Z else 0%Z) r v
-  | CmpEq r v => eval_binop m (fun a b => if Z.eqb a b then 1%Z else 0%Z) r v
-  | CmpNe r v => eval_binop m (fun a b => if Z.eqb a b then 0%Z else 1%Z) r v
+  | CmpLt r v => eval_binop m (fun a b => if Z.ltb a b then 1 else 0) r v
+  | CmpLe r v => eval_binop m (fun a b => if Z.leb a b then 1 else 0) r v
+  | CmpGt r v => eval_binop m (fun a b => if Z.gtb a b then 1 else 0) r v
+  | CmpGe r v => eval_binop m (fun a b => if Z.geb a b then 1 else 0) r v
+  | CmpEq r v => eval_binop m (fun a b => if Z.eqb a b then 1 else 0) r v
+  | CmpNe r v => eval_binop m (fun a b => if Z.eqb a b then 0 else 1) r v
 
-  end
+  end%Z
 .
 
 Definition run_inst (m : vm) (i : inst) : vm :=
@@ -182,7 +182,7 @@ Admitted.
 
 Fixpoint run_phi (m : vm) (pred : block) (r : reg) (rs : list reg) : vm :=
   match rs with
-  | nil => m (* UNEXPECTED *)
+  | nil => m
   | x :: xs =>
     if defines pred x then
       set_reg m r (get_reg m x)
@@ -203,26 +203,27 @@ Since the entry block has no predecessors the order of evaluation of
 instruction between two blocks b and b' is (instructions of b) (jump
 instruction of b) (phi instructions of b')
 *)
-Fixpoint run_aux (m : vm) (b : block) : vm :=
-  match b with
-  | Block _ is j =>
+Fixpoint run_aux (m : vm) (b : block) (fuel : nat) : vm :=
+  match b, fuel with
+  | _, O => m
+  | Block _ is j, S fuel'  =>
     let m' := run_insts m is in
     match j with
     | Jnz r b1 b2 =>
       if Z.eqb (get_reg m' r) 0 then
-        run_aux (run_phis m' b (phis b1)) b1
+        run_aux (run_phis m' b (phis b1)) b1 fuel'
       else
-        run_aux (run_phis m' b (phis b2)) b2
-    | Jmp b1 => run_aux (run_phis m' b (phis b1)) b1
+        run_aux (run_phis m' b (phis b2)) b2 fuel'
+    | Jmp b1 => run_aux (run_phis m' b (phis b1)) b1 fuel'
     | Halt => m'
     end
   end
 .
 
-Definition run (m : vm) (p : program) : vm :=
+Definition run (m : vm) (p : program) (fuel : nat) : vm :=
   match p with
   | nil => m
-  | b :: _ => run_aux m b
+  | b :: _ => run_aux m b fuel
   end
 .
 
@@ -244,33 +245,26 @@ Definition example_block : block :=
   )
 .
 
-Compute run_aux (Vm nil nil) example_block.
 Example run_example_1 :
-  run_aux (Vm nil nil) example_block =
+  run_aux (Vm nil nil) example_block 10 =
     Vm ((2, 34%Z) :: (3, 68%Z) :: (4, 69%Z) :: (5, 69%Z) :: (6, 1%Z) :: nil)
     (0%Z :: 0%Z :: 0%Z :: 0%Z :: 0%Z :: 69%Z :: nil)
 .
 Proof.
-  simpl. reflexivity.
+  reflexivity.
 Qed.
 
 (* Example 2 *)
 
-Fixpoint example_block_1 (fuel : nat) : block := 
-  match fuel with 
-  | O => Block nil nil Halt
-  | S f => Block nil nil (Jmp (example_block_2 f))
-  end
-  with example_block_2 (fuel : nat) : block :=
-  match fuel with 
-  | O => Block nil nil Halt
-  | S f => Block nil nil (Jmp (example_block_1 f))
-  end
+CoFixpoint example_block_1 :=
+  Block nil nil (Jmp example_block_m)
+with example_block_m :=
+  Block nil nil (Jmp (example_block_1))
 .
 
-Example run_example_2 : run_aux (Vm nil nil) (example_block_1 10) = (Vm nil nil).
+Example run_example_2 : run_aux (Vm nil nil) example_block_1 10 = (Vm nil nil).
 Proof.
-  simpl. reflexivity.
+  reflexivity.
 Qed.
 
 (* Example 3 *)
@@ -310,19 +304,19 @@ Definition example_block_5 : block :=
 .
 
 Example phi_from_predecessor_1 :
-  run (Vm nil nil) (example_block_4 :: example_block_5 :: example_block_3 :: nil)
+  run (Vm nil nil) (example_block_4 :: example_block_5 :: example_block_3 :: nil) 10
   = Vm ((0, 34%Z) :: (2, 34%Z) :: nil) (34%Z :: nil)
 .
 Proof.
-  simpl. reflexivity.
+  reflexivity.
 Qed.
 
 Example phi_from_predecessor_2 :
-  run (Vm nil nil) (example_block_5 :: example_block_4 :: example_block_3 :: nil)
+  run (Vm nil nil) (example_block_5 :: example_block_4 :: example_block_3 :: nil) 10
   = Vm ((1, 35%Z) :: (2, 35%Z) :: nil) (35%Z :: nil)
 .
 Proof.
-  simpl. reflexivity.
+  reflexivity.
 Qed.
 
 (* Tests *)
@@ -333,7 +327,7 @@ Check whether after a store the ith cell actually contains the intended value
 Definition store_P (i : nat) (c : cell) : bool :=
   let m := Vm nil nil in
   let p := (Block nil ((r(0) <- (Imm c)) :: (store (Ptr i) r(0)) :: nil) Halt) :: nil in
-  let (_, cells) := run m p in
+  let (_, cells) := run m p 10 in
   match nth_error cells i with
   | Some c' => Z.eqb c c'
   | _ => false
@@ -341,3 +335,41 @@ Definition store_P (i : nat) (c : cell) : bool :=
 .
 
 QuickChick store_P.
+
+(*
+  - Extraction pipeline
+  - Look into QuickChick more
+  - Look into CoInductives
+  - Liveness analysis
+*)
+
+(*
+Inductive Tree {A : Type} :=
+| Leaf : A -> Tree
+| Node : A -> Tree -> Tree -> Tree.
+
+Compute liftGen3.
+
+Import QcDefaultNotation. Open Scope qc_scope.
+
+
+Fail Fixpoint genTree {A} (g : G A) : G Tree :=
+  oneOf [liftGen Leaf g; liftGen3 Node g (genTree g) (genTree g)]
+.
+
+(*
+  The previous fixpoint cannot guess the decreasing argument.
+  This would be correct if coq could prove the termination of
+  the generation of the tree, we need to use fuel.
+*)
+
+Fixpoint genTreeFuel {A} (fuel : nat) (g : G A) : G Tree :=
+  match fuel with
+  | O => liftGen Leaf g
+  | S fuel' => oneOf [
+    liftGen Leaf g;
+    liftGen3 Node g (genTreeFuel fuel' g) (genTreeFuel fuel' g)
+  ]
+  end
+.
+*)

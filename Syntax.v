@@ -190,7 +190,7 @@ Fixpoint eq_list_inst (i1 i2 : list inst) : bool :=
   end
 .
 
-Inductive block : Type :=
+CoInductive block : Type :=
   | Block (ps : list phi) (is : list inst) (j : jinst)
 
 with jinst : Type :=
@@ -219,6 +219,7 @@ Definition jinsts (b : block) : jinst :=
   let (_, _, j) := b in j
 .
 
+(*
 Fixpoint eq_jinst (j1 j2 : jinst) : bool :=
   match j1, j2 with
   | Jnz r b1 b2, Jnz r' b1' b2' => (Nat.eqb r r') && (eq_block b1 b1') && (eq_block b2 b2')
@@ -235,6 +236,7 @@ with eq_block (b1 : block) (b2 : block) : bool :=
     && (eq_jinst j1 j2)
   end
 .
+*)
 
 (* The first block is the *)
 Definition program : Type := list block

@@ -163,11 +163,3 @@ Definition strict (p : program) : Prop :=
     end
   )
 .
-
-(*
-
-- Generics
-- QuickChick
-- Interpreter and then extraction
-
-*)
