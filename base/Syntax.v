@@ -1,5 +1,5 @@
-Require Import ZArith.
-Require Import Coq.Lists.List.
+From Stdlib Require Import ZArith.
+From Stdlib Require Import Lists.List.
 
 Definition lbl := nat.
 Definition ptr := nat.
@@ -238,7 +238,7 @@ with eq_block (b1 : block) (b2 : block) : bool :=
 .
 *)
 
-(* The first block is the *)
+(* The starting block is the first block of the list *)
 Definition program : Type := list block
 .
 

@@ -1,7 +1,7 @@
-Require Import Ssara.Syntax.
-Require Import Coq.Lists.List.
-Require Import ZArith.
-Require Import Ssara.SSA.
+Require Import Ssara.Base.Syntax.
+Require Import Ssara.Base.SSA.
+From Stdlib Require Import Lists.List.
+From Stdlib Require Import ZArith.
 
 (* Virtual machine primitives *)
 
@@ -38,7 +38,7 @@ Definition set_reg (m : vm) (r : reg) (c : cell) : vm :=
 .
 
 From QuickChick Require Import QuickChick.
-Require Import Bool.
+From Stdlib Require Import Bool.
 
 Definition set_reg_P (r : reg) (c : Z) : bool :=
   let (regs, _) := (set_reg (Vm nil nil) r c) in
@@ -246,7 +246,7 @@ Definition example_block : block :=
 .
 
 Example run_example_1 :
-  run_aux (Vm nil nil) example_block 10 =
+  run_aux (Vm nil nil) example_block 1 =
     Vm ((2, 34%Z) :: (3, 68%Z) :: (4, 69%Z) :: (5, 69%Z) :: (6, 1%Z) :: nil)
     (0%Z :: 0%Z :: 0%Z :: 0%Z :: 0%Z :: 69%Z :: nil)
 .
@@ -257,12 +257,12 @@ Qed.
 (* Example 2 *)
 
 CoFixpoint example_block_1 :=
-  Block nil nil (Jmp example_block_m)
-with example_block_m :=
+  Block nil nil (Jmp example_block_2)
+with example_block_2 :=
   Block nil nil (Jmp (example_block_1))
 .
 
-Example run_example_2 : run_aux (Vm nil nil) example_block_1 10 = (Vm nil nil).
+Example run_example_2 : run_aux (Vm nil nil) example_block_1 1000 = (Vm nil nil).
 Proof.
   reflexivity.
 Qed.
@@ -303,7 +303,7 @@ Definition example_block_5 : block :=
   )
 .
 
-Example phi_from_predecessor_1 :
+Example run_example_3_1 :
   run (Vm nil nil) (example_block_4 :: example_block_5 :: example_block_3 :: nil) 10
   = Vm ((0, 34%Z) :: (2, 34%Z) :: nil) (34%Z :: nil)
 .
@@ -311,7 +311,7 @@ Proof.
   reflexivity.
 Qed.
 
-Example phi_from_predecessor_2 :
+Example run_example_3_2 :
   run (Vm nil nil) (example_block_5 :: example_block_4 :: example_block_3 :: nil) 10
   = Vm ((1, 35%Z) :: (2, 35%Z) :: nil) (35%Z :: nil)
 .

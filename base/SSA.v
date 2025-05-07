@@ -1,5 +1,5 @@
-Require Import Ssara.Syntax.
-Require Import Coq.Lists.List.
+Require Import Ssara.Base.Syntax.
+From Stdlib Require Import Lists.List.
 
 (*
   1st property of an SSA program, every instruction is assigned exactly once
