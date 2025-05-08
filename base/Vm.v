@@ -37,16 +37,6 @@ Definition set_reg (m : vm) (r : reg) (c : cell) : vm :=
   end
 .
 
-From QuickChick Require Import QuickChick.
-From Stdlib Require Import Bool.
-
-Definition set_reg_P (r : reg) (c : Z) : bool :=
-  let (regs, _) := (set_reg (Vm nil nil) r c) in
-  existsb (fun '(r', c') => Nat.eqb r r' && Z.eqb c c') regs
-.
-
-QuickChick set_reg_P.
-
 Fixpoint get_cell_aux (cells : list cell) (i : nat) : cell :=
   match cells, i with
   | nil, _ => Z0
@@ -75,16 +65,6 @@ Definition set_cell (m : vm) (i : nat) (c : cell) : vm :=
   | Vm regs cells => Vm regs (set_cell_aux cells i c)
   end
 .
-
-Definition set_cell_P (i : nat) (c : cell) : bool :=
-  let (_, cells) := (set_cell (Vm nil nil) i c) in
-  match nth_error cells i with
-  | Some c' => Z.eqb c c'
-  | _ => false
-  end
-.
-
-QuickChick set_reg_P.
 
 (* Inst semantics *)
 
@@ -319,23 +299,6 @@ Proof.
   reflexivity.
 Qed.
 
-(* Tests *)
-
-(*
-Check whether after a store the ith cell actually contains the intended value
-*)
-Definition store_P (i : nat) (c : cell) : bool :=
-  let m := Vm nil nil in
-  let p := (Block nil ((r(0) <- (Imm c)) :: (store (Ptr i) r(0)) :: nil) Halt) :: nil in
-  let (_, cells) := run m p 10 in
-  match nth_error cells i with
-  | Some c' => Z.eqb c c'
-  | _ => false
-  end
-.
-
-QuickChick store_P.
-
 (*
   - Extraction pipeline
   - Look into QuickChick more
@@ -351,7 +314,6 @@ Inductive Tree {A : Type} :=
 Compute liftGen3.
 
 Import QcDefaultNotation. Open Scope qc_scope.
-
 
 Fail Fixpoint genTree {A} (g : G A) : G Tree :=
   oneOf [liftGen Leaf g; liftGen3 Node g (genTree g) (genTree g)]

@@ -1,0 +1,5 @@
+(coq.theory
+  (name Ssara.Test)
+  (theories Stdlib Ssara.Base QuickChick ExtLib mathcomp HB elpi elpi_elpi SimpleIO)
+  (plugins coq-quickchick.plugin)
+)

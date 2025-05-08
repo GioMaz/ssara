@@ -1,0 +1,9 @@
+(coq.extraction
+  (prelude Extract)
+  (extracted_modules run)
+  (theories Stdlib Ssara.Base)
+)
+
+(executable
+  (name main)
+)

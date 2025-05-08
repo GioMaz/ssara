@@ -6,6 +6,4 @@
 *.glob
 *.conf
 .vscode
-CoqMakefile
-CoqMakefile.conf
-extracted_code/
+_build

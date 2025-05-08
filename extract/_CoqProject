@@ -1,7 +1,0 @@
--Q . Ssara.Extract
-
--R ../base Ssara.Base
-
-Extract.v
-
--arg "-output-dir ./extracted_code/"
