@@ -1,4 +1,4 @@
-Require Import Ssara.Base.Syntax.
+From Ssara.Core Require Import Syntax.
 From Stdlib Require Import Lists.List.
 
 (*

@@ -1,4 +1,4 @@
 (coq.theory
-  (name Ssara.Base)
+  (name Ssara.Core)
   (theories Stdlib)
 )

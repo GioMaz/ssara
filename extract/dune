@@ -1,7 +1,7 @@
 (coq.extraction
   (prelude Extract)
   (extracted_modules run)
-  (theories Stdlib Ssara.Base)
+  (theories Stdlib Ssara.Core)
 )
 
 (executable

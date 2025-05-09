@@ -7,3 +7,5 @@
 *.conf
 .vscode
 _build
+run.ml
+run.mli

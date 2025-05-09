@@ -1,0 +1,3 @@
+-Q _build/default/core Ssara.Core
+-Q _build/default/extract Ssara.Extract
+-Q _build/default/test Ssara.Test

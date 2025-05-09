@@ -1,5 +1,5 @@
-Require Import Ssara.Base.Vm.
-Require Import Ssara.Base.Syntax.
+Require Import Ssara.Core.Syntax.
+Require Import Ssara.Core.Vm.
 From Stdlib Require Import Lists.List.
 From Stdlib Require Import ZArith.
 From Stdlib Require Import Bool.

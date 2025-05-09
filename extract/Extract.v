@@ -1,4 +1,4 @@
-Require Import Ssara.Base.Vm.
+Require Import Ssara.Core.Vm.
 
 Require Extraction.
 Extraction Language OCaml.

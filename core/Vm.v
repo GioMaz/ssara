@@ -1,5 +1,5 @@
-Require Import Ssara.Base.Syntax.
-Require Import Ssara.Base.SSA.
+From Ssara.Core Require Import Syntax.
+From Ssara.Core Require Import SSA.
 From Stdlib Require Import Lists.List.
 From Stdlib Require Import ZArith.
 
