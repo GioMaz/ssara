@@ -1,5 +1,6 @@
 From Stdlib Require Import ZArith.
 From Stdlib Require Import Lists.List.
+Import ListNotations.
 
 Definition lbl := nat.
 Definition ptr := nat.
@@ -151,26 +152,30 @@ Definition inst_reg (i : inst) : option reg :=
 .
 
 Definition inst_args (i : inst) : list reg :=
+  let reg_or_nil (v : val) : list reg :=
+    match v with
+    | Reg r => [r]
+    | _ => []
+    end
+  in
   match i with
   | Def x y =>
     match y with
-    | Val (Reg r) => r :: nil
-    | Neg (Reg r) => r :: nil
-    | Load (Reg r) => r :: nil
-    | Add r1 (Reg r2) => r1 :: r2 :: nil
-    | Sub r1 (Reg r2) => r1 :: r2 :: nil
-    | Mul r1 (Reg r2) => r1 :: r2 :: nil
-    | Div r1 (Reg r2) => r1 :: r2 :: nil
-    | CmpLt r1 (Reg r2) => r1 :: r2 :: nil
-    | CmpLe r1 (Reg r2) => r1 :: r2 :: nil 
-    | CmpGt r1 (Reg r2) => r1 :: r2 :: nil 
-    | CmpGe r1 (Reg r2) => r1 :: r2 :: nil 
-    | CmpEq r1 (Reg r2) => r1 :: r2 :: nil 
-    | CmpNe r1 (Reg r2) => r1 :: r2 :: nil 
-    | _ => nil
+    | Val v => reg_or_nil v
+    | Neg v => reg_or_nil v
+    | Load v => reg_or_nil v
+    | Add r v => r :: reg_or_nil v
+    | Sub r v => r :: reg_or_nil v
+    | Mul r v => r :: reg_or_nil v
+    | Div r v => r :: reg_or_nil v
+    | CmpLt r v => r :: reg_or_nil v
+    | CmpLe r v => r :: reg_or_nil v
+    | CmpGt r v => r :: reg_or_nil v
+    | CmpGe r v => r :: reg_or_nil v
+    | CmpEq r v => r :: reg_or_nil v
+    | CmpNe r v => r :: reg_or_nil v
     end
-  | Store (Reg r1) r2 => r1 :: r2 :: nil
-  | _ => nil
+  | Store v r => r :: reg_or_nil v
   end
 .
 
@@ -287,9 +292,9 @@ and external jumps (unknown basic blocks that will be linked later)
 Definition successors (b : block) : list block :=
   let (_, _, j) := b in
   match j with
-  | Jnz _ b1 b2 => b1 :: b2 :: nil
-  | Jmp b => b :: nil
-  | Halt => nil
+  | Jnz _ b1 b2 => [b1; b2]
+  | Jmp b => [b]
+  | Halt => []
   end
 .
 
