@@ -55,33 +55,61 @@ Definition option_to_list {A : Type} (x : option A) : list A :=
 .
 
 (*
+  This generic function is used to get the metadata of a section of
+  instructions, it takes in the generic arguments, the list of instructions and
+  the final live_out set which is live_out[final] := U in[j] with j ∈ succ[i].
+
+  The function returns the list of instruction metadata and the live_out[j]
+  where j is the predecessor of the first instruction of the list.
+*)
+
+Fixpoint analyze_As
+  {A : Type}
+  (get_args : A -> list reg)
+  (get_use : A -> list reg)
+  (get_def : A -> list reg)
+  (is : list A)
+  (final_live_out : list reg)
+  : list metainst * list reg :=
+  match is with
+  | nil => (nil, final_live_out)
+  | x :: xs =>
+    let use := get_use x in
+    let def := get_def x in
+    let args := get_args x in
+    let (is', live_out) := analyze_As get_args get_use get_def xs final_live_out in
+    let live_in := args U (regs_minus live_out def) in (
+      (Metainst use def live_out live_in) :: is',
+      live_in
+    )
+  end
+.
+
+(*
   Liveness analysis of a phi instruction
-  - use[i]      := empty
+  - use[i]      := {}
   - def[i]      := reg[i]
   - live_out[i] := U with j ∈ succ[i] of (live_in[j] U args[j])
   - live_in[i]  := use[i] U (live_out[i] - def[i])
-
-  Where final_live_out is the live_out of the last phi instruction, which is in
-  function of the successor succ[final] which is either an inst or a jinst.
-
-  The function returns the list of instruction metadata and the live_out[j]
-  where j is the predecessor of the first phi of the list.
 *)
+Definition analyze_phis (ps : list phi) (final_live_out : list reg) : list metainst * list reg :=
+  analyze_As phi_args (fun _ => nil) (fun x => option_to_list (phi_reg x)) ps final_live_out
+.
 
-Fixpoint analyze_phis
-  (ps : list phi)
-  (final_live_out : list reg)
-  : (list metainst) * (list reg) :=
-  match ps with
-  | nil => (nil, final_live_out)
-  | x :: xs =>
-    let def := option_to_list (phi_reg x) in
-    let (ps', live_out) := analyze_phis xs final_live_out in
-    let live_in := (regs_minus live_out def) in (
-      (Metainst nil def live_out live_in) :: ps',
-      live_in U (phi_args x)
-    )
-  end
+(*
+  Liveness analysis of a generic instruction
+  - use[i]      := args[i]
+  - def[i]      := reg[i]
+  - live_out[i] := U live_in[j] with j ∈ succ[i]
+  - live_in[i]  := use[i] U (live_out[i] - def[i])
+*)
+Definition analyze_insts (is : list inst) (final_live_out : list reg) : list metainst * list reg :=
+  analyze_As inst_args inst_args (fun x => option_to_list (inst_reg x)) is final_live_out
+.
+
+Definition analyze_jinst (j : jinst) (final_live_out : list reg) : list metainst * list reg :=
+  let get_args_use (j : jinst) : list reg := option_to_list (jinst_args j) in
+  analyze_As get_args_use get_args_use (fun _ => nil) (j :: nil) final_live_out
 .
 
 Module Example1.
@@ -95,62 +123,16 @@ Module Example1.
   Compute analyze_phis ps nil.
 End Example1.
 
-(*
-  Liveness analysis of a generic instruction
-  - use[i]      := args[i]
-  - def[i]      := reg[i]
-  - live_out[i] := U live_in[j] with j ∈ succ[i]
-  - live_in[i]  := use[i] U (live_out[i] - def[i])
-
-  This generic function is used to get the metadata of a section of
-  instructions, it takes in the generic arguments, the list of instructions and
-  the final live_out set which is live_out[final] := U in[j] with j ∈ succ[i].
-  NOTE: the difference between analyze_As and analyze_phis is that, even though
-  in both cases the arguments of the instruction are passed to the predecessor
-  the phi instruction does not define use as the set of its arguments.
-
-  The function returns the list of instruction metadata and the live_out[j]
-  where j is the predecessor of the first instruction of the list.
-*)
-
-Fixpoint analyze_As
-  {A : Type}
-  (get_reg : A -> list reg)
-  (get_args : A -> list reg)
-  (is : list A)
-  (final_live_out : list reg)
-  : list metainst * list reg :=
-  match is with
-  | nil => (nil, final_live_out)
-  | x :: xs =>
-    let use := get_args x in
-    let def := get_reg x in
-    let (is', live_out) := analyze_As get_reg get_args xs final_live_out in
-    let live_in := use U (regs_minus final_live_out def) in (
-      (Metainst use def final_live_out live_in) :: is',
-      live_in
-    )
-  end
-.
-
-Definition analyze_insts (is : list inst) (final_live_out : list reg) : list metainst * list reg :=
-  analyze_As (fun x => option_to_list (inst_reg x)) inst_args is final_live_out
-.
-
 Module Example2.
   Definition is : list inst := [
-      r(0) <- r(1) + (Imm 1)
+      r(8) <- r(0) + (Imm 1);
+      r(9) <- r(1) - (Imm 1)
     ]
   .
-
-  Compute inst_args (r(0) <- r(1) + (Imm 1)).
+  (* TODO: fix this *)
 
   Compute analyze_insts is nil.
 End Example2.
-
-Definition analyze_jinst (j : jinst) (final_live_out : list reg) : list metainst * list reg :=
-  analyze_As (fun _ => nil) (fun x => option_to_list (jinst_args x)) (j :: nil) final_live_out
-.
 
 Definition analyze_block (b : block) (final_live_out : list reg) : list metainst * list reg :=
   match b with
@@ -175,12 +157,22 @@ Module Example3.
   Compute analyze_block example_block nil.
 End Example3.
 
-(*
-Definition analyze_program (p : program) : list metainst * list reg :=
+Module Example4.
+  Definition example_block : block := Block [
+      r(0) <- phi [2; 3; 4];
+      r(1) <- phi [5; 6; 7]
+    ] [
+      r(8) <- r(0) + (Imm 1);
+      r(9) <- r(1) - (Imm 1)
+    ] (
+      Halt
+    )
+  .
+
+  Compute analyze_block example_block nil.
+End Example4.
+
+(* Definition analyze_program (p : program) : list metainst * list reg :=
   match p with
   | x :: nil => analyze_block
-  |
-
-Fixpoint analyze_block : (b : block) (live_in : list reg) : metablock :=
-  match b with
-  | nil =>  *)
+  | *)
