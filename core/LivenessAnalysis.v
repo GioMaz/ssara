@@ -62,7 +62,10 @@ Definition option_to_list {A : Type} (x : option A) : list A :=
   - live_in[i]  := use[i] U (live_out[i] - def[i])
 
   Where final_live_out is the live_out of the last phi instruction, which is in
-  function of the successor succ[final] which is either an inst or a jinst
+  function of the successor succ[final] which is either an inst or a jinst.
+
+  The function returns the list of instruction metadata and the live_out[j]
+  where j is the predecessor of the first phi of the list.
 *)
 
 Fixpoint analyze_phis
@@ -98,15 +101,16 @@ End Example1.
   - def[i]      := reg[i]
   - live_out[i] := U live_in[j] with j ∈ succ[i]
   - live_in[i]  := use[i] U (live_out[i] - def[i])
-*)
 
-(*
   This generic function is used to get the metadata of a section of
   instructions, it takes in the generic arguments, the list of instructions and
   the final live_out set which is live_out[final] := U in[j] with j ∈ succ[i].
   NOTE: the difference between analyze_As and analyze_phis is that, even though
   in both cases the arguments of the instruction are passed to the predecessor
   the phi instruction does not define use as the set of its arguments.
+
+  The function returns the list of instruction metadata and the live_out[j]
+  where j is the predecessor of the first instruction of the list.
 *)
 
 Fixpoint analyze_As
