@@ -244,8 +244,9 @@ with eq_block (b1 : block) (b2 : block) : bool :=
 *)
 
 (* The starting block is the first block of the list *)
-Definition program : Type := list block
-.
+(* Definition program : Type := list block. *)
+
+Definition program : Type := block.
 
 (*
   Block instruction, represents all the possible instructions that could be
@@ -257,18 +258,14 @@ Inductive binst : Type :=
   | Bjinst (j : jinst)
 .
 
-Definition start (p : program) : option binst :=
-  match p with
-  | nil => None
-  | b :: _ =>
-    let (ps, is, j) := b in
-    match ps with
-    | p :: _ => Some (Bphi p)
-    | nil =>
-      match is with
-      | i :: _ => Some (Binst i)
-      | nil => Some (Bjinst j)
-      end
+Definition start (p : program) : binst :=
+  let (ps, is, j) := p in
+  match ps with
+  | p :: _ => Bphi p
+  | nil =>
+    match is with
+    | i :: _ => Binst i
+    | nil => Bjinst j
     end
   end
 .

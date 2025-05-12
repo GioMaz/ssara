@@ -5,7 +5,7 @@ From Stdlib Require Import Lists.List.
   1st property of an SSA program, every instruction is assigned exactly once
 *)
 
-Definition single_assignment_program_of {A : Type} (get_sec : block -> list A) (get_reg : A -> option reg) (p : program) : Prop :=
+(* Definition single_assignment_program_of {A : Type} (get_sec : block -> list A) (get_reg : A -> option reg) (p : program) : Prop :=
   forall (b b' : block) (i i' : A),
     (In b p) /\ (In i (get_sec b)) /\ (In b' p) /\ (In i' (get_sec b')) -> (
       (get_reg i = get_reg i') -> (
@@ -28,7 +28,7 @@ Definition single_assignment_program (p : program) : Prop :=
   single_assignment_program_of insts inst_reg p /\
   single_assignment_program_of phis phi_reg p /\
   single_assignment_program_phi_inst p
-.
+. *)
 
 (*
   For every block, for every phi instruction, for every predecessor, there
@@ -43,7 +43,7 @@ Definition defines (b : block) (r : reg) : Prop :=
   (exists (i : inst), (In i (insts b)) /\ (inst_reg i = Some r))
 .
 
-Definition well_formed_phis (p : program) : Prop :=
+(* Definition well_formed_phis (p : program) : Prop :=
   forall (b : block), (In b p) -> (
     forall (ph : phi), (In ph (phis b)) -> (
       forall (pr : block), (predecessor pr b p) -> (
@@ -56,7 +56,7 @@ Definition well_formed_phis (p : program) : Prop :=
       )
     )
   )
-.
+. *)
 
 (*
   2nd property of an SSA program is strictness, that means that an instruction
@@ -67,7 +67,7 @@ Definition well_formed_phis (p : program) : Prop :=
   register in our representation we only need to check recursively on the
   predecessors of the basic block where i' is situated for the existance of i.
 *)
-Fixpoint is_path_of (path : list block) (p : program) : Prop :=
+(* Fixpoint is_path_of (path : list block) (p : program) : Prop :=
   match path with
   | nil => True
   | x :: nil =>
@@ -162,4 +162,4 @@ Definition strict (p : program) : Prop :=
       )
     end
   )
-.
+. *)

@@ -183,26 +183,19 @@ Since the entry block has no predecessors the order of evaluation of
 instruction between two blocks b and b' is (instructions of b) (jump
 instruction of b) (phi instructions of b')
 *)
-Fixpoint run_aux (m : vm) (b : block) (fuel : nat) : vm :=
-  match b, fuel with
+Fixpoint run (m : vm) (p : program) (fuel : nat) : vm :=
+  match p, fuel with
   | _, O => m
   | Block _ is j, S fuel'  =>
     let m' := run_insts m is in
     match j with
     | Jnz r b1 b2 =>
       if Z.eqb (get_reg m' r) 0 then
-        run_aux (run_phis m' b (phis b1)) b1 fuel'
+        run (run_phis m' p (phis b1)) b1 fuel'
       else
-        run_aux (run_phis m' b (phis b2)) b2 fuel'
-    | Jmp b1 => run_aux (run_phis m' b (phis b1)) b1 fuel'
+        run (run_phis m' p (phis b2)) b2 fuel'
+    | Jmp b1 => run (run_phis m' p (phis b1)) b1 fuel'
     | Halt => m'
     end
-  end
-.
-
-Definition run (m : vm) (p : program) (fuel : nat) : vm :=
-  match head p with
-  | Some b => run_aux m b fuel
-  | None => m
   end
 .

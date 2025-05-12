@@ -12,8 +12,8 @@ Inductive metainst : Type :=
   | Metainst (use : list reg) (def : list reg) (live_out: list reg) (live_in: list reg)
 .
 
-CoInductive metablock : Type :=
-  | Metablock (phi_args: list reg) (ms : list metainst) (succ : list metablock)
+Inductive metablock : Type :=
+  | Metablock (mis : list metainst) (succ : list metablock)
 .
 
 Definition contains (x : reg) (xs : list reg) : bool :=
@@ -47,6 +47,8 @@ Fixpoint regs_minus (regs : list reg) (regs' : list reg) : list reg :=
   end
 .
 
+(* TODO: look into ensembles, coq-ext-lib, other libraries that implement sets *)
+
 Definition option_to_list {A : Type} (x : option A) : list A :=
   match x with
   | Some x' => x' :: nil
@@ -59,8 +61,8 @@ Definition option_to_list {A : Type} (x : option A) : list A :=
   instructions, it takes in the generic arguments, the list of instructions and
   the final live_out set which is live_out[final] := U in[j] with j ∈ succ[i].
 
-  The function returns the list of instruction metadata and the live_out[j]
-  where j is the predecessor of the first instruction of the list.
+  The function returns the list of instruction metadata and the live_in[start]
+  where start is the first instruction of the list.
 *)
 
 Fixpoint analyze_As
@@ -129,7 +131,6 @@ Module Example2.
       r(9) <- r(1) - (Imm 1)
     ]
   .
-  (* TODO: fix this *)
 
   Compute analyze_insts is nil.
 End Example2.
@@ -172,7 +173,119 @@ Module Example4.
   Compute analyze_block example_block nil.
 End Example4.
 
-(* Definition analyze_program (p : program) : list metainst * list reg :=
-  match p with
-  | x :: nil => analyze_block
-  | *)
+Axiom get_fuel : program -> nat.
+
+(* Fixpoint analyze_program (p : program) (fuel : nat) : metablock * list reg :=
+  match fuel with
+  | O =>
+    let (mis, live_out) := analyze_block p nil in
+    (Metablock mis nil, live_out)
+  | S fuel' =>
+    let (_, _, j) := p in
+    match j with
+    | Jnz _ b1 b2 =>
+      let (metablock1, live_in1) := analyze_program b1 fuel' in
+      let (metablock2, live_in2) := analyze_program b2 fuel' in
+      let (metainsts, live_out) := analyze_block p (live_in1 U live_in2) in
+      (Metablock metainsts [metablock1; metablock2], live_out)
+    | Jmp b1 =>
+      let (mb1, live_in1) := analyze_program b1 fuel' in
+      let (mis, live_out) := analyze_block p live_in1 in
+      (Metablock mis [mb1], live_out)
+    | Halt =>
+      let (mis, live_out) := analyze_block p nil in
+      (Metablock mis nil, live_out)
+    end
+  end
+. *)
+
+(*
+  This is a better version of the previous commented function analyze_program
+  that gets the successors of a block using the function `successors` in order
+  to handle possible future branch instructions in a general way
+*)
+Fixpoint analyze_program (p : program) (fuel : nat) : metablock * list reg :=
+  match fuel with
+  | O =>
+    let (mis_i, live_in_i) := analyze_block p nil in
+    (Metablock mis_i nil, live_in_i)
+
+  | S fuel' =>
+    (* Analyze successors *)
+    let results := map (fun p => analyze_program p fuel') (successors p) in
+
+    (* Create mbs, list of successors and live_out union of live_in of successors*)
+    let (mbs, live_out) :=
+      fold_left
+        (fun '(mbs, live_in) '(mb, live_out) =>
+          (mb :: mbs, live_in U live_out))
+        results
+        (nil, nil) in
+
+    (* Analyze current block *)
+    let (mis, live_in) := analyze_block p live_out in
+
+    (* Create current metablock *)
+    (Metablock mis mbs, live_in)
+  end
+.
+
+Module Example5.
+  Definition example_block_2 : block :=
+    Block [
+      r(3) <- phi [0]
+    ] [
+    ] (
+      Halt
+    )
+  .
+
+  Definition example_block_3 : block :=
+    Block [
+      r(4) <- phi [1]
+    ] [
+    ] (
+      Halt
+    )
+  .
+
+  Definition example_block_1 : block :=
+    Block [
+    ] [
+      r(0) <- (Imm 34);
+      r(1) <- (Imm 35);
+      r(2) <- r(0) < (Reg 1)
+    ] (
+      Jnz 2 example_block_2 example_block_3
+    )
+  .
+
+  Compute analyze_program example_block_1 10.
+End Example5.
+
+Module Example6.
+  CoFixpoint example_block_1 : block :=
+    Block [
+    ] [
+      r(0) <- (Imm 100)
+    ] (
+      Jmp example_block_2
+    )
+  with example_block_2 : block :=
+    Block [
+    ] [
+      r(1) <- (Reg 0)
+    ] (
+      Jmp example_block_1
+    )
+  .
+
+  Compute analyze_program example_block_1 10.
+End Example6.
+
+(*
+TODO:
+- Get the interference graph
+- Maybe visualize the interference graph in OCaml
+- Start regalloc
+*)

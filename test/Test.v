@@ -24,7 +24,7 @@ Module Example1.
   .
 
   Example run_example :
-    run_aux (Vm nil nil) example_block 1 =
+    Vm.run (Vm nil nil) example_block 1 =
       Vm [(2, 34%Z); (3, 68%Z); (4, 69%Z); (5, 69%Z); (6, 1%Z)]
       [0%Z; 0%Z; 0%Z; 0%Z; 0%Z; 69%Z]
   .
@@ -42,7 +42,7 @@ Module Exmaple2.
     Block nil nil (Jmp (example_block_1))
   .
 
-  Example run_example : run_aux (Vm nil nil) example_block_1 1000 = (Vm nil nil).
+  Example run_example : Vm.run (Vm nil nil) example_block_1 1000 = (Vm nil nil).
   Proof.
     reflexivity.
   Qed.
@@ -80,7 +80,7 @@ Module Example3.
   .
 
   Example run_example_1 :
-    Vm.run (Vm nil nil) [example_block_3; example_block_2; example_block_1] 10
+    Vm.run (Vm nil nil) example_block_3 10
     = Vm [(1, 35%Z); (2, 35%Z)] [35%Z]
   .
   Proof.
@@ -88,7 +88,7 @@ Module Example3.
   Qed.
 
   Example run_example_2 :
-    Vm.run (Vm nil nil) [example_block_2; example_block_3; example_block_1] 10
+    Vm.run (Vm nil nil) example_block_2 10
     = Vm [(0, 34%Z); (2, 34%Z)] [34%Z]
   .
   Proof.
@@ -118,8 +118,8 @@ QuickChick set_reg_P.
 *)
 Definition store_P (i : nat) (c : cell) : bool :=
   let m := Vm nil nil in
-  let p := [(Block nil [r(0) <- (Imm c); store (Ptr i) r(0)] Halt)] in
-  let (_, cells) := Vm.run m p 10 in
+  let b := Block nil [r(0) <- (Imm c); store (Ptr i) r(0)] Halt in
+  let (_, cells) := Vm.run m b 10 in
   match nth_error cells i with
   | Some c' => Z.eqb c c'
   | _ => false
