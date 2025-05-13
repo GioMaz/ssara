@@ -13,8 +13,10 @@ Inductive metainst : Type :=
 .
 
 Inductive metablock : Type :=
-  | Metablock (mis : list metainst) (succ : list metablock)
+  | Metablock (mis : list metainst) (mbs: list metablock)
 .
+
+Definition metaprogram : Type := metablock.
 
 Definition contains (x : reg) (xs : list reg) : bool :=
   existsb (fun n => Nat.eqb x n) xs
@@ -32,19 +34,23 @@ Notation "x 'U' y" :=
   (regs_union x y) (at level 50)
 .
 
-Fixpoint remove (r : reg) (regs : list reg) : list reg :=
+Fixpoint regs_remove (r : reg) (regs : list reg) : list reg :=
   match regs with
   | nil => regs
   | x :: xs =>
-    if Nat.eqb x r then remove r xs else x :: remove r xs
+    if Nat.eqb x r then regs_remove r xs else x :: regs_remove r xs
   end
 .
 
 Fixpoint regs_minus (regs : list reg) (regs' : list reg) : list reg :=
   match regs' with
   | nil => regs
-  | x :: xs => regs_minus (remove x regs) xs
+  | x :: xs => regs_minus (regs_remove x regs) xs
   end
+.
+
+Definition regs_insert (r : reg) (regs : list reg) : list reg :=
+  if contains r regs then regs else r :: regs
 .
 
 (* TODO: look into ensembles, coq-ext-lib, other libraries that implement sets *)
@@ -99,7 +105,7 @@ Definition analyze_phis (ps : list phi) (final_live_out : list reg) : list metai
 .
 
 (*
-  Liveness analysis of a generic instruction
+  Liveness analysis of a normal instruction
   - use[i]      := args[i]
   - def[i]      := reg[i]
   - live_out[i] := U live_in[j] with j ∈ succ[i]
@@ -109,6 +115,13 @@ Definition analyze_insts (is : list inst) (final_live_out : list reg) : list met
   analyze_As inst_args inst_args (fun x => option_to_list (inst_reg x)) is final_live_out
 .
 
+(*
+  Liveness analysis of a jump instruction
+  - use[i]      := args[i]
+  - def[i]      := {}
+  - live_out[i] := U live_in[j] with j ∈ succ[i]
+  - live_in[i]  := use[i] U live_out[i]
+*)
 Definition analyze_jinst (j : jinst) (final_live_out : list reg) : list metainst * list reg :=
   let get_args_use (j : jinst) : list reg := option_to_list (jinst_args j) in
   analyze_As get_args_use get_args_use (fun _ => nil) (j :: nil) final_live_out
@@ -282,6 +295,124 @@ Module Example6.
 
   Compute analyze_program example_block_1 10.
 End Example6.
+
+(* Interference graph stored using adjacence lists *)
+Definition ig : Type := list (reg * list reg).
+
+Fixpoint ig_insert_edge_aux (r : reg) (r' : reg) (g : ig) : ig :=
+  match g with
+  | nil => [(r, [r'])]
+  | (x, xs) as L :: ys =>
+    if r =? x then
+      (x, regs_insert r' xs) :: ys
+    else
+    L :: ig_insert_edge_aux r r' ys
+  end
+.
+
+Definition ig_insert_edge (r : reg) (r' : reg) (g : ig) : ig :=
+  let g' := ig_insert_edge_aux r r' g in
+  ig_insert_edge_aux r' r g'
+.
+
+Fixpoint ig_insert_edges (r : reg) (regs : list reg) (g : ig) : ig :=
+  match regs with
+  | nil => g
+  | x :: xs =>
+    let g' := ig_insert_edge r x g in
+    ig_insert_edges r xs g'
+  end
+.
+
+Fixpoint ig_insert_regs (regs : list reg) (g : ig) : ig :=
+  match regs with
+  | nil => g
+  | x :: xs =>
+    let g' := ig_insert_edges x xs g in
+    ig_insert_regs xs g'
+  end
+.
+
+Definition ig_insert_mi (mi : metainst) (g : ig) : ig :=
+  match mi with
+  | Metainst use def live_in live_out =>
+    let regs := live_in U live_out in
+    ig_insert_regs regs g
+  end
+.
+
+Fixpoint ig_insert_mis (mis: list metainst) (g : ig) : ig :=
+  match mis with
+  | nil => g
+  | x :: xs =>
+    let g' := ig_insert_mi x g in
+    ig_insert_mis xs g'
+  end
+.
+
+Fixpoint get_ig_mb (mb : metablock) (g : ig) : ig :=
+  match mb with
+  | Metablock mis mbs =>
+    let g' := ig_insert_mis mis g in
+    fold_left (fun g mb => get_ig_mb mb g) mbs g'
+  end
+.
+
+Definition get_ig_mp (mp : metaprogram): ig :=
+  get_ig_mb mp nil.
+
+(*
+  +-----------+
+  | r1 <- ... |
+  | r2 <- ... |
+  +-----------+
+        |
+        |     +-----------+  TODO: handle this specific case where the live_out
+        |     |           |  of the first block is r5 and r6, since they are
+  +-----------------+     |  needed for in phi instructions of the second block
+  | r3 <- Φ(r1, r5) |     |
+  | r4 <- Φ(r2, r6) |     |
+  +-----------------+     |
+         |                |
+  +--------------+        |
+  | r5 <- r3 + 1 |--------+
+  | r6 <- r4 + 1 |
+  +--------------+
+*)
+
+Module Example7.
+  CoFixpoint example_block_3 : block :=
+    Block [
+    ] [
+      r(5) <- r(3) + (Imm 1);
+      r(6) <- r(4) + (Imm 1)
+    ] (
+      Jmp example_block_2
+    )
+  with example_block_2 : block :=
+    Block [
+      r(3) <- phi [1; 5];
+      r(4) <- phi [2; 6]
+    ] [
+    ] (
+      Jmp example_block_3
+    )
+  .
+
+  Definition example_block_1 : block :=
+    Block [
+    ] [
+      r(1) <- (Imm 34);
+      r(2) <- (Imm 35)
+    ] (
+      Jmp example_block_2
+    )
+  .
+
+  Compute analyze_program example_block_1 3.
+  Compute let (mp, _) := analyze_program example_block_1 3 in get_ig_mp mp.
+
+End Example7.
 
 (*
 TODO:

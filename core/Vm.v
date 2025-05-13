@@ -179,9 +179,9 @@ Fixpoint run_phis (m : vm) (pred : block) (ps : list phi) : vm :=
 .
 
 (*
-Since the entry block has no predecessors the order of evaluation of
-instruction between two blocks b and b' is (instructions of b) (jump
-instruction of b) (phi instructions of b')
+  Since the entry block has no predecessors the order of evaluation of
+  instruction between two blocks b and b' is (instructions of b) (jump
+  instruction of b) (phi instructions of b')
 *)
 Fixpoint run (m : vm) (p : program) (fuel : nat) : vm :=
   match p, fuel with

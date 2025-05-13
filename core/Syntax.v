@@ -271,19 +271,17 @@ Definition start (p : program) : binst :=
 .
 
 (*
+  ### Problems:
 
-### Problems:
+  - Allows reassigning the same register (enforced by the single_assignment_program predicate)
+  - Allows using unassigned registers (enforced by the assignment_dominates_usage predicate)
+  - Allows duplicate labels (solved by defining block recursivey)
+  - Allows jumping to unexistent labels (solved by defining block recursivey)
 
-- Allows reassigning the same register (enforced by the single_assignment_program predicate)
-- Allows using unassigned registers (enforced by the assignment_dominates_usage predicate)
-- Allows duplicate labels (solved by defining block recursivey)
-- Allows jumping to unexistent labels (solved by defining block recursivey)
-
-We assume that all labels have a known destination
-(there is no linking phase, or the linking already happened)
-so we don't need to distinguish between internal jumps (known basic blocks)
-and external jumps (unknown basic blocks that will be linked later)
-
+  We assume that all labels have a known destination
+  (there is no linking phase, or the linking already happened)
+  so we don't need to distinguish between internal jumps (known basic blocks)
+  and external jumps (unknown basic blocks that will be linked later)
 *)
 
 Definition successors (b : block) : list block :=

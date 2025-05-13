@@ -1,17 +1,23 @@
-open Run
+open Ssara
 
-let vm_new () = Vm (Nil, Nil);;
+let vm_new () = Vm ([], []);;
 
 let block_new ps is j = Lazy.from_val (
   Block (ps, is, Lazy.from_val j)
 );;
+
 let program_new = block_new;;
 
-let vm = vm_new ();;
-let program = program_new Nil Nil Halt;;
-let Vm (_, cells) = run vm program (S O);;
+let run_example () =
+  let vm = vm_new () in
+  let program = program_new [] [] Halt in
+  let Vm (_, cells) = run vm program 4 in
+  match cells with
+  | [] -> None
+  | x :: _ -> Some x
+;;
 
-match cells with
-| Nil -> print_string "None"
-| Cons _ -> print_string "Some"
+match run_example () with
+| Some _ -> print_string "Some"
+| None -> print_string "None"
 ;;
