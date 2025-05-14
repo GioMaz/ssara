@@ -25,13 +25,13 @@ Definition single_assignment_program_of {A : Type} (get_sec : block -> list A) (
 Definition single_assignment_program_phi_inst (pr : program) : Prop :=
   forall (b b' : block) (p : phi) (i : inst),
     in_program b pr /\ In p (phis b) /\ in_program b' pr /\ In i (insts b') -> (
-      phi_reg p <> inst_reg i
+      Some (phi_reg p) <> inst_reg i
     )
 .
 
 Definition single_assignment_program (p : program) : Prop :=
   single_assignment_program_of insts inst_reg p /\
-  single_assignment_program_of phis phi_reg p /\
+  single_assignment_program_of phis (fun x => Some (phi_reg x)) p /\
   single_assignment_program_phi_inst p
 .
 
@@ -44,7 +44,7 @@ Definition single_assignment_program (p : program) : Prop :=
   exist (i.e. `single_assignment_program` is valid).
 *)
 Definition defines (b : block) (r : reg) : Prop :=
-  (exists (p : phi), In p (phis b) /\ phi_reg p = Some r) \/
+  (exists (p : phi), In p (phis b) /\ phi_reg p = r) \/
   (exists (i : inst), In i (insts b) /\ inst_reg i = Some r)
 .
 
@@ -161,14 +161,14 @@ Definition strict (p : program) : Prop :=
   forall (b : block), in_program b p -> (
     forall (i' : inst), In i' (insts b) -> (
       forall (r : reg), In r (inst_args i') -> (
-        (exists (ph : phi), (phi_reg ph) = Some r /\ dominates_A_B ph i' phis insts p) \/
+        (exists (ph : phi), (phi_reg ph) = r /\ dominates_A_B ph i' phis insts p) \/
         (exists (i : inst), (inst_reg i) = Some r /\ dominates_A_A i i' insts p)
       )
     )
     /\
     match b with
     | Block _ _ j => forall (r : reg), jinst_args j = Some r -> (
-        (exists (ph : phi), (phi_reg ph) = Some r /\ dominates_A_jinst ph j phis p) \/
+        (exists (ph : phi), (phi_reg ph) = r /\ dominates_A_jinst ph j phis p) \/
         (exists (i : inst), (inst_reg i) = Some r /\ dominates_A_jinst i j insts p)
       )
     end

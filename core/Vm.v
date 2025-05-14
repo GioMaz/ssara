@@ -152,7 +152,7 @@ Fixpoint defines_aux {A : Type} (get_reg : A -> option reg) (is : list A) (r : r
 Definition defines (b : block) (r : reg) : bool :=
   match b with
   | Block ps is _ =>
-    defines_aux phi_reg ps r || defines_aux inst_reg is r
+    defines_aux (fun x => Some (phi_reg x)) ps r || defines_aux inst_reg is r
   end
 .
 

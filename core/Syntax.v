@@ -78,9 +78,9 @@ Inductive phi : Type :=
 Notation "'r(' x ) <- 'phi' y" :=
   (Phi x y) (at level 50).
 
-Definition phi_reg (p : phi) : option reg :=
+Definition phi_reg (p : phi) : reg :=
   match p with
-  | Phi r _ => Some r
+  | Phi r _ => r
   end
 .
 
