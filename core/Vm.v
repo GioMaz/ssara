@@ -135,37 +135,12 @@ Fixpoint run_insts (m : vm) (is : list inst) : vm :=
 
 (* Phi semantics *)
 
-Definition option_eqb {A : Type} (eqb : A -> A -> bool) (x y : option A) : bool :=
-  match x, y with
-  | Some a, Some b => eqb a b
-  | None, None => true
-  | _, _ => false
-  end.
-
-Fixpoint defines_aux {A : Type} (get_reg : A -> option reg) (is : list A) (r : reg) : bool :=
-  match is with
-  | nil => false
-  | x :: xs => option_eqb Nat.eqb (get_reg x) (Some r) || defines_aux get_reg xs r
-  end
-.
-
-Definition defines (b : block) (r : reg) : bool :=
-  match b with
-  | Block ps is _ =>
-    defines_aux (fun x => Some (phi_reg x)) ps r || defines_aux inst_reg is r
-  end
-.
-
-Example defines_sound_complete :
-  forall (b : block) (r : reg), defines b r = true <-> SSA.defines b r.
-Admitted.
-
-Fixpoint run_phi (m : vm) (pred : block) (r : reg) (rs : list reg) : vm :=
+Fixpoint run_phi (m : vm) (pred : block) (r : reg) (rs : list (reg * lbl)) : vm :=
   match rs with
   | nil => m
-  | x :: xs =>
-    if defines pred x then
-      set_reg m r (get_reg m x)
+  | (r', l) :: xs =>
+    if l =? get_lbl pred then
+      set_reg m r (get_reg m r')
     else
       run_phi m pred r xs
   end
@@ -186,15 +161,15 @@ Fixpoint run_phis (m : vm) (pred : block) (ps : list phi) : vm :=
 Fixpoint run (m : vm) (p : program) (fuel : nat) : vm :=
   match p, fuel with
   | _, O => m
-  | Block _ is j, S fuel'  =>
+  | Block _ _ is j, S fuel'  =>
     let m' := run_insts m is in
     match j with
     | Jnz r b1 b2 =>
       if Z.eqb (get_reg m' r) 0 then
-        run (run_phis m' p (phis b1)) b1 fuel'
+        run (run_phis m' p (get_phis b1)) b1 fuel'
       else
-        run (run_phis m' p (phis b2)) b2 fuel'
-    | Jmp b1 => run (run_phis m' p (phis b1)) b1 fuel'
+        run (run_phis m' p (get_phis b2)) b2 fuel'
+    | Jmp b1 => run (run_phis m' p (get_phis b1)) b1 fuel'
     | Halt => m'
     end
   end

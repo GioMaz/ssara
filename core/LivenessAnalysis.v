@@ -67,14 +67,26 @@ Definition phi_defs (ps : list phi) : list reg :=
   map phi_reg ps
 .
 
-Definition phi_uses (b : block) : list reg :=
-  match b with
-  | Block ps _ _ => flat_map phi_args ps
+(* Definition phi_uses (b : block) : list reg :=
+  flat_map phi_args (get_phis b)
+. *)
+
+Fixpoint phi_uses_aux (b : block) (args : list (reg * lbl)) : reg :=
+  match args with
+  | nil => 0 (* Unexpected, a phi instruction should have exactly one argument for each predecessor *)
+  | (r, l) :: xs =>
+    if l =? get_lbl b then
+      r
+    else
+      phi_uses_aux b xs
   end
 .
 
-Definition next_phi_uses (b : block) : list reg :=
-  flat_map phi_uses (successors b)
+Definition phi_uses (b : block) : list reg :=
+  let ps := flat_map (fun b => get_phis b) (successors b) in  (* Get all phis from successors *)
+  let args := flat_map phi_args ps in                         (* Get all arguments of phis *)
+  let pairs := filter (fun '(r, l) => l =? get_lbl b) args in (* Keep only those that come from the current label *)
+  map (fun '(r, l) => r) pairs                                (* Get only the register *)
 .
 
 Fixpoint inst_defs (is : list inst) : list reg :=
@@ -111,20 +123,12 @@ Fixpoint inst_defs (is : list inst) : list reg :=
 
 
 
-
-(*
-  This generic function is used to get the metadata of a section of
-  instructions, it takes in the generic arguments, the list of instructions and
-  the final live_out set which is live_out[final] := U in[j] with j ∈ succ[i].
-
-  The function returns the list of instruction metadata and the live_in[start]
-  where start is the first instruction of the list.
-*)
-
-
 (*
   Returns the metainst of all the phi instructions (which by SSA semantics are
   all executed at the same time) and the live_out of the predecessor block.
+  Note that the live_in contains phi_defs[ps] because phi instructions are
+  actually executed in the predecessor blocks, not in the block where they are
+  defined.
   Liveness analysis of a phi instruction section:
   - live_out[ps]  := U with j ∈ succ[ps] of live_in[j]
   - live_in[ps]   := phi_defs[ps] U live_out[ps]
@@ -166,13 +170,12 @@ Definition analyze_jinst (j : jinst) (final_live_out : list reg) : metainst * li
 .
 
 (*
-  
-  - live_out[b] := U with s in succ[b] of ((live_in[s] - phi_def[s]) U phi_uses[s])
+  - live_out[b] := phi_uses[b] U (U with s in succ[b] of (live_in[s] - phi_def[s]))
   - live_in[b]  := live_in[ps]
 *)
 Definition analyze_block (b : block) (final_live_out : list reg) : list metainst * list reg :=
   match b with
-  | Block ps is j =>
+  | Block l ps is j =>
     let (mi_3, live_in_3) := analyze_jinst j final_live_out in
     let (mi_2, live_in_2) := analyze_insts is live_in_3 in
     let (mi_1, live_in_1) := analyze_phis ps live_in_2 in
@@ -202,10 +205,13 @@ Fixpoint analyze_program (p : program) (fuel : nat) : metaprogram * list reg :=
         results
         (nil, nil) in
 
-    (* Analyze current block *)
-    let (mis, live_in) := analyze_block p live_out in
+    (* Add to live_out phi_uses[b] *)
+    let live_out' := live_out U (phi_uses p) in
 
-    (Metablock mis mbs, (regs_minus live_in (phi_defs (phis p))) U phi_uses p)
+    (* Analyze current block *)
+    let (mis, live_in) := analyze_block p live_out' in
+
+    (Metablock mis mbs, regs_minus live_in (phi_defs (get_phis p)))
   end
 .
 
@@ -230,7 +236,7 @@ Fixpoint analyze_program (p : program) (fuel : nat) : metaprogram * list reg :=
 
 
 
-Module Example1.
+(* Module Example1.
   Definition ps: list phi := [
       r(0) <- phi [3; 4; 5];
       r(1) <- phi [6; 7; 8];
@@ -244,9 +250,9 @@ Module Example1.
 
   Compute analyze_phis ps nil.
   Compute analyze_program p 10.
-End Example1.
+End Example1. *)
 
-Module Example2.
+(* Module Example2.
   Definition is : list inst := [
       r(8) <- r(0) + (Imm 1);
       r(9) <- r(1) - (Imm 1)
@@ -282,7 +288,7 @@ Module Example4.
   .
 
   Compute analyze_block example_block nil.
-End Example4.
+End Example4. *)
 (* 
 Fixpoint defines_As {A : Type} (get_reg : A -> option reg) (is : list A) (r : reg) : bool :=
   match is with
@@ -319,8 +325,8 @@ Definition filter_defined (regs : list reg) (defined : list reg) : list reg :=
 
 Module Example5.
   Definition example_block_2 : block :=
-    Block [
-      r(3) <- phi [0]
+    Block 2 [
+      r(3) <- phi [(0, 1)]
     ] [
       store (Ptr 0) r(3)
     ] (
@@ -329,8 +335,8 @@ Module Example5.
   .
 
   Definition example_block_3 : block :=
-    Block [
-      r(4) <- phi [1]
+    Block 3 [
+      r(4) <- phi [(1, 1)]
     ] [
       store (Ptr 0) r(4)
     ] (
@@ -339,7 +345,7 @@ Module Example5.
   .
 
   Definition example_block_1 : block :=
-    Block [
+    Block 1 [
     ] [
       r(0) <- (Imm 34);
       r(1) <- (Imm 35);
@@ -354,14 +360,14 @@ End Example5.
 
 Module Example6.
   CoFixpoint example_block_1 : block :=
-    Block [
+    Block 1 [
     ] [
       r(0) <- (Imm 100)
     ] (
       Jmp example_block_2
     )
   with example_block_2 : block :=
-    Block [
+    Block 2 [
     ] [
       r(1) <- (Reg 0)
     ] (
@@ -460,14 +466,16 @@ Definition get_ig_mp (mp : metaprogram): ig :=
   +-----------------+     |
          |                |
   +--------------+        |
-  | r5 <- r3 + 1 |--------+
-  | r6 <- r4 + 1 |
-  +--------------+
+  | r5 <- r3 + 1 |        |
+  | r6 <- r4 + 1 |        |
+  +--------------+        |
+         |                |
+         +----------------+
 *)
 
 Module Example7.
   CoFixpoint example_block_3 : block :=
-    Block [
+    Block 3 [
     ] [
       r(5) <- r(3) + (Imm 1);
       r(6) <- r(4) + (Imm 1)
@@ -475,9 +483,9 @@ Module Example7.
       Jmp example_block_2
     )
   with example_block_2 : block :=
-    Block [
-      r(3) <- phi [1; 5];
-      r(4) <- phi [2; 6]
+    Block 2 [
+      r(3) <- phi [(1, 1); (5, 3)];
+      r(4) <- phi [(2, 1); (6, 3)]
     ] [
     ] (
       Jmp example_block_3
@@ -485,7 +493,7 @@ Module Example7.
   .
 
   Definition example_block_1 : block :=
-    Block [
+    Block 1 [
     ] [
       r(1) <- (Imm 34);
       r(2) <- (Imm 35)

@@ -10,7 +10,7 @@ Import ListNotations.
 
 Module Example1.
   Definition example_block : block :=
-    Block [
+    Block 0 [
     ] [
       r(2) <- (Imm 34);
       r(3) <- r(2) * (Imm 2);
@@ -37,9 +37,9 @@ End Example1.
 
 Module Exmaple2.
   CoFixpoint example_block_1 :=
-    Block nil nil (Jmp example_block_2)
+    Block 0 nil nil (Jmp example_block_2)
   with example_block_2 :=
-    Block nil nil (Jmp (example_block_1))
+    Block 1 nil nil (Jmp (example_block_1))
   .
 
   Example run_example : Vm.run (Vm nil nil) example_block_1 1000 = (Vm nil nil).
@@ -52,8 +52,8 @@ End Exmaple2.
 
 Module Example3.
   Definition example_block_1 : block :=
-    Block [
-      r(2) <- phi [0; 1]
+    Block 0 [
+      r(2) <- phi [(0, 1); (1, 2)]
     ] [
       store (Ptr 0) r(2)
     ] (
@@ -62,7 +62,7 @@ Module Example3.
   .
 
   Definition example_block_2 : block :=
-    Block [
+    Block 1 [
     ] [
       r(0) <- (Imm 34)
     ] (
@@ -71,7 +71,7 @@ Module Example3.
   .
 
   Definition example_block_3 : block :=
-    Block [
+    Block 2 [
     ] [
       r(1) <- (Imm 35)
     ] (
@@ -118,7 +118,7 @@ QuickChick set_reg_P.
 *)
 Definition store_P (i : nat) (c : cell) : bool :=
   let m := Vm nil nil in
-  let b := Block nil [r(0) <- (Imm c); store (Ptr i) r(0)] Halt in
+  let b := Block 0 nil [r(0) <- (Imm c); store (Ptr i) r(0)] Halt in
   let (_, cells) := Vm.run m b 10 in
   match nth_error cells i with
   | Some c' => Z.eqb c c'

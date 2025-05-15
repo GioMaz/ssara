@@ -1,7 +1,7 @@
 From Ssara.Core Require Import Syntax.
 From Stdlib Require Import Lists.List.
 
-(*
+(* (*
   1st property of an SSA program, every instruction is assigned exactly once
 *)
 
@@ -173,4 +173,4 @@ Definition strict (p : program) : Prop :=
       )
     end
   )
-.
+. *)

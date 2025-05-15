@@ -72,7 +72,7 @@ Definition eq_expr (e1 e2 : expr) : bool :=
   deal with illegal basic blocks
 *)
 Inductive phi : Type :=
-  | Phi (r : reg) (rs: list reg)
+  | Phi (r : reg) (rs: list (reg * lbl))
 .
 
 Notation "'r(' x ) <- 'phi' y" :=
@@ -84,31 +84,9 @@ Definition phi_reg (p : phi) : reg :=
   end
 .
 
-Definition phi_args (p : phi) : list reg :=
+Definition phi_args (p : phi) : list (reg * lbl) :=
   match p with
   | Phi _ rs => rs
-  end
-.
-
-Fixpoint eq_list_reg (r1 r2 : list reg) : bool :=
-  match r1, r2 with
-  | nil, nil => true
-  | x :: xs, y :: ys => (Nat.eqb x y) && eq_list_reg xs ys
-  | _, _ => false
-  end
-.
-
-Definition eq_phi (p1 p2 : phi) : bool :=
-  match (p1, p2) with
-  | (Phi r1 rs1, Phi r2 rs2) => (Nat.eqb r1 r2) && (eq_list_reg rs1 rs2)
-  end
-.
-
-Fixpoint eq_list_phi (p1 p2 : list phi) : bool :=
-  match p1, p2 with
-  | nil, nil => true
-  | x :: xs, y :: ys => (eq_phi x y) && (eq_list_phi xs ys)
-  | _, _ => false
   end
 .
 
@@ -196,7 +174,7 @@ Fixpoint eq_list_inst (i1 i2 : list inst) : bool :=
 .
 
 CoInductive block : Type :=
-  | Block (ps : list phi) (is : list inst) (j : jinst)
+  | Block (l : lbl) (ps : list phi) (is : list inst) (j : jinst)
 
 with jinst : Type :=
   | Jnz (r : reg) (b1 : block) (b2 : block)
@@ -212,16 +190,20 @@ Definition jinst_args (j : jinst) : option reg :=
   end
 .
 
-Definition phis (b : block) : list phi :=
-  let (ps, _, _) := b in ps
+Definition get_lbl (b : block) : lbl :=
+  let (l, _, _, _) := b in l
 .
 
-Definition insts (b : block) : list inst :=
-  let (_, is, _) := b in is
+Definition get_phis (b : block) : list phi :=
+  let (_, ps, _, _) := b in ps
 .
 
-Definition jinsts (b : block) : jinst :=
-  let (_, _, j) := b in j
+Definition get_insts (b : block) : list inst :=
+  let (_, _, is, _) := b in is
+.
+
+Definition get_jinst (b : block) : jinst :=
+  let (_, _, _, j) := b in j
 .
 
 (*
@@ -259,7 +241,7 @@ Inductive binst : Type :=
 .
 
 Definition start (p : program) : binst :=
-  let (ps, is, j) := p in
+  let (_, ps, is, j) := p in
   match ps with
   | p :: _ => Bphi p
   | nil =>
@@ -285,8 +267,7 @@ Definition start (p : program) : binst :=
 *)
 
 Definition successors (b : block) : list block :=
-  let (_, _, j) := b in
-  match j with
+  match get_jinst b with
   | Jnz _ b1 b2 => [b1; b2]
   | Jmp b => [b]
   | Halt => []
