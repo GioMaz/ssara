@@ -10,12 +10,21 @@ Import ListNotations.
   https://pfalcon.github.io/ssabook/latest/book-full.pdf#section.531
 *)
 
+(* Definition of utility functions *)
 Definition reg_eq_dec : forall r r' : reg, {r = r'} + {r <> r'} := Nat.eq_dec.
 
 Definition regs_union := set_union reg_eq_dec.
 Definition regs_diff := set_diff reg_eq_dec.
 Definition regs_add := set_add reg_eq_dec.
 
+Definition option_to_list {A : Type} (x : option A) : list A :=
+  match x with
+  | Some x' => x' :: nil
+  | None => nil
+  end
+.
+
+(* Definition of metadata types *)
 Inductive metainst : Type :=
   (* | Metainst (use : list reg) (def : list reg) (live_out: list reg) (live_in: list reg) *)
   (* | Metainst (live_out: list reg) (live_in: list reg) *)
@@ -28,53 +37,21 @@ Inductive metablock : Type :=
 
 Definition metaprogram : Type := metablock.
 
-Definition option_to_list {A : Type} (x : option A) : list A :=
-  match x with
-  | Some x' => x' :: nil
-  | None => nil
-  end
-.
-
 Definition phi_defs (ps : list phi) : set reg :=
   map phi_reg ps
 .
 
-(* Definition phi_uses (b : block) : list reg :=
-  flat_map phi_args (get_phis b)
-. *)
-
-Fixpoint phi_uses_aux (b : block) (args : list phi_arg) : reg :=
-  match args with
-  | nil => 0 (* Unexpected, a phi instruction should have exactly one argument for each predecessor *)
-  | (r, l) :: xs =>
-    if l =? get_lbl b then
-      r
-    else
-      phi_uses_aux b xs
-  end
-.
-
-Definition phi_uses (b : block) : list reg :=
+Definition phi_uses (b : block) : set reg :=
   let ps := flat_map (fun b => get_phis b) (successors b) in  (* Get all phis from successors *)
   let args := flat_map phi_args ps in                         (* Get all arguments of phis *)
-  let pairs := filter (fun '(r, l) => l =? get_lbl b) args in (* Keep only those that come from the current label *)
-  map (fun '(r, l) => r) pairs                                (* Get only the register *)
-.
-
-Fixpoint inst_defs (is : list inst) : list reg :=
-  match is with
-  | nil => nil
-  | x :: xs =>
-    match inst_reg x with
-    | Some r => r :: inst_defs xs
-    | None => inst_defs xs
-    end
-  end
+  let pairs := filter (fun '(_, l) => l =? get_lbl b) args in (* Keep only those that come from the current label *)
+  map (fun '(r, _) => r) pairs                                (* Get only the register *)
 .
 
 (*
   Returns the metainst of all the phi instructions (which by SSA semantics are
-  all executed at the same time) and the live_out of the predecessor block.
+  all executed at the same time so they are considered as a single instruction)
+  and the live_out of the predecessor block.
   Note that the live_in contains phi_defs[ps] because phi instructions are
   actually executed in the predecessor blocks, not in the block where they are
   defined.
@@ -113,17 +90,19 @@ Fixpoint analyze_insts (is : list inst) (final_live_out : set reg) : list metain
   - live_out[i] := U with j ∈ succ[i] of live_in[j]
   - live_in[i]  := use[i] U live_out[i]
 *)
-Definition analyze_jinst (j : jinst) (final_live_out : list reg) : metainst * list reg :=
+Definition analyze_jinst (j : jinst) (final_live_out : set reg) : metainst * set reg :=
   let live_in := regs_union (option_to_list (jinst_args j)) final_live_out in
   (Metainst final_live_out live_in, live_in)
 .
 
 (*
-  Liveness analysis of a block
+  Returns the list of metainsts of the block and live_in of the first
+  instruction of the block.
+  Liveness analysis of a block:
   - live_out[b] := phi_uses[b] U (U with s in succ[b] of (live_in[s] - phi_def[s]))
   - live_in[b]  := live_in[ps]
 *)
-Definition analyze_block (b : block) (final_live_out : list reg) : list metainst * list reg :=
+Definition analyze_block (b : block) (final_live_out : set reg) : list metainst * set reg :=
   match b with
   | Block l ps is j =>
     let (mi_3, live_in_3) := analyze_jinst j final_live_out in
@@ -133,7 +112,7 @@ Definition analyze_block (b : block) (final_live_out : list reg) : list metainst
   end
 .
 
-Fixpoint analyze_program (p : program) (fuel : nat) : metaprogram * list reg :=
+Fixpoint analyze_program (p : program) (fuel : nat) : metaprogram * set reg :=
   match fuel with
   | O =>
     (* Get last metablock *)
@@ -165,111 +144,21 @@ Fixpoint analyze_program (p : program) (fuel : nat) : metaprogram * list reg :=
   end
 .
 
+(*
+         +---------------+
+         | r0 <- 34      |
+         | r1 <- 35      |
+         | r2 <- r1 < r2 |
+         +---------------+
+              |    |
+         +----+    +-----+
+         |               |
+  +-------------+  +-------------+
+  | r2 <- Φ(r0) |  | r3 <- Φ(r1) |
+  +-------------+  +-------------+
+*)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-(* Module Example1.
-  Definition ps: list phi := [
-      r(0) <- phi [3; 4; 5];
-      r(1) <- phi [6; 7; 8];
-      r(2) <- phi [9; 10; 11]
-    ]
-  .
-
-  Definition p : program :=
-    Block ps [] Halt
-  .
-
-  Compute analyze_phis ps nil.
-  Compute analyze_program p 10.
-End Example1. *)
-
-(* Module Example2.
-  Definition is : list inst := [
-      r(8) <- r(0) + (Imm 1);
-      r(9) <- r(1) - (Imm 1)
-    ]
-  .
-
-  Compute analyze_insts is nil.
-End Example2.
-
-Module Example3.
-  Definition example_block : block := Block [
-      r(0) <- phi [1; 2; 3]
-    ] [
-      r(4) <- r(0) + (Imm 1)
-    ] (
-      Halt
-    )
-  .
-
-  Compute analyze_block example_block nil.
-End Example3.
-
-Module Example4.
-  Definition example_block : block := Block [
-      r(0) <- phi [2; 3; 4];
-      r(1) <- phi [5; 6; 7]
-    ] [
-      r(8) <- r(0) + (Imm 1);
-      r(9) <- r(1) - (Imm 1)
-    ] (
-      Halt
-    )
-  .
-
-  Compute analyze_block example_block nil.
-End Example4. *)
-(* 
-Fixpoint defines_As {A : Type} (get_reg : A -> option reg) (is : list A) (r : reg) : bool :=
-  match is with
-  | nil => false
-  | x :: xs =>
-    match get_reg x with
-    | Some r' => (r =? r') || defines_As get_reg xs r
-    | None => defines_As get_reg xs r
-    end
-  end
-.
-
-Definition defines (b : block) (r : reg) : bool :=
-  match b with
-  | Block ps is j =>
-    defines_As phi_reg ps r || defines_As inst_reg is r
-  end
-. *)
-
-Axiom get_fuel : program -> nat.
-
-(* Fixpoint postprocess_mp_aux (mp : metaprogram) (defined : list reg) : metaprogram :=
-  match mp with
-  | Metablock mis mbs =>
-    let (mis', defined') := postprocess_mis mis defined in
-    fold_left
-      (fun '(fmis, fdefined) mp => ) mis' :: (postprocess_mp_aux mbs defined')
-  end
-. *)
-
-Module Example5.
+Module Example1.
   Definition example_block_2 : block :=
     Block 2 [
       r(3) <- phi [(0, 1)]
@@ -302,9 +191,22 @@ Module Example5.
   .
 
   Compute analyze_program example_block_1 10.
-End Example5.
+End Example1.
 
-Module Example6.
+(*
+        +--------+
+        |        |
+  +-----------+  |
+  | r0 <- 100 |  |
+  +-----------+  |
+        |        |
+  +----------+   |
+  | r1 <- r0 |   |
+  +----------+   |
+        |        |
+        +--------+
+*)
+Module Example2.
   CoFixpoint example_block_1 : block :=
     Block 1 [
     ] [
@@ -322,81 +224,7 @@ Module Example6.
   .
 
   Compute analyze_program example_block_1 10.
-End Example6.
-
-(* Interference graph stored using adjacence lists *)
-Definition ig : Type := list (reg * list reg).
-
-(* Fixpoint ig_insert_edge_aux (r : reg) (r' : reg) (g : ig) : ig :=
-  match g with
-  | nil => [(r, [r'])]
-  | (x, xs) as L :: ys =>
-    if r =? x then
-      (x, regs_insert r' xs) :: ys
-    else
-    L :: ig_insert_edge_aux r r' ys
-  end
-. *)
-
-Definition ig_insert_edge (r : reg) (r' : reg) (g : ig) : ig :=
-  let fix ig_insert_edge_aux (r : reg) (r' : reg) (g : ig) : ig :=
-    match g with
-    | nil => [(r, [r'])]
-    | (x, xs) as L :: ys =>
-      if r =? x then
-        (x, regs_add r' xs) :: ys
-      else
-      L :: ig_insert_edge_aux r r' ys
-    end in
-  let g' := ig_insert_edge_aux r r' g in
-  ig_insert_edge_aux r' r g'
-.
-
-Fixpoint ig_insert_edges (r : reg) (regs : list reg) (g : ig) : ig :=
-  match regs with
-  | nil => g
-  | x :: xs =>
-    let g' := ig_insert_edge r x g in
-    ig_insert_edges r xs g'
-  end
-.
-
-Fixpoint ig_insert_regs (regs : list reg) (g : ig) : ig :=
-  match regs with
-  | nil => g
-  | x :: xs =>
-    let g' := ig_insert_edges x xs g in
-    ig_insert_regs xs g'
-  end
-.
-
-Definition ig_insert_mi (mi : metainst) (g : ig) : ig :=
-  match mi with
-  | Metainst live_in live_out =>
-    let regs := regs_union live_in live_out in
-    ig_insert_regs regs g
-  end
-.
-
-Fixpoint ig_insert_mis (mis: list metainst) (g : ig) : ig :=
-  match mis with
-  | nil => g
-  | x :: xs =>
-    let g' := ig_insert_mi x g in
-    ig_insert_mis xs g'
-  end
-.
-
-Fixpoint get_ig_mb (mb : metablock) (g : ig) : ig :=
-  match mb with
-  | Metablock mis mbs =>
-    let g' := ig_insert_mis mis g in
-    fold_left (fun g mb => get_ig_mb mb g) mbs g'
-  end
-.
-
-Definition get_ig_mp (mp : metaprogram): ig :=
-  get_ig_mb mp nil.
+End Example2.
 
 (*
   +-----------+
@@ -419,7 +247,7 @@ Definition get_ig_mp (mp : metaprogram): ig :=
          +----------------+
 *)
 
-Module Example7.
+Module Example3.
   CoFixpoint example_block_3 : block :=
     Block 3 [
     ] [
@@ -451,8 +279,100 @@ Module Example7.
   Definition fuel : nat := 4.
 
   Compute analyze_program example_block_1 fuel.
+End Example3.
 
-End Example7.
+(* Interference graph definition as a map from a register to its adjacence set *)
+Definition ig : Type := reg -> set reg.
+Definition ig_empty : ig := fun k => nil.
+Definition ig_update (g : ig) (k : reg) (v : set reg) : ig :=
+  fun r => if r =? k then v else g r
+.
+
+Definition ig_insert_edge (r : reg) (r' : reg) (g : ig) : ig :=
+  let regs  := g r in
+  let g'    := ig_update g r (regs_add r' regs) in
+  let regs' := g' r' in
+  ig_update g' r' (regs_add r regs')
+.
+
+Fixpoint ig_insert_edges (r : reg) (regs : list reg) (g : ig) : ig :=
+  match regs with
+  | nil => g
+  | x :: xs =>
+    let g' := ig_insert_edge r x g in
+    ig_insert_edges r xs g'
+  end
+.
+
+Fixpoint ig_insert_regs (regs : list reg) (g : ig) : ig :=
+  match regs with
+  | nil => g
+  | x :: xs =>
+    let g' := ig_insert_edges x xs g in
+    ig_insert_regs xs g'
+  end
+.
+
+Definition ig_insert_metainst (mi : metainst) (g : ig) : ig :=
+  match mi with
+  | Metainst live_in live_out =>
+    ig_insert_regs live_out (ig_insert_regs live_in g)
+  end
+.
+
+Definition ig_insert_metainsts (mis: list metainst) (g : ig) : ig :=
+  fold_left (fun g' mi => ig_insert_metainst mi g') mis g
+.
+
+Fixpoint get_ig_metablock (mb : metablock) (g : ig) : ig :=
+  match mb with
+  | Metablock mis mbs =>
+    let g' := ig_insert_metainsts mis g in
+    fold_left (fun g mb => get_ig_metablock mb g) mbs g'
+  end
+.
+
+Definition get_ig_metaprogram (mp : metaprogram): ig :=
+  get_ig_metablock mp ig_empty
+.
+
+Module Example4.
+  CoFixpoint example_block_3 : block :=
+    Block 3 [
+    ] [
+      r(5) <- r(3) + (Imm 1);
+      r(6) <- r(4) + (Imm 1)
+    ] (
+      Jmp example_block_2
+    )
+  with example_block_2 : block :=
+    Block 2 [
+      r(3) <- phi [(1, 1); (5, 3)];
+      r(4) <- phi [(2, 1); (6, 3)]
+    ] [
+    ] (
+      Jmp example_block_3
+    )
+  .
+
+  Definition example_block_1 : block :=
+    Block 1 [
+    ] [
+      r(1) <- (Imm 34);
+      r(2) <- (Imm 35)
+    ] (
+      Jmp example_block_2
+    )
+  .
+
+  Definition fuel : nat := 4.
+
+  Compute analyze_program example_block_1 fuel.
+  Compute
+    let (mp, _) := analyze_program example_block_1 fuel in
+    let g := get_ig_metaprogram mp in
+    map (fun r => (r, g r)) [1; 2; 3; 4; 5; 6].
+End Example4.
 
 (*
 TODO:

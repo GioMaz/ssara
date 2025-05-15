@@ -67,16 +67,12 @@ Definition eq_expr (e1 e2 : expr) : bool :=
   end
 .
 
+Definition phi_arg : Type := (reg * lbl).
+
 (*
   The `phi`, `inst` and `jinst` instructions are separated to avoid having to
   deal with illegal basic blocks
 *)
-Definition phi_arg : Type := (reg * lbl).
-
-Notation "'r(' x ) 'from' 'b(' y )" :=
-  (x, y) (at level 50)
-.
-
 Inductive phi : Type :=
   | Phi (r : reg) (rs: list phi_arg)
 .
@@ -160,22 +156,6 @@ Definition inst_args (i : inst) : list reg :=
     | CmpNe r v => r :: reg_or_nil v
     end
   | Store v r => r :: reg_or_nil v
-  end
-.
-
-Definition eq_inst (i1 i2 : inst) : bool :=
-  match i1, i2 with
-  | Def i1 e1, Def i2 e2 => (Nat.eqb i1 i2) && (eq_expr e1 e2)
-  | Store x1 y1, Store x2 y2 => (eq_val x1 x2) && (Nat.eqb y1 y2)
-  | _, _ => false
-  end
-.
-
-Fixpoint eq_list_inst (i1 i2 : list inst) : bool :=
-  match i1, i2 with
-  | nil, nil => true
-  | x :: xs, y :: ys => (eq_inst x y) && (eq_list_inst xs ys)
-  | _, _ => false
   end
 .
 
