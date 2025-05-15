@@ -235,9 +235,7 @@ with eq_block (b1 : block) (b2 : block) : bool :=
 .
 *)
 
-(* The starting block is the first block of the list *)
-(* Definition program : Type := list block. *)
-
+(* The starting block is the first block of CFG *)
 Definition program : Type := block.
 
 (*

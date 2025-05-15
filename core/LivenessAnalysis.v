@@ -2,15 +2,24 @@ From Ssara.Core Require Import Syntax.
 From Ssara.Core Require Import Vm.
 From Stdlib Require Import Lists.List.
 From Stdlib Require Import ZArith.
+From Stdlib Require Import ListSet.
 Import ListNotations.
 
 (*
   https://en.wikipedia.org/wiki/Live-variable_analysis
+  https://pfalcon.github.io/ssabook/latest/book-full.pdf#section.531
 *)
+
+Definition reg_eq_dec : forall r r' : reg, {r = r'} + {r <> r'} := Nat.eq_dec.
+
+Definition regs_union := set_union reg_eq_dec.
+Definition regs_diff := set_diff reg_eq_dec.
+Definition regs_add := set_add reg_eq_dec.
 
 Inductive metainst : Type :=
   (* | Metainst (use : list reg) (def : list reg) (live_out: list reg) (live_in: list reg) *)
-  | Metainst (live_out: list reg) (live_in: list reg)
+  (* | Metainst (live_out: list reg) (live_in: list reg) *)
+  | Metainst (live_out: set reg) (live_in: set reg)
 .
 
 Inductive metablock : Type :=
@@ -19,43 +28,6 @@ Inductive metablock : Type :=
 
 Definition metaprogram : Type := metablock.
 
-Definition contains (x : reg) (xs : list reg) : bool :=
-  existsb (fun n => Nat.eqb x n) xs
-.
-
-Fixpoint regs_union (regs : list reg) (regs' : list reg) : list reg :=
-  match regs' with
-  | nil => regs
-  | x :: xs =>
-    if contains x regs then regs_union regs xs else x :: regs_union regs xs
-  end
-.
-
-Notation "x 'U' y" :=
-  (regs_union x y) (at level 50)
-.
-
-Fixpoint regs_remove (r : reg) (regs : list reg) : list reg :=
-  match regs with
-  | nil => regs
-  | x :: xs =>
-    if Nat.eqb x r then regs_remove r xs else x :: regs_remove r xs
-  end
-.
-
-Fixpoint regs_minus (regs : list reg) (regs' : list reg) : list reg :=
-  match regs' with
-  | nil => regs
-  | x :: xs => regs_minus (regs_remove x regs) xs
-  end
-.
-
-Definition regs_insert (r : reg) (regs : list reg) : list reg :=
-  if contains r regs then regs else r :: regs
-.
-
-(* TODO: look into ensembles, coq-ext-lib, other libraries that implement sets *)
-
 Definition option_to_list {A : Type} (x : option A) : list A :=
   match x with
   | Some x' => x' :: nil
@@ -63,7 +35,7 @@ Definition option_to_list {A : Type} (x : option A) : list A :=
   end
 .
 
-Definition phi_defs (ps : list phi) : list reg :=
+Definition phi_defs (ps : list phi) : set reg :=
   map phi_reg ps
 .
 
@@ -100,29 +72,6 @@ Fixpoint inst_defs (is : list inst) : list reg :=
   end
 .
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 (*
   Returns the metainst of all the phi instructions (which by SSA semantics are
   all executed at the same time) and the live_out of the predecessor block.
@@ -133,8 +82,8 @@ Fixpoint inst_defs (is : list inst) : list reg :=
   - live_out[ps]  := U with j ∈ succ[ps] of live_in[j]
   - live_in[ps]   := phi_defs[ps] U live_out[ps]
 *)
-Definition analyze_phis (ps : list phi) (final_live_out : list reg) : metainst * list reg :=
-  let live_in := (phi_defs ps) U final_live_out in
+Definition analyze_phis (ps : list phi) (final_live_out : set reg) : metainst * set reg :=
+  let live_in := regs_union (phi_defs ps) final_live_out in
   (Metainst final_live_out live_in, live_in)
 .
 
@@ -144,14 +93,14 @@ Definition analyze_phis (ps : list phi) (final_live_out : list reg) : metainst *
   - live_out[i] := U with j ∈ succ[i] of live_in[j]
   - live_in[i]  := use[i] U (live_out[i] \ def[i])
 *)
-Fixpoint analyze_insts (is : list inst) (final_live_out : list reg) : list metainst * list reg :=
+Fixpoint analyze_insts (is : list inst) (final_live_out : set reg) : list metainst * set reg :=
   match is with
   | nil => (nil, final_live_out)
   | x :: xs =>
     let use := inst_args x in
     let def := option_to_list (inst_reg x) in
     let (is', live_out) := analyze_insts xs final_live_out in
-    let live_in := use U (regs_minus live_out def) in (
+    let live_in := regs_union use (regs_diff live_out def) in (
       (Metainst live_out live_in) :: is',
       live_in
     )
@@ -165,11 +114,12 @@ Fixpoint analyze_insts (is : list inst) (final_live_out : list reg) : list metai
   - live_in[i]  := use[i] U live_out[i]
 *)
 Definition analyze_jinst (j : jinst) (final_live_out : list reg) : metainst * list reg :=
-  let live_in := option_to_list (jinst_args j) U final_live_out in
+  let live_in := regs_union (option_to_list (jinst_args j)) final_live_out in
   (Metainst final_live_out live_in, live_in)
 .
 
 (*
+  Liveness analysis of a block
   - live_out[b] := phi_uses[b] U (U with s in succ[b] of (live_in[s] - phi_def[s]))
   - live_in[b]  := live_in[ps]
 *)
@@ -201,17 +151,17 @@ Fixpoint analyze_program (p : program) (fuel : nat) : metaprogram * list reg :=
     let (mbs, live_out) :=
       fold_left
         (fun '(mbs, live_in) '(mb, live_out) =>
-          (mb :: mbs, live_in U live_out))
+          (mb :: mbs, regs_union live_in live_out))
         results
         (nil, nil) in
 
-    (* Add to live_out phi_uses[b] *)
-    let live_out' := live_out U (phi_uses p) in
+    (* Add phi_uses[b] to live_out *)
+    let live_out' := regs_union live_out (phi_uses p) in
 
     (* Analyze current block *)
     let (mis, live_in) := analyze_block p live_out' in
 
-    (Metablock mis mbs, regs_minus live_in (phi_defs (get_phis p)))
+    (Metablock mis mbs, regs_diff live_in (phi_defs (get_phis p)))
   end
 .
 
@@ -310,10 +260,6 @@ Definition defines (b : block) (r : reg) : bool :=
 
 Axiom get_fuel : program -> nat.
 
-Definition filter_defined (regs : list reg) (defined : list reg) : list reg :=
-  filter (fun r => contains r defined) regs
-.
-
 (* Fixpoint postprocess_mp_aux (mp : metaprogram) (defined : list reg) : metaprogram :=
   match mp with
   | Metablock mis mbs =>
@@ -398,7 +344,7 @@ Definition ig_insert_edge (r : reg) (r' : reg) (g : ig) : ig :=
     | nil => [(r, [r'])]
     | (x, xs) as L :: ys =>
       if r =? x then
-        (x, regs_insert r' xs) :: ys
+        (x, regs_add r' xs) :: ys
       else
       L :: ig_insert_edge_aux r r' ys
     end in
@@ -427,7 +373,7 @@ Fixpoint ig_insert_regs (regs : list reg) (g : ig) : ig :=
 Definition ig_insert_mi (mi : metainst) (g : ig) : ig :=
   match mi with
   | Metainst live_in live_out =>
-    let regs := live_in U live_out in
+    let regs := regs_union live_in live_out in
     ig_insert_regs regs g
   end
 .
