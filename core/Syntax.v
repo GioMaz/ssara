@@ -71,8 +71,14 @@ Definition eq_expr (e1 e2 : expr) : bool :=
   The `phi`, `inst` and `jinst` instructions are separated to avoid having to
   deal with illegal basic blocks
 *)
+Definition phi_arg : Type := (reg * lbl).
+
+Notation "'r(' x ) 'from' 'b(' y )" :=
+  (x, y) (at level 50)
+.
+
 Inductive phi : Type :=
-  | Phi (r : reg) (rs: list (reg * lbl))
+  | Phi (r : reg) (rs: list phi_arg)
 .
 
 Notation "'r(' x ) <- 'phi' y" :=
@@ -84,7 +90,7 @@ Definition phi_reg (p : phi) : reg :=
   end
 .
 
-Definition phi_args (p : phi) : list (reg * lbl) :=
+Definition phi_args (p : phi) : list phi_arg :=
   match p with
   | Phi _ rs => rs
   end
@@ -173,6 +179,10 @@ Fixpoint eq_list_inst (i1 i2 : list inst) : bool :=
   end
 .
 
+(*
+  A block lbl is necessary in order to define the semantics of phi
+  instructions.
+*)
 CoInductive block : Type :=
   | Block (l : lbl) (ps : list phi) (is : list inst) (j : jinst)
 

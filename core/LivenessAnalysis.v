@@ -71,7 +71,7 @@ Definition phi_defs (ps : list phi) : list reg :=
   flat_map phi_args (get_phis b)
 . *)
 
-Fixpoint phi_uses_aux (b : block) (args : list (reg * lbl)) : reg :=
+Fixpoint phi_uses_aux (b : block) (args : list phi_arg) : reg :=
   match args with
   | nil => 0 (* Unexpected, a phi instruction should have exactly one argument for each predecessor *)
   | (r, l) :: xs =>
