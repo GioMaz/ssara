@@ -73,6 +73,10 @@ Definition phi_uses (b : block) : list reg :=
   end
 .
 
+Definition next_phi_uses (b : block) : list reg :=
+  flat_map phi_uses (successors b)
+.
+
 Fixpoint inst_defs (is : list inst) : list reg :=
   match is with
   | nil => nil
@@ -84,11 +88,29 @@ Fixpoint inst_defs (is : list inst) : list reg :=
   end
 .
 
-Definition defs (b : block) : list reg :=
-  match b with
-  | Block ps is _ => phi_defs ps ++ inst_defs is
-  end
-.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 (*
   This generic function is used to get the metadata of a section of
@@ -146,7 +168,7 @@ Definition analyze_jinst (j : jinst) (final_live_out : list reg) : metainst * li
 (*
   
   - live_out[b] := U with s in succ[b] of ((live_in[s] - phi_def[s]) U phi_uses[s])
-  - live_in[b]  := phi_defs[b] U (live_out[b] - defs[b])
+  - live_in[b]  := live_in[ps]
 *)
 Definition analyze_block (b : block) (final_live_out : list reg) : list metainst * list reg :=
   match b with
@@ -216,7 +238,12 @@ Module Example1.
     ]
   .
 
+  Definition p : program :=
+    Block ps [] Halt
+  .
+
   Compute analyze_phis ps nil.
+  Compute analyze_program p 10.
 End Example1.
 
 Module Example2.
@@ -467,7 +494,7 @@ Module Example7.
     )
   .
 
-  Definition fuel : nat := 3.
+  Definition fuel : nat := 4.
 
   Compute analyze_program example_block_1 fuel.
 
