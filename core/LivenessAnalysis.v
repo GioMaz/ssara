@@ -336,6 +336,11 @@ Definition get_ig_metaprogram (mp : metaprogram): ig :=
   get_ig_metablock mp ig_empty
 .
 
+Definition get_ig (p : program) (fuel : nat) : ig :=
+  let (mp, _) := analyze_program p fuel in
+  get_ig_metaprogram mp
+.
+
 Module Example4.
   CoFixpoint example_block_3 : block :=
     Block 3 [
