@@ -1,7 +1,7 @@
-From Ssara.Core Require Import Syntax.
+(* From Ssara.Core Require Import Syntax.
 From Stdlib Require Import Lists.List.
 
-(* (*
+(*
   1st property of an SSA program, every instruction is assigned exactly once
 *)
 
@@ -10,16 +10,9 @@ Inductive in_program : block -> program -> Prop :=
   | IsSuccessor : forall b b' p, (In b' (successors b)) -> in_program b p -> in_program b' p
 .
 
-Definition single_assignment_program_of {A : Type} (get_sec : block -> list A) (get_reg : A -> option reg) (p : program) : Prop :=
-  forall (b b' : block) (p : program) (i i' : A),
-    in_program b p /\ In i (get_sec b) /\ in_program b' p /\ In i' (get_sec b') -> (
-      (get_reg i = get_reg i') -> (
-        b = b'
-        /\ exists j, (
-          nth_error (get_sec b) j = Some i /\ nth_error (get_sec b') j = Some i'
-        )
-      )
-    )
+Definition single_assignment {A : Type} (get_sec : block -> list A) (get_reg : A -> option reg) (b : block) : Prop :=
+  forall (i j : nat), nth_error i (get_sec b) = nth_error j (get_sec b) -> i = j
+.
 .
 
 Definition single_assignment_program_phi_inst (pr : program) : Prop :=

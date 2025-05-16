@@ -12,7 +12,6 @@ Import ListNotations.
 
 (* Definition of utility functions *)
 Definition reg_eq_dec : forall r r' : reg, {r = r'} + {r <> r'} := Nat.eq_dec.
-
 Definition regs_union := set_union reg_eq_dec.
 Definition regs_diff := set_diff reg_eq_dec.
 Definition regs_add := set_add reg_eq_dec.
@@ -49,15 +48,16 @@ Definition phi_uses (b : block) : set reg :=
 .
 
 (*
-  Returns the metainst of all the phi instructions (which by SSA semantics are
-  all executed at the same time so they are considered as a single instruction)
-  and the live_out of the predecessor block.
-  Note that the live_in contains phi_defs[ps] because phi instructions are
-  actually executed in the predecessor blocks, not in the block where they are
-  defined.
   Liveness analysis of a phi instruction section:
   - live_out[ps]  := U with j ∈ succ[ps] of live_in[j]
   - live_in[ps]   := phi_defs[ps] U live_out[ps]
+
+  Returns the metainst of all the phi instructions (which by SSA semantics are
+  all executed at the same time hence they are considered as a single
+  instruction) and live_in[ps].
+  Note that the live_in contains phi_defs[ps] because phi instructions are
+  actually executed in the predecessor blocks, not in the block where they are
+  defined.
 *)
 Definition analyze_phis (ps : list phi) (final_live_out : set reg) : metainst * set reg :=
   let live_in := regs_union (phi_defs ps) final_live_out in
@@ -65,10 +65,11 @@ Definition analyze_phis (ps : list phi) (final_live_out : set reg) : metainst * 
 .
 
 (*
-  Returns the list of metainsts and the live_out of the predecessor instruction.
   Liveness analysis of a regular instruction:
   - live_out[i] := U with j ∈ succ[i] of live_in[j]
   - live_in[i]  := use[i] U (live_out[i] \ def[i])
+
+  Returns the list of metainsts and the live_in of the first instruction.
 *)
 Fixpoint analyze_insts (is : list inst) (final_live_out : set reg) : list metainst * set reg :=
   match is with
@@ -85,10 +86,11 @@ Fixpoint analyze_insts (is : list inst) (final_live_out : set reg) : list metain
 .
 
 (*
-  Returns the list of metainsts and the live_out of the predecessor instruction.
   Liveness analysis of a jump instruction:
   - live_out[i] := U with j ∈ succ[i] of live_in[j]
   - live_in[i]  := use[i] U live_out[i]
+
+  Returns the list of metainsts and the live_in of the instruction.
 *)
 Definition analyze_jinst (j : jinst) (final_live_out : set reg) : metainst * set reg :=
   let live_in := regs_union (option_to_list (jinst_args j)) final_live_out in
@@ -96,11 +98,13 @@ Definition analyze_jinst (j : jinst) (final_live_out : set reg) : metainst * set
 .
 
 (*
-  Returns the list of metainsts of the block and live_in of the first
-  instruction of the block.
   Liveness analysis of a block:
   - live_out[b] := phi_uses[b] U (U with s in succ[b] of (live_in[s] - phi_def[s]))
   - live_in[b]  := live_in[ps]
+
+  Returns the list of metainsts and (live_in[b] - phi_def[s]) which will later
+  be used in `analyze_program` to calculate the live_out of the predecessor with
+  the first equation defined in this comment.
 *)
 Definition analyze_block (b : block) (final_live_out : set reg) : list metainst * set reg :=
   match b with
@@ -108,10 +112,14 @@ Definition analyze_block (b : block) (final_live_out : set reg) : list metainst 
     let (mi_3, live_in_3) := analyze_jinst j final_live_out in
     let (mi_2, live_in_2) := analyze_insts is live_in_3 in
     let (mi_1, live_in_1) := analyze_phis ps live_in_2 in
-    (mi_1 :: mi_2 ++ [mi_3], live_in_1)
+    (mi_1 :: mi_2 ++ [mi_3], regs_diff live_in_1 (phi_defs (get_phis b)))
   end
 .
 
+(*
+  Returns the metaprogram with depth `fuel` and live_in[p] which can be used to
+  check whether the program uses any uninitialized variable.
+*)
 Fixpoint analyze_program (p : program) (fuel : nat) : metaprogram * set reg :=
   match fuel with
   | O =>
@@ -226,61 +234,6 @@ Module Example2.
   Compute analyze_program example_block_1 10.
 End Example2.
 
-(*
-  +-----------+
-  | r1 <- ... |
-  | r2 <- ... |
-  +-----------+
-        |
-        |     +-----------+  TODO: handle this specific case where the live_out
-        |     |           |  of the first block is {r2, r6, r1, r5}, when
-  +-----------------+     |  instead it should be {r2, r1}. This is caused by
-  | r3 <- Φ(r1, r5) |     |  live_in of the second block being {r2, r6, r1, r5}
-  | r4 <- Φ(r2, r6) |     |
-  +-----------------+     |
-         |                |
-  +--------------+        |
-  | r5 <- r3 + 1 |        |
-  | r6 <- r4 + 1 |        |
-  +--------------+        |
-         |                |
-         +----------------+
-*)
-
-Module Example3.
-  CoFixpoint example_block_3 : block :=
-    Block 3 [
-    ] [
-      r(5) <- r(3) + (Imm 1);
-      r(6) <- r(4) + (Imm 1)
-    ] (
-      Jmp example_block_2
-    )
-  with example_block_2 : block :=
-    Block 2 [
-      r(3) <- phi [(1, 1); (5, 3)];
-      r(4) <- phi [(2, 1); (6, 3)]
-    ] [
-    ] (
-      Jmp example_block_3
-    )
-  .
-
-  Definition example_block_1 : block :=
-    Block 1 [
-    ] [
-      r(1) <- (Imm 34);
-      r(2) <- (Imm 35)
-    ] (
-      Jmp example_block_2
-    )
-  .
-
-  Definition fuel : nat := 4.
-
-  Compute analyze_program example_block_1 fuel.
-End Example3.
-
 (* Interference graph definition as a map from a register to its adjacence set *)
 Definition ig : Type := reg -> set reg.
 Definition ig_empty : ig := fun k => nil.
@@ -341,7 +294,28 @@ Definition get_ig (p : program) (fuel : nat) : ig :=
   get_ig_metaprogram mp
 .
 
-Module Example4.
+(*
+  +-----------+
+  | r1 <- ... |
+  | r2 <- ... |
+  +-----------+
+        |
+        |     +-----------+
+        |     |           |
+  +-----------------+     |
+  | r3 <- Φ(r1, r5) |     |
+  | r4 <- Φ(r2, r6) |     |
+  +-----------------+     |
+         |                |
+  +--------------+        |
+  | r5 <- r3 + 1 |        |
+  | r6 <- r4 + 1 |        |
+  +--------------+        |
+         |                |
+         +----------------+
+*)
+
+Module Example3.
   CoFixpoint example_block_3 : block :=
     Block 3 [
     ] [
@@ -373,6 +347,50 @@ Module Example4.
   Definition fuel : nat := 4.
 
   Compute analyze_program example_block_1 fuel.
+  Compute
+    let (mp, _) := analyze_program example_block_1 fuel in
+    let g := get_ig_metaprogram mp in
+    map (fun r => (r, g r)) [1; 2; 3; 4; 5; 6].
+End Example3.
+
+Module Example4.
+  CoFixpoint example_block_2 : block :=
+    Block 2 [
+      r(3) <- phi [(1, 1); (5, 4)];
+      r(4) <- phi [(2, 1); (6, 4)]
+    ] [
+    ] (
+      Jmp example_block_3
+    )
+  with example_block_3 : block :=
+    Block 3 [
+    ] [
+      r(5) <- r(3) + (Imm 1);
+      r(6) <- r(4) + (Imm 1)
+    ] (
+      Jmp example_block_4
+    )
+  with example_block_4 : block :=
+    Block 4 [
+    ] [
+    ] (
+      Jmp example_block_2
+    )
+  .
+
+  Definition example_block_1 : block :=
+    Block 1 [
+    ] [
+      r(1) <- (Imm 34);
+      r(2) <- (Imm 35)
+    ] (
+      Jmp example_block_2
+    )
+  .
+
+  Definition fuel : nat := 4.
+
+  Compute analyze_program example_block_4 fuel.
   Compute
     let (mp, _) := analyze_program example_block_1 fuel in
     let g := get_ig_metaprogram mp in

@@ -11,6 +11,8 @@ Inductive vm : Type :=
   | Vm : list (reg * cell) -> list cell -> vm
 .
 
+Definition vm_new : vm := Vm nil nil.
+
 Fixpoint get_reg_aux (regs : list (reg * cell)) (r : reg) : cell :=
   match regs with
   | nil => Z0

@@ -24,7 +24,7 @@ Module Example1.
   .
 
   Example run_example :
-    Vm.run (Vm nil nil) example_block 1 =
+    Vm.run vm_new example_block 1 =
       Vm [(2, 34%Z); (3, 68%Z); (4, 69%Z); (5, 69%Z); (6, 1%Z)]
       [0%Z; 0%Z; 0%Z; 0%Z; 0%Z; 69%Z]
   .
@@ -42,7 +42,7 @@ Module Exmaple2.
     Block 1 nil nil (Jmp (example_block_1))
   .
 
-  Example run_example : Vm.run (Vm nil nil) example_block_1 1000 = (Vm nil nil).
+  Example run_example : Vm.run vm_new example_block_1 1000 = vm_new.
   Proof.
     reflexivity.
   Qed.
@@ -51,8 +51,8 @@ End Exmaple2.
 (* Example 3 *)
 
 Module Example3.
-  Definition example_block_1 : block :=
-    Block 0 [
+  Definition example_block_3 : block :=
+    Block 3 [
       r(2) <- phi [(0, 1); (1, 2)]
     ] [
       store (Ptr 0) r(2)
@@ -61,35 +61,36 @@ Module Example3.
     )
   .
 
-  Definition example_block_2 : block :=
+  Definition example_block_1 : block :=
     Block 1 [
     ] [
       r(0) <- (Imm 34)
     ] (
-      Jmp example_block_1
+      Jmp example_block_3
     )
   .
 
-  Definition example_block_3 : block :=
+  Definition example_block_2 : block :=
     Block 2 [
     ] [
       r(1) <- (Imm 35)
     ] (
-      Jmp example_block_1
+      Jmp example_block_3
     )
   .
 
+  Compute Vm.run vm_new example_block_1 10.
   Example run_example_1 :
-    Vm.run (Vm nil nil) example_block_3 10
-    = Vm [(1, 35%Z); (2, 35%Z)] [35%Z]
+    Vm.run vm_new example_block_1 10
+    = Vm [(0, 34%Z); (2, 34%Z)] [34%Z]
   .
   Proof.
     reflexivity.
   Qed.
 
   Example run_example_2 :
-    Vm.run (Vm nil nil) example_block_2 10
-    = Vm [(0, 34%Z); (2, 34%Z)] [34%Z]
+    Vm.run vm_new example_block_2 10
+    = Vm [(1, 35%Z); (2, 35%Z)] [35%Z]
   .
   Proof.
     reflexivity.
@@ -97,14 +98,14 @@ Module Example3.
 End Example3.
 
 Definition set_reg_P (r : reg) (c : Z) : bool :=
-  let (regs, _) := (set_reg (Vm nil nil) r c) in
+  let (regs, _) := (set_reg vm_new r c) in
   existsb (fun '(r', c') => Nat.eqb r r' && Z.eqb c c') regs
 .
 
 QuickChick set_reg_P.
 
 Definition set_cell_P (i : nat) (c : cell) : bool :=
-  let (_, cells) := (set_cell (Vm nil nil) i c) in
+  let (_, cells) := (set_cell vm_new i c) in
   match nth_error cells i with
   | Some c' => Z.eqb c c'
   | _ => false
@@ -117,7 +118,7 @@ QuickChick set_reg_P.
   Check whether after a store the ith cell actually contains the intended value
 *)
 Definition store_P (i : nat) (c : cell) : bool :=
-  let m := Vm nil nil in
+  let m := vm_new in
   let b := Block 0 nil [r(0) <- (Imm c); store (Ptr i) r(0)] Halt in
   let (_, cells) := Vm.run m b 10 in
   match nth_error cells i with

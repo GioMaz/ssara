@@ -1,11 +1,11 @@
 open Ssara
-open List
 
 let vm_new () = Vm ([], []);;
 
 let block_new l ps is j = Lazy.from_val (
   Block (l, ps, is, Lazy.from_val j)
-  );;
+  )
+;;
 
 let program_new = block_new;;
 
@@ -13,7 +13,7 @@ let run_example_1 () =
   let vm = vm_new () in
   let program = program_new 0 [] [] Halt in
   let Vm (_, cells) = run vm program 4 in
-  if is_empty cells then
+  if List.is_empty cells then
     print_string "None\n"
   else
     print_string "Some\n"
@@ -26,7 +26,8 @@ let run_example_2 () =
   let i4 = Store ((Ptr 0), 2) in
   let p = (program_new 0 [] [i1; i2; i3; i4] Halt) in
   let g = get_ig p 10 in
-  map print_int (g 1)
+  List.iter print_int (g 1); print_char '\n';
+  List.iter print_int (g 2); print_char '\n';
 ;;
 
 run_example_1 ();;
