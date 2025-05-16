@@ -163,7 +163,7 @@ Fixpoint run_phis (m : vm) (pred : block) (ps : list phi) : vm :=
 Fixpoint run (m : vm) (p : program) (fuel : nat) : vm :=
   match p, fuel with
   | _, O => m
-  | Block _ _ is j, S fuel'  =>
+  | Block _ _ is j, S fuel' =>
     let m' := run_insts m is in
     match j with
     | Jnz r b1 b2 =>
