@@ -235,7 +235,7 @@ End Example2.
 
 (* Interference graph definition as a map from a register to its adjacence set *)
 Definition ig : Type := reg -> set reg.
-Definition ig_epity : ig := fun k => nil.
+Definition ig_empty : ig := fun k => nil.
 Definition ig_update (g : ig) (k : reg) (v : set reg) : ig :=
   fun r => if r =? k then v else g r
 .
@@ -285,7 +285,7 @@ Fixpoint get_ig_blockinfo (bi : blockinfo) (g : ig) : ig :=
 .
 
 Definition get_ig_programinfo (pi : programinfo): ig :=
-  get_ig_blockinfo pi ig_epity
+  get_ig_blockinfo pi ig_empty
 .
 
 Definition get_regs_instinfos (iis : list instinfo) : set reg :=

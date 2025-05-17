@@ -2,8 +2,8 @@ open Ssara
 
 module LblSet = Set.Make(Int);;
 
-(* Get all the labels from a program *)
-let get_labels p =
+(* Get all the labels from a program until a fixpoint is reached *)
+let get_labels_fixpoint p =
   let rec get_labels_aux p visited =
     let l = get_lbl p in
     if LblSet.mem l visited then
@@ -22,7 +22,7 @@ module RegSet = Set.Make(Int);;
 
 (* Calculate the interference graph until a fixpoint is reached *)
 let get_ig_fixpoint p =
-  let labels = RegSet.cardinal (get_labels p) in
+  let labels = RegSet.cardinal (get_labels_fixpoint p) in
   let rec get_ig_fixpoint_aux prev_g prev_fuel =
     let fuel = prev_fuel + labels in
     let (g, regs) = get_ig p fuel in
@@ -41,7 +41,7 @@ let get_ig_fixpoint p =
     else
       get_ig_fixpoint_aux g fuel
   in
-  get_ig_fixpoint_aux (fun _ -> []) 0
+  get_ig_fixpoint_aux ig_empty 0
 ;;
 
 let run_example_4 () =
