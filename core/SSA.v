@@ -1,4 +1,4 @@
-(* From Ssara.Core Require Import Syntax.
+From Ssara.Core Require Import Syntax.
 From Stdlib Require Import Lists.List.
 
 (*
@@ -10,35 +10,38 @@ Inductive in_program : block -> program -> Prop :=
   | IsSuccessor : forall b b' p, (In b' (successors b)) -> in_program b p -> in_program b' p
 .
 
-Definition single_assignment {A : Type} (get_sec : block -> list A) (get_reg : A -> option reg) (b : block) : Prop :=
-  forall (i j : nat), nth_error i (get_sec b) = nth_error j (get_sec b) -> i = j
-.
+Fixpoint nth_ok {A : Type} (i : nat) (l : list A) : bool :=
+  match i, l with
+    | O, x :: _ => true
+    | O, nil => false
+    | S i', nil => false
+    | S i', _ :: t => nth_ok i' t
+  end.
+
+Definition single_assignment_sec {A : Type} (get_sec : block -> list A) (get_reg : A -> option reg) (b : block) : Prop :=
+  forall (i j : nat),
+    match nth_error (get_sec b) i, nth_error (get_sec b) j with
+    | Some i1, Some i2 => get_reg i1 = get_reg i2 -> i = j
+    | _, _ => True
+    end
 .
 
-Definition single_assignment_program_phi_inst (pr : program) : Prop :=
-  forall (b b' : block) (p : phi) (i : inst),
-    in_program b pr /\ In p (phis b) /\ in_program b' pr /\ In i (insts b') -> (
-      Some (phi_reg p) <> inst_reg i
-    )
+Definition single_assignment_program_phi_inst (b : block) : Prop :=
+  forall (i j : nat),
+    match nth_error (get_phis b) i, nth_error (get_insts b) j with
+    | Some i1, Some i2 => Some (phi_reg i1) <> inst_reg i2
+    | _, _ => True
+    end
+.
+
+Definition single_assignment_block (b : block) : Prop :=
+  single_assignment_sec get_phis (fun p => Some (phi_reg p)) b /\
+  single_assignment_sec get_insts inst_reg b /\
+  single_assignment_program_phi_inst b
 .
 
 Definition single_assignment_program (p : program) : Prop :=
-  single_assignment_program_of insts inst_reg p /\
-  single_assignment_program_of phis (fun x => Some (phi_reg x)) p /\
-  single_assignment_program_phi_inst p
-.
-
-(*
-  For every block, for every phi instruction, for every predecessor, there
-  exist a variable defined in that predecessor that is contained in the
-  argument of the phi instruction and that predecessor doesn't define any other
-  variable used which is an argument for that phi.
-  This can be done since we know that two variables with the same name do not
-  exist (i.e. `single_assignment_program` is valid).
-*)
-Definition defines (b : block) (r : reg) : Prop :=
-  (exists (p : phi), In p (phis b) /\ phi_reg p = r) \/
-  (exists (i : inst), In i (insts b) /\ inst_reg i = Some r)
+  forall (b : block), in_program b p -> single_assignment_block b
 .
 
 (*
@@ -47,22 +50,25 @@ Definition defines (b : block) (r : reg) : Prop :=
   predecessors of the current block and there is an argument for each immediate
   predecessor, which is what we enforce with this predicate.
 *)
-Definition well_formed_phis (p : program) : Prop :=
-  forall (b : block), in_program b p -> (
-    forall (ph : phi), In ph (phis b) -> (
-      forall (pr : block), predecessor pr b p -> (
-        exists (r : reg), (
-          In r (phi_args ph) /\ defines pr r /\
-          ~ exists (r' : reg), (
-            In r' (phi_args ph) /\ defines pr r' /\ r <> r'
-          )
-        )
-      )
-    )
-  )
+Definition predecessor (b b' : block) : Prop :=
+  In b' (successors b)
 .
 
-(*
+Definition well_formed_phis_block (b : block) : Prop :=
+  forall (p : phi) (arg : phi_arg),
+    In p (get_phis b) -> In arg (phi_args p) ->
+      exists (pred : block),
+        predecessor pred b /\
+        match arg with
+        | (r, l) => get_lbl pred = l
+        end
+.
+
+Definition well_formed_phis_program (p : program) : Prop :=
+  forall (b : block), in_program b p -> well_formed_phis_block b
+.
+
+(* (*
   2nd property of an SSA program is strictness, that means that an instruction
   must be used only after its first assignment, to enforce this we must first
   define the dominance relation as the set of couple of instructions (i, i')

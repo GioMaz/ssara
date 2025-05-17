@@ -279,7 +279,3 @@ Fixpoint predecessors (b : block) (p : program) : list block :=
   end
 .
 *)
-
-Definition predecessor (b b' : block) (p : program) : Prop :=
-  In b' (successors b)
-.

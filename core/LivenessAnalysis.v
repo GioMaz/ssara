@@ -24,17 +24,15 @@ Definition option_to_list {A : Type} (x : option A) : list A :=
 .
 
 (* Definition of metadata types *)
-Inductive metainst : Type :=
-  (* | Metainst (use : list reg) (def : list reg) (live_out: list reg) (live_in: list reg) *)
-  (* | Metainst (live_out: list reg) (live_in: list reg) *)
-  | Metainst (live_out: set reg) (live_in: set reg)
+Inductive instinfo : Type :=
+  | InstInfo (live_out: set reg) (live_in: set reg)
 .
 
-Inductive metablock : Type :=
-  | Metablock (mis : list metainst) (mbs: list metablock)
+Inductive blockinfo : Type :=
+  | BlockInfo (iis : list instinfo) (bis: list blockinfo)
 .
 
-Definition metaprogram : Type := metablock.
+Definition programinfo : Type := blockinfo.
 
 Definition phi_defs (ps : list phi) : set reg :=
   map phi_reg ps
@@ -52,16 +50,16 @@ Definition phi_uses (b : block) : set reg :=
   - live_out[ps]  := U with j ∈ succ[ps] of live_in[j]
   - live_in[ps]   := phi_defs[ps] U live_out[ps]
 
-  Returns the metainst of all the phi instructions (which by SSA semantics are
+  Returns the instinfo of all the phi instructions (which by SSA semantics are
   all executed at the same time hence they are considered as a single
   instruction) and live_in[ps].
   Note that the live_in contains phi_defs[ps] because phi instructions are
   actually executed in the predecessor blocks, not in the block where they are
   defined.
 *)
-Definition analyze_phis (ps : list phi) (final_live_out : set reg) : metainst * set reg :=
+Definition analyze_phis (ps : list phi) (final_live_out : set reg) : instinfo * set reg :=
   let live_in := regs_union (phi_defs ps) final_live_out in
-  (Metainst final_live_out live_in, live_in)
+  (InstInfo final_live_out live_in, live_in)
 .
 
 (*
@@ -69,9 +67,9 @@ Definition analyze_phis (ps : list phi) (final_live_out : set reg) : metainst * 
   - live_out[i] := U with j ∈ succ[i] of live_in[j]
   - live_in[i]  := use[i] U (live_out[i] \ def[i])
 
-  Returns the list of metainsts and the live_in of the first instruction.
+  Returns the list of instinfos and the live_in of the first instruction.
 *)
-Fixpoint analyze_insts (is : list inst) (final_live_out : set reg) : list metainst * set reg :=
+Fixpoint analyze_insts (is : list inst) (final_live_out : set reg) : list instinfo * set reg :=
   match is with
   | nil => (nil, final_live_out)
   | x :: xs =>
@@ -79,7 +77,7 @@ Fixpoint analyze_insts (is : list inst) (final_live_out : set reg) : list metain
     let def := option_to_list (inst_reg x) in
     let (is', live_out) := analyze_insts xs final_live_out in
     let live_in := regs_union use (regs_diff live_out def) in (
-      (Metainst live_out live_in) :: is',
+      (InstInfo live_out live_in) :: is',
       live_in
     )
   end
@@ -90,11 +88,11 @@ Fixpoint analyze_insts (is : list inst) (final_live_out : set reg) : list metain
   - live_out[i] := U with j ∈ succ[i] of live_in[j]
   - live_in[i]  := use[i] U live_out[i]
 
-  Returns the list of metainsts and the live_in of the instruction.
+  Returns the list of instinfos and the live_in of the instruction.
 *)
-Definition analyze_jinst (j : jinst) (final_live_out : set reg) : metainst * set reg :=
+Definition analyze_jinst (j : jinst) (final_live_out : set reg) : instinfo * set reg :=
   let live_in := regs_union (option_to_list (jinst_args j)) final_live_out in
-  (Metainst final_live_out live_in, live_in)
+  (InstInfo final_live_out live_in, live_in)
 .
 
 (*
@@ -102,30 +100,30 @@ Definition analyze_jinst (j : jinst) (final_live_out : set reg) : metainst * set
   - live_out[b] := phi_uses[b] U (U with s in succ[b] of (live_in[s] - phi_def[s]))
   - live_in[b]  := live_in[ps]
 
-  Returns the list of metainsts and (live_in[b] - phi_def[s]) which will later
+  Returns the list of instinfos and (live_in[b] - phi_def[s]) which will later
   be used in `analyze_program` to calculate the live_out of the predecessor with
   the first equation defined in this comment.
 *)
-Definition analyze_block (b : block) (final_live_out : set reg) : list metainst * set reg :=
+Definition analyze_block (b : block) (final_live_out : set reg) : list instinfo * set reg :=
   match b with
   | Block l ps is j =>
-    let (mi_3, live_in_3) := analyze_jinst j final_live_out in
-    let (mi_2, live_in_2) := analyze_insts is live_in_3 in
-    let (mi_1, live_in_1) := analyze_phis ps live_in_2 in
-    (mi_1 :: mi_2 ++ [mi_3], regs_diff live_in_1 (phi_defs (get_phis b)))
+    let (iis_3, live_in_3) := analyze_jinst j final_live_out in
+    let (iis_2, live_in_2) := analyze_insts is live_in_3 in
+    let (iis_1, live_in_1) := analyze_phis ps live_in_2 in
+    (iis_1 :: iis_2 ++ [iis_3], regs_diff live_in_1 (phi_defs (get_phis b)))
   end
 .
 
 (*
-  Returns the metaprogram with depth `fuel` and live_in[p] which can be used to
+  Returns the programinfo with depth `fuel` and live_in[p] which can be used to
   check whether the program uses any uninitialized variable.
 *)
-Fixpoint analyze_program (p : program) (fuel : nat) : metaprogram * set reg :=
+Fixpoint analyze_program (p : program) (fuel : nat) : programinfo * set reg :=
   match fuel with
   | O =>
-    (* Get last metablock *)
-    let (mis, live_in) := analyze_block p nil in
-    (Metablock mis nil, live_in)
+    (* Get last blockinfo *)
+    let (iis, live_in) := analyze_block p nil in
+    (BlockInfo iis nil, live_in)
 
   | S fuel' =>
     (* Get successors *)
@@ -134,21 +132,22 @@ Fixpoint analyze_program (p : program) (fuel : nat) : metaprogram * set reg :=
     (* Analyze successors *)
     let results := map (fun p => analyze_program p fuel') bs in
 
-    (* Create mbs, list of successors and live_out, union of live_in of successors *)
-    let (mbs, live_out) :=
+    (* Create bis, list of successors and live_out, union of live_in of successors *)
+    let (bis, live_out) :=
       fold_left
-        (fun '(mbs, live_in) '(mb, live_out) =>
-          (mb :: mbs, regs_union live_in live_out))
+        (fun '(bis, live_in) '(bi, live_out) =>
+          (bi :: bis, regs_union live_in live_out))
         results
-        (nil, nil) in
+        (nil, nil)
+    in
 
     (* Add phi_uses[b] to live_out *)
     let live_out' := regs_union live_out (phi_uses p) in
 
     (* Analyze current block *)
-    let (mis, live_in) := analyze_block p live_out' in
+    let (iis, live_in) := analyze_block p live_out' in
 
-    (Metablock mis mbs, regs_diff live_in (phi_defs (get_phis p)))
+    (BlockInfo iis bis, regs_diff live_in (phi_defs (get_phis p)))
   end
 .
 
@@ -236,7 +235,7 @@ End Example2.
 
 (* Interference graph definition as a map from a register to its adjacence set *)
 Definition ig : Type := reg -> set reg.
-Definition ig_empty : ig := fun k => nil.
+Definition ig_epity : ig := fun k => nil.
 Definition ig_update (g : ig) (k : reg) (v : set reg) : ig :=
   fun r => if r =? k then v else g r
 .
@@ -266,32 +265,62 @@ Fixpoint ig_insert_regs (regs : list reg) (g : ig) : ig :=
   end
 .
 
-Definition ig_insert_metainst (mi : metainst) (g : ig) : ig :=
-  match mi with
-  | Metainst live_in live_out =>
+Definition ig_insert_instinfo (ii : instinfo) (g : ig) : ig :=
+  match ii with
+  | InstInfo live_in live_out =>
     ig_insert_regs live_out (ig_insert_regs live_in g)
   end
 .
 
-Definition ig_insert_metainsts (mis: list metainst) (g : ig) : ig :=
-  fold_left (fun g' mi => ig_insert_metainst mi g') mis g
+Definition ig_insert_instinfos (iis: list instinfo) (g : ig) : ig :=
+  fold_left (fun g' ii => ig_insert_instinfo ii g') iis g
 .
 
-Fixpoint get_ig_metablock (mb : metablock) (g : ig) : ig :=
-  match mb with
-  | Metablock mis mbs =>
-    let g' := ig_insert_metainsts mis g in
-    fold_left (fun g mb => get_ig_metablock mb g) mbs g'
+Fixpoint get_ig_blockinfo (bi : blockinfo) (g : ig) : ig :=
+  match bi with
+  | BlockInfo iis bis =>
+    let g' := ig_insert_instinfos iis g in
+    fold_left (fun g bi => get_ig_blockinfo bi g) bis g'
   end
 .
 
-Definition get_ig_metaprogram (mp : metaprogram): ig :=
-  get_ig_metablock mp ig_empty
+Definition get_ig_programinfo (pi : programinfo): ig :=
+  get_ig_blockinfo pi ig_epity
 .
 
-Definition get_ig (p : program) (fuel : nat) : ig :=
-  let (mp, _) := analyze_program p fuel in
-  get_ig_metaprogram mp
+Definition get_regs_instinfos (iis : list instinfo) : set reg :=
+  fold_left
+    (fun regs ii =>
+      match ii with
+      | InstInfo live_out live_in =>
+        regs_union regs (regs_union live_out live_in)
+      end
+    )
+    iis
+    nil
+.
+
+Fixpoint get_regs_programinfo (pi : programinfo) : set reg :=
+  match pi with
+  | BlockInfo iis bis =>
+    let curr_regs := get_regs_instinfos iis in
+    let succ_regs :=
+      fold_left
+        (fun regs bi =>
+          regs_union regs (get_regs_programinfo bi)
+        )
+        bis
+        nil
+    in
+    regs_union curr_regs succ_regs
+  end
+.
+
+Definition get_ig (p : program) (fuel : nat) : ig * set reg :=
+  let (pi, _) := analyze_program p fuel in
+  let g := get_ig_programinfo pi in
+  let regs := get_regs_programinfo pi in
+  (g, regs)
 .
 
 (*
@@ -348,8 +377,8 @@ Module Example3.
 
   Compute analyze_program example_block_1 fuel.
   Compute
-    let (mp, _) := analyze_program example_block_1 fuel in
-    let g := get_ig_metaprogram mp in
+    let (pi, _) := analyze_program example_block_1 fuel in
+    let g := get_ig_programinfo pi in
     map (fun r => (r, g r)) [1; 2; 3; 4; 5; 6].
 End Example3.
 
@@ -392,9 +421,10 @@ Module Example4.
 
   Compute analyze_program example_block_4 fuel.
   Compute
-    let (mp, _) := analyze_program example_block_1 fuel in
-    let g := get_ig_metaprogram mp in
-    map (fun r => (r, g r)) [1; 2; 3; 4; 5; 6].
+    let (pi, _) := analyze_program example_block_1 fuel in
+    let g := get_ig_programinfo pi in
+    map (fun r => (r, g r)) (get_regs_programinfo pi)
+  .
 End Example4.
 
 (*
