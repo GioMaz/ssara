@@ -16,6 +16,11 @@ Definition regs_union := set_union reg_eq_dec.
 Definition regs_diff := set_diff reg_eq_dec.
 Definition regs_add := set_add reg_eq_dec.
 
+Definition l_eq_dec : forall r r' : reg, {r = r'} + {r <> r'} := Nat.eq_dec.
+Definition ls_union := set_union l_eq_dec.
+Definition ls_diff := set_diff l_eq_dec.
+Definition ls_add := set_add l_eq_dec.
+
 Definition option_to_list {A : Type} (x : option A) : list A :=
   match x with
   | Some x' => x' :: nil
@@ -28,11 +33,59 @@ Inductive instinfo : Type :=
   | InstInfo (live_out: set reg) (live_in: set reg)
 .
 
-Inductive blockinfo : Type :=
-  | BlockInfo (iis : list instinfo) (bis: list blockinfo)
+Definition merge_instinfo (ii : instinfo) (ii' : instinfo) : instinfo :=
+  match ii, ii' with
+  | InstInfo lout lin, InstInfo lout' lin' =>
+    InstInfo (regs_union lout lout') (regs_union lin lin')
+  end
 .
 
-Definition programinfo : Type := blockinfo.
+Fixpoint merge_instinfos (iis : list instinfo) (iis' : list instinfo) : list instinfo :=
+  match iis, iis' with
+  | nil, nil => nil
+  | L, nil => L
+  | nil, L => L
+  | ii :: xs, ii' :: ys => (merge_instinfo ii ii') :: merge_instinfos xs ys
+  end
+.
+
+Inductive blockinfo : Type :=
+  | BlockInfo (iis : list instinfo)
+.
+
+Definition programinfo : Type := set lbl * (lbl -> option blockinfo).
+Definition programinfo_empty : programinfo := (nil, fun _ => None).
+Definition programinfo_update (pi : programinfo) (l : lbl) (bi : blockinfo) : programinfo :=
+  let (ls, map) := pi in
+  (ls_add l ls, fun l' => if l =? l' then Some bi else map l')
+.
+Definition programinfo_map (pi : programinfo) (l : lbl) : (option blockinfo)  :=
+  let (_, map) := pi in map l
+.
+Definition programinfo_dom (pi : programinfo) : set lbl :=
+  let (dom, _) := pi in dom
+.
+
+Definition programinfo_insert (pi : programinfo) (l : lbl) (bi : blockinfo) : programinfo :=
+  let bi' := programinfo_map pi l in
+  match bi, bi' with
+  | BlockInfo iis, None => programinfo_update pi l bi
+  | BlockInfo iis, Some (BlockInfo iis') => programinfo_update pi l (BlockInfo (merge_instinfos iis iis'))
+  end
+.
+
+Definition programinfo_merge (pi : programinfo) (pi' : programinfo) : programinfo :=
+  let (ls, map) := pi in
+  fold_left
+    (fun pi_acc l =>
+      match map l with
+      | Some bi => programinfo_insert pi_acc l bi
+      | None => pi_acc
+      end
+    )
+    ls
+    pi'
+.
 
 Definition phi_defs (ps : list phi) : set reg :=
   map phi_reg ps
@@ -42,7 +95,7 @@ Definition phi_uses (b : block) : set reg :=
   let ps := flat_map (fun b => get_phis b) (successors b) in  (* Get all phis from successors *)
   let args := flat_map phi_args ps in                         (* Get all arguments of phis *)
   let pairs := filter (fun '(_, l) => l =? get_lbl b) args in (* Keep only those that come from the current label *)
-  map (fun '(r, _) => r) pairs                                (* Get only the register *)
+  map (fun '(r, _) => r) pairs                                (* Get only the registers *)
 .
 
 (*
@@ -123,7 +176,7 @@ Fixpoint analyze_program (p : program) (fuel : nat) : programinfo * set reg :=
   | O =>
     (* Get last blockinfo *)
     let (iis, live_in) := analyze_block p nil in
-    (BlockInfo iis nil, live_in)
+    (programinfo_insert programinfo_empty (get_lbl p) (BlockInfo iis), live_in)
 
   | S fuel' =>
     (* Get successors *)
@@ -132,13 +185,13 @@ Fixpoint analyze_program (p : program) (fuel : nat) : programinfo * set reg :=
     (* Analyze successors *)
     let results := map (fun p => analyze_program p fuel') bs in
 
-    (* Create bis, list of successors and live_out, union of live_in of successors *)
-    let (bis, live_out) :=
+    (* Create pi, map containing successors blockinfo and live_out, union of live_in of successors *)
+    let (pi, live_out) :=
       fold_left
-        (fun '(bis, live_in) '(bi, live_out) =>
-          (bi :: bis, regs_union live_in live_out))
+        (fun '(pi_acc, live_out) '(pi_succ, live_in) =>
+          (programinfo_merge pi_acc pi_succ, regs_union live_out live_in))
         results
-        (nil, nil)
+        (programinfo_empty, nil)
     in
 
     (* Add phi_uses[b] to live_out *)
@@ -147,7 +200,10 @@ Fixpoint analyze_program (p : program) (fuel : nat) : programinfo * set reg :=
     (* Analyze current block *)
     let (iis, live_in) := analyze_block p live_out' in
 
-    (BlockInfo iis bis, regs_diff live_in (phi_defs (get_phis p)))
+    (* Insert data into map *)
+    let pi' := programinfo_insert pi (get_lbl p) (BlockInfo iis) in
+
+    (pi', regs_diff live_in (phi_defs (get_phis p)))
   end
 .
 
@@ -197,7 +253,9 @@ Module Example1.
     )
   .
 
-  Compute analyze_program example_block_1 10.
+  Compute
+    let '((ls, map), regs) := (analyze_program example_block_1 10) in
+    map 3.
 End Example1.
 
 (*
@@ -230,20 +288,30 @@ Module Example2.
     )
   .
 
-  Compute analyze_program example_block_1 10.
+  Compute
+    let (pi, _) := analyze_program example_block_1 10 in
+    (programinfo_map pi 1, programinfo_map pi 2)
+  .
 End Example2.
 
 (* Interference graph definition as a map from a register to its adjacence set *)
-Definition ig : Type := reg -> set reg.
-Definition ig_empty : ig := fun k => nil.
+Definition ig : Type := set reg * (reg -> set reg).
+Definition ig_empty : ig := (nil, fun _ => nil).
 Definition ig_update (g : ig) (k : reg) (v : set reg) : ig :=
-  fun r => if r =? k then v else g r
+  let (regs, map) := g in
+  (regs_add k regs, fun r => if r =? k then v else map r)
+.
+Definition ig_map (g : ig) (k : reg) : set reg :=
+  let (_, map) := g in map k
+.
+Definition ig_dom (g : ig) : set reg :=
+  let (dom, _) := g in dom
 .
 
 Definition ig_insert_edge (r : reg) (r' : reg) (g : ig) : ig :=
-  let regs  := g r in
+  let regs  := ig_map g r in
   let g'    := ig_update g r (regs_add r' regs) in
-  let regs' := g' r' in
+  let regs' := ig_map g' r' in
   ig_update g' r' (regs_add r regs')
 .
 
@@ -276,52 +344,25 @@ Definition ig_insert_instinfos (iis: list instinfo) (g : ig) : ig :=
   fold_left (fun g' ii => ig_insert_instinfo ii g') iis g
 .
 
-Fixpoint get_ig_blockinfo (bi : blockinfo) (g : ig) : ig :=
-  match bi with
-  | BlockInfo iis bis =>
-    let g' := ig_insert_instinfos iis g in
-    fold_left (fun g bi => get_ig_blockinfo bi g) bis g'
-  end
-.
-
-Definition get_ig_programinfo (pi : programinfo): ig :=
-  get_ig_blockinfo pi ig_empty
-.
-
-Definition get_regs_instinfos (iis : list instinfo) : set reg :=
+Definition get_ig_programinfo (pi : programinfo) : ig :=
+  let (ls, map) := pi in
   fold_left
-    (fun regs ii =>
-      match ii with
-      | InstInfo live_out live_in =>
-        regs_union regs (regs_union live_out live_in)
+    (fun g l =>
+      match map l with
+      | Some (BlockInfo iis) => ig_insert_instinfos iis g
+      | None => g
       end
     )
-    iis
-    nil
+    ls
+    ig_empty
 .
 
-Fixpoint get_regs_programinfo (pi : programinfo) : set reg :=
-  match pi with
-  | BlockInfo iis bis =>
-    let curr_regs := get_regs_instinfos iis in
-    let succ_regs :=
-      fold_left
-        (fun regs bi =>
-          regs_union regs (get_regs_programinfo bi)
-        )
-        bis
-        nil
-    in
-    regs_union curr_regs succ_regs
-  end
-.
-
-Definition get_ig (p : program) (fuel : nat) : ig * set reg :=
+Definition get_ig (p : program) (fuel : nat) : ig :=
   let (pi, _) := analyze_program p fuel in
-  let g := get_ig_programinfo pi in
-  let regs := get_regs_programinfo pi in
-  (g, regs)
+  get_ig_programinfo pi
 .
+
+Axiom get_ig_fixpoint : program -> ig.
 
 (*
   +-----------+
@@ -375,11 +416,11 @@ Module Example3.
 
   Definition fuel : nat := 4.
 
-  Compute analyze_program example_block_1 fuel.
   Compute
     let (pi, _) := analyze_program example_block_1 fuel in
-    let g := get_ig_programinfo pi in
-    map (fun r => (r, g r)) [1; 2; 3; 4; 5; 6].
+    let ig := get_ig_programinfo pi in
+    map (fun r => (r, ig_map ig r)) (ig_dom ig)
+  .
 End Example3.
 
 Module Example4.
@@ -419,11 +460,10 @@ Module Example4.
 
   Definition fuel : nat := 4.
 
-  Compute analyze_program example_block_4 fuel.
   Compute
     let (pi, _) := analyze_program example_block_1 fuel in
     let g := get_ig_programinfo pi in
-    map (fun r => (r, g r)) (get_regs_programinfo pi)
+    map (fun r => (r, ig_map g r)) (ig_dom g)
   .
 End Example4.
 

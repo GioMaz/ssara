@@ -25,5 +25,7 @@ Extraction "ssara.ml"
   Vm.run
   Syntax.successors
   LivenessAnalysis.get_ig
+  LivenessAnalysis.ig_dom
+  LivenessAnalysis.ig_map
   LivenessAnalysis.Example4.example_block_1
 .

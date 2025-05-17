@@ -25,19 +25,21 @@ let get_ig_fixpoint p =
   let labels = RegSet.cardinal (get_labels_fixpoint p) in
   let rec get_ig_fixpoint_aux prev_g prev_fuel =
     let fuel = prev_fuel + labels in
-    let (g, regs) = get_ig p fuel in
-    let fixpoint = List.fold_left
+    let g = get_ig p fuel in
+    let fixpoint =
+      List.length (ig_dom g) == List.length (ig_dom prev_g) &&
+      List.fold_left
       (fun b r ->
         b &&
         RegSet.equal
-          (RegSet.of_list (g r))
-          (RegSet.of_list (prev_g r))
+          (RegSet.of_list (ig_map g r))
+          (RegSet.of_list (ig_map prev_g r))
       )
       true
-      regs
+      (ig_dom g)
     in
     if fixpoint then
-      (g, regs)
+      g
     else
       get_ig_fixpoint_aux g fuel
   in
@@ -46,14 +48,14 @@ let get_ig_fixpoint p =
 
 let run_example_4 () =
   let p = Example4.example_block_1 in
-  let (g, regs) = get_ig_fixpoint p in
-  RegSet.iter
+  let g = get_ig_fixpoint p in
+  List.iter
     (fun r ->
       Printf.printf "%d: " r;
-      List.iter (Printf.printf "%d ") (g r);
+      List.iter (Printf.printf "%d ") (ig_map g r);
       print_newline ()
     )
-    (RegSet.of_list regs)
+    (ig_dom g)
 ;;
 
 run_example_4 ();;
