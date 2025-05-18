@@ -8,61 +8,47 @@ From Stdlib Require Import ZArith.
 Definition cell : Type := Z.
 
 Inductive vm : Type :=
-  | Vm : list (reg * cell) -> list cell -> vm
+  | Vm : (reg -> cell) -> list cell -> vm
 .
 
-Definition vm_new : vm := Vm nil nil.
-
-Fixpoint get_reg_aux (regs : list (reg * cell)) (r : reg) : cell :=
-  match regs with
-  | nil => Z0
-  | (r', c) :: rs => if r =? r' then c else get_reg_aux rs r
-  end
-.
+Definition vm_new : vm := Vm (fun _ => Z0) nil.
 
 Definition get_reg (m : vm) (r : reg) : cell :=
   match m with
-  | Vm regs _ => get_reg_aux regs r
-  end
-.
-
-Fixpoint set_reg_aux (regs : list (reg * cell)) (r : reg) (c : cell) : list (reg * cell) :=
-  match regs with
-  | nil => (r, c) :: nil
-  | (r', c') :: rs => if r =? r' then (r, c) :: rs else (r', c') :: (set_reg_aux rs r c)
+  | Vm regs _ => regs r
   end
 .
 
 Definition set_reg (m : vm) (r : reg) (c : cell) : vm :=
   match m with
-  | Vm regs cells => Vm (set_reg_aux regs r c) cells
+  | Vm regs cells =>
+    Vm (fun r' => if r' =? r then c else regs r') cells
   end
 .
 
-Fixpoint get_cell_aux (cells : list cell) (i : nat) : cell :=
-  match cells, i with
-  | nil, _ => Z0
-  | c :: _, O => c
-  | _ :: cs, S i' => get_cell_aux cs i'
-  end
-.
 
 Definition get_cell (m : vm) (i : nat) : cell :=
+  let fix get_cell_aux (cells : list cell) (i : nat) : cell :=
+    match cells, i with
+    | nil, _ => Z0
+    | c :: _, O => c
+    | _ :: cs, S i' => get_cell_aux cs i'
+    end
+  in
   match m with
   | Vm _ cells => get_cell_aux cells i
   end
 .
 
-Fixpoint set_cell_aux (cells : list cell) (i : nat) (c : cell) : list cell :=
-  match cells, i with
-  | nil, O => c :: nil
-  | nil, S i' => Z0 :: (set_cell_aux nil i' c)
-  | _ :: xs, O => c :: xs
-  | x :: xs, S i' => x :: (set_cell_aux xs i' c)
-  end
-.
-
 Definition set_cell (m : vm) (i : nat) (c : cell) : vm :=
+  let fix set_cell_aux (cells : list cell) (i : nat) (c : cell) : list cell :=
+    match cells, i with
+    | nil, O => c :: nil
+    | nil, S i' => Z0 :: (set_cell_aux nil i' c)
+    | _ :: xs, O => c :: xs
+    | x :: xs, S i' => x :: (set_cell_aux xs i' c)
+    end
+  in
   match m with
   | Vm regs cells => Vm regs (set_cell_aux cells i c)
   end
@@ -128,11 +114,8 @@ Definition run_inst (m : vm) (i : inst) : vm :=
   end
 .
 
-Fixpoint run_insts (m : vm) (is : list inst) : vm :=
-  match is with
-  | nil => m
-  | x :: xs => run_insts (run_inst m x) xs
-  end
+Definition run_insts (m : vm) (is : list inst) : vm :=
+  fold_left (fun m_acc i => run_inst m_acc i) is m
 .
 
 (* Phi semantics *)

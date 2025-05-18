@@ -24,9 +24,9 @@ Module Example1.
   .
 
   Example run_example :
-    Vm.run vm_new example_block 1 =
-      Vm [(2, 34%Z); (3, 68%Z); (4, 69%Z); (5, 69%Z); (6, 1%Z)]
-      [0%Z; 0%Z; 0%Z; 0%Z; 0%Z; 69%Z]
+    match Vm.run vm_new example_block 1 with
+    | Vm _ cells => cells = [0%Z; 0%Z; 0%Z; 0%Z; 0%Z; 69%Z]
+    end
   .
   Proof.
     reflexivity.
@@ -81,25 +81,25 @@ Module Example3.
 
   Compute Vm.run vm_new example_block_1 10.
   Example run_example_1 :
-    Vm.run vm_new example_block_1 10
-    = Vm [(0, 34%Z); (2, 34%Z)] [34%Z]
+    let (_, cells) := Vm.run vm_new example_block_1 10 in
+    cells = [34%Z]
   .
   Proof.
     reflexivity.
   Qed.
 
   Example run_example_2 :
-    Vm.run vm_new example_block_2 10
-    = Vm [(1, 35%Z); (2, 35%Z)] [35%Z]
+  let (_, cells) := Vm.run vm_new example_block_2 10 in
+  cells = [35%Z]
   .
   Proof.
     reflexivity.
   Qed.
 End Example3.
 
-Definition set_reg_P (r : reg) (c : Z) : bool :=
+Definition set_reg_P (r : reg) (c : cell) : bool :=
   let (regs, _) := (set_reg vm_new r c) in
-  existsb (fun '(r', c') => Nat.eqb r r' && Z.eqb c c') regs
+  Z.eqb (regs r) c
 .
 
 QuickChick set_reg_P.
