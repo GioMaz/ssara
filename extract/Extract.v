@@ -1,6 +1,7 @@
 Require Import Ssara.Core.Syntax.
 Require Import Ssara.Core.Vm.
-Require Import Ssara.Core.LivenessAnalysis.
+Require Import Ssara.Core.LivenessInfo.
+Require Import Ssara.Core.Interference.
 
 Require Extraction.
 Extraction Language OCaml.
@@ -24,8 +25,8 @@ Extraction "ssara.ml"
   Syntax.get_insts
   Vm.run
   Syntax.successors
-  LivenessAnalysis.get_ig
-  LivenessAnalysis.ig_dom
-  LivenessAnalysis.ig_map
-  LivenessAnalysis.Example4.example_block_1
+  Interference.get_ig
+  Interference.ig_dom
+  Interference.ig_map
+  Interference.Example4.example_block_1
 .
