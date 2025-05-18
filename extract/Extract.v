@@ -1,8 +1,8 @@
 Require Import Ssara.Core.Syntax.
 Require Import Ssara.Core.Vm.
-Require Import Ssara.Core.LivenessInfo.
-Require Import Ssara.Core.Interference.
 Require Import Ssara.Core.Coloring.
+Require Import Ssara.Core.LivenessInfo.
+Require Import Ssara.Core.InterfGraph.
 
 Require Extraction.
 Extraction Language OCaml.
@@ -26,9 +26,9 @@ Extraction "ssara.ml"
   Syntax.get_insts
   Vm.run
   Syntax.successors
-  Interference.get_ig
-  Interference.ig_dom
-  Interference.ig_map
-  Interference.Example4.example_block_1
+  InterfGraph.get_ig
+  InterfGraph.ig_v
+  InterfGraph.ig_nbors
+  InterfGraph.Example4.example_block_1
   Coloring.eliminate
 .

@@ -1,6 +1,6 @@
 From Ssara.Core Require Import Syntax.
 From Ssara.Core Require Import Utils.
-From Ssara.Core Require Import Interference.
+From Ssara.Core Require Import InterfGraph.
 From Stdlib Require Import Lists.List.
 From Stdlib Require Import ZArith.
 Import ListNotations.
@@ -8,12 +8,12 @@ From Stdlib Require Import Bool.
 
 (* Check whether regs are neighbors of r *)
 Definition neighbors (r : reg) (regs : list reg) (g : ig) : bool :=
-  regs_mem r (ig_dom g) &&
+  regs_mem r (ig_v g) &&
   fold_left
     (fun b r' =>
       b && (
         (r =? r') ||
-        regs_mem r' (ig_map g r)
+        regs_mem r' (ig_nbors g r)
       )
     )
     regs
@@ -21,8 +21,8 @@ Definition neighbors (r : reg) (regs : list reg) (g : ig) : bool :=
 .
 
 Definition simplicial (r : reg) (g : ig) : bool :=
-  let regs := ig_map g r in
-  regs_mem r (ig_dom g) &&
+  let regs := ig_nbors g r in
+  regs_mem r (ig_v g) &&
   fold_left (* Check whether the neighbor set of r is a clique *)
     (fun b r =>
       b &&
@@ -40,7 +40,7 @@ Definition find_next (g : ig) : option reg :=
       if simplicial r g then Some r else find_next_aux rs
     end
   in
-  find_next_aux (ig_dom g)
+  find_next_aux (ig_v g)
 .
 
 Fixpoint eliminate (g : ig) (fuel : nat) : ig * list reg :=
@@ -96,12 +96,12 @@ Module Example1.
 
   Compute
     let g := get_ig example_block_1 fuel in
-    map (fun r => (r, ig_map g r)) (ig_dom g)
+    map (fun r => (r, ig_nbors g r)) (ig_v g)
   .
 
   Compute
     let g := get_ig example_block_1 fuel in
     let (g' , l) := eliminate g fuel in
-    (list_of_ig g', l)
+    map (fun r => (r, (ig_nbors g) r)) (ig_v g)
   .
 End Example1.

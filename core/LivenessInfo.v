@@ -42,15 +42,15 @@ Definition programinfo_update (pi : programinfo) (l : lbl) (bi : blockinfo) : pr
   let (ls, map) := pi in
   (ls_add l ls, fun l' => if l =? l' then Some bi else map l')
 .
-Definition programinfo_map (pi : programinfo) (l : lbl) : (option blockinfo)  :=
-  let (_, map) := pi in map l
+Definition programinfo_bi (pi : programinfo) (l : lbl) : (option blockinfo)  :=
+  let (_, bi) := pi in bi l
 .
-Definition programinfo_dom (pi : programinfo) : set lbl :=
-  let (dom, _) := pi in dom
+Definition programinfo_ls (pi : programinfo) : set lbl :=
+  let (ls, _) := pi in ls
 .
 
 Definition programinfo_insert (pi : programinfo) (l : lbl) (bi : blockinfo) : programinfo :=
-  let bi' := programinfo_map pi l in
+  let bi' := programinfo_bi pi l in
   match bi, bi' with
   | BlockInfo iis, None => programinfo_update pi l bi
   | BlockInfo iis, Some (BlockInfo iis') => programinfo_update pi l (BlockInfo (merge_instinfos iis iis'))
@@ -273,9 +273,67 @@ Module Example2.
 
   Compute
     let (pi, _) := analyze_program example_block_1 10 in
-    (programinfo_map pi 1, programinfo_map pi 2)
+    (programinfo_bi pi 1, programinfo_bi pi 2)
   .
 End Example2.
+
+(*
+  +-----------+
+  | r1 <- ... |
+  | r2 <- ... |
+  +-----------+
+        |
+        |     +-----------+
+        |     |           |
+  +-----------------+     |
+  | r3 <- Φ(r1, r5) |     |
+  | r4 <- Φ(r2, r6) |     |
+  +-----------------+     |
+         |                |
+  +--------------+        |
+  | r5 <- r3 + 1 |        |
+  | r6 <- r4 + 1 |        |
+  +--------------+        |
+         |                |
+         +----------------+
+*)
+
+Module Example3.
+  CoFixpoint example_block_3 : block :=
+    Block 3 [
+    ] [
+      r(5) <- r(3) + (Imm 1);
+      r(6) <- r(4) + (Imm 1)
+    ] (
+      Jmp example_block_2
+    )
+  with example_block_2 : block :=
+    Block 2 [
+      r(3) <- phi [(1, 1); (5, 3)];
+      r(4) <- phi [(2, 1); (6, 3)]
+    ] [
+    ] (
+      Jmp example_block_3
+    )
+  .
+
+  Definition example_block_1 : block :=
+    Block 1 [
+    ] [
+      r(1) <- (Imm 34);
+      r(2) <- (Imm 35)
+    ] (
+      Jmp example_block_2
+    )
+  .
+
+  Definition fuel : nat := 4.
+
+  Compute
+    let '((ls, bi), _) := analyze_program example_block_1 fuel in
+    map (fun l => (l, bi l)) ls
+  .
+End Example3.
 
 (*
 TODO:

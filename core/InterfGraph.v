@@ -10,20 +10,20 @@ Import ListNotations.
 Definition ig : Type := set reg * (reg -> set reg).
 Definition ig_empty : ig := (nil, fun _ => nil).
 Definition ig_update (g : ig) (k : reg) (v : set reg) : ig :=
-  let (regs, map) := g in
-  (regs_add k regs, fun r => if r =? k then v else map r)
+  let (regs, nbors) := g in
+  (regs_add k regs, fun r => if r =? k then v else nbors r)
 .
-Definition ig_map (g : ig) (k : reg) : set reg :=
-  let (_, map) := g in map k
+Definition ig_nbors (g : ig) (k : reg) : set reg :=
+  let (_, nbors) := g in nbors k
 .
-Definition ig_dom (g : ig) : set reg :=
-  let (dom, _) := g in dom
+Definition ig_v (g : ig) : set reg :=
+  let (v, _) := g in v
 .
 
 Definition ig_update_edge (f : reg -> set reg -> set reg) (r : reg) (r' : reg) (g : ig) : ig :=
-  let regs  := ig_map g r in
+  let regs  := ig_nbors g r in
   let g'    := ig_update g r (f r' regs) in
-  let regs' := ig_map g' r' in
+  let regs' := ig_nbors g' r' in
   ig_update g' r' (f r regs')
 .
 
@@ -31,13 +31,13 @@ Definition ig_remove_edge := ig_update_edge regs_remove.
 Definition ig_insert_edge := ig_update_edge regs_add.
 
 Definition ig_remove_node (g : ig) (r : reg) : ig :=
-  let (dom, map) := fold_left
+  let (v, nbors) := fold_left
     (fun g_acc r' =>
       ig_remove_edge r r' g_acc)
-    (ig_dom g)
+    (ig_v g)
     g
   in
-  (regs_remove r dom, map)
+  (regs_remove r v, nbors)
 .
 
 Definition ig_insert_edges (g : ig) (r : reg) (regs : list reg) : ig :=
@@ -66,10 +66,10 @@ Definition ig_insert_instinfos (g : ig) (iis: list instinfo) : ig :=
 .
 
 Definition get_ig_programinfo (pi : programinfo) : ig :=
-  let (ls, map) := pi in
+  let (ls, nbors) := pi in
   fold_left
     (fun g l =>
-      match map l with
+      match nbors l with
       | Some (BlockInfo iis) => ig_insert_instinfos g iis
       | None => g
       end
@@ -81,10 +81,6 @@ Definition get_ig_programinfo (pi : programinfo) : ig :=
 Definition get_ig (p : program) (fuel : nat) : ig :=
   let (pi, _) := analyze_program p fuel in
   get_ig_programinfo pi
-.
-
-Definition list_of_ig (g : ig) : list (reg * set reg) :=
-  map (fun r => (r, ig_map g r)) (ig_dom g)
 .
 
 Axiom get_ig_fixpoint : program -> ig.
@@ -143,7 +139,7 @@ Module Example3.
 
   Compute
     let g := get_ig example_block_1 fuel in
-    map (fun r => (r, ig_map g r)) (ig_dom g)
+    map (fun r => (r, ig_nbors g r)) (ig_v g)
   .
 End Example3.
 
@@ -186,6 +182,6 @@ Module Example4.
 
   Compute
     let g := get_ig example_block_1 fuel in
-    map (fun r => (r, ig_map g r)) (ig_dom g)
+    map (fun r => (r, ig_nbors g r)) (ig_v g)
   .
 End Example4.

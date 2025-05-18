@@ -27,16 +27,16 @@ let get_ig_fixpoint p =
     let fuel = prev_fuel + labels in
     let g = get_ig p fuel in
     let fixpoint =
-      List.length (ig_dom g) == List.length (ig_dom prev_g) &&
+      List.length (ig_v g) == List.length (ig_v prev_g) &&
       List.fold_left
       (fun b r ->
         b &&
         RegSet.equal
-          (RegSet.of_list (ig_map g r))
-          (RegSet.of_list (ig_map prev_g r))
+          (RegSet.of_list (ig_nbors g r))
+          (RegSet.of_list (ig_nbors prev_g r))
       )
       true
-      (ig_dom g)
+      (ig_v g)
     in
     if fixpoint then
       g
