@@ -6,7 +6,7 @@ From Stdlib Require Import ZArith.
 Import ListNotations.
 From Stdlib Require Import Bool.
 
-(* Check whether r has regs neighbors *)
+(* Check whether regs are neighbors of r *)
 Definition neighbors (r : reg) (regs : list reg) (g : ig) : bool :=
   regs_mem r (ig_dom g) &&
   fold_left

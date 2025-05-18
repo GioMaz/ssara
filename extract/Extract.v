@@ -2,6 +2,7 @@ Require Import Ssara.Core.Syntax.
 Require Import Ssara.Core.Vm.
 Require Import Ssara.Core.LivenessInfo.
 Require Import Ssara.Core.Interference.
+Require Import Ssara.Core.Coloring.
 
 Require Extraction.
 Extraction Language OCaml.
@@ -29,4 +30,5 @@ Extraction "ssara.ml"
   Interference.ig_dom
   Interference.ig_map
   Interference.Example4.example_block_1
+  Coloring.eliminate
 .

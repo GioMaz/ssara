@@ -46,7 +46,17 @@ let get_ig_fixpoint p =
   get_ig_fixpoint_aux ig_empty 0
 ;;
 
-let run_example_4 () =
+(* Eliminate nodes following a PEO until a fixpoint is reached *)
+let rec eliminate_fixpoint g =
+  match find_next g with
+  | Some next ->
+    let g' = ig_remove_node g next in
+    let (g'', regs) = eliminate_fixpoint g' in
+    (g'', next :: regs)
+  | None -> (g, [])
+;;
+
+(* let run_example_4 () =
   let p = Example4.example_block_1 in
   let g = get_ig_fixpoint p in
   List.iter
@@ -56,6 +66,15 @@ let run_example_4 () =
       print_newline ()
     )
     (ig_dom g)
+;; *)
+
+let run_example_4 () =
+  let p = Example4.example_block_1 in
+  let g = get_ig_fixpoint p in
+  let (_, peo) = eliminate_fixpoint g in
+  List.iter
+    (Printf.printf "%d\n")
+    peo
 ;;
 
 run_example_4 ();;
