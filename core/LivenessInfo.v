@@ -6,6 +6,9 @@ From Stdlib Require Import ZArith.
 From Stdlib Require Import ListSet.
 Import ListNotations.
 
+From Ssara.Core Require Import RegNatInstance.
+Existing Instance reg_instance.
+
 (*
   https://en.wikipedia.org/wiki/Live-variable_analysis
   https://pfalcon.github.io/ssabook/latest/book-full.pdf#section.531
@@ -204,6 +207,8 @@ Fixpoint analyze_program (p : program) (fuel : nat) : programinfo * set reg :=
   +-------------+  +-------------+
 *)
 
+From Ssara.Core Require Import Syntax.
+
 Module Example1.
   Definition example_block_2 : block :=
     Block 2 [
@@ -334,10 +339,3 @@ Module Example3.
     map (fun l => (l, bi l)) ls
   .
 End Example3.
-
-(*
-TODO:
-- Get the interference graph
-- Maybe visualize the interference graph in OCaml
-- Start regalloc
-*)

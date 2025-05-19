@@ -6,6 +6,9 @@ From Stdlib Require Import Bool.
 From QuickChick Require Import QuickChick.
 Import ListNotations.
 
+From Ssara.Core Require Import RegNatInstance.
+Existing Instance reg_instance.
+
 (* Example 1 *)
 
 Module Example1.
@@ -24,13 +27,10 @@ Module Example1.
   .
 
   Example run_example :
-    match Vm.run vm_new example_block 1 with
-    | Vm _ cells => cells = [0%Z; 0%Z; 0%Z; 0%Z; 0%Z; 69%Z]
-    end
+    let (_, cells) := Vm.run vm_new example_block 10 in
+    cells = [0%Z; 0%Z; 0%Z; 0%Z; 0%Z; 69%Z]
   .
-  Proof.
-    reflexivity.
-  Qed.
+  Proof. reflexivity. Qed.
 End Example1.
 
 (* Example 2 *)
@@ -43,9 +43,7 @@ Module Exmaple2.
   .
 
   Example run_example : Vm.run vm_new example_block_1 1000 = vm_new.
-  Proof.
-    reflexivity.
-  Qed.
+  Proof. reflexivity. Qed.
 End Exmaple2.
 
 (* Example 3 *)
@@ -84,17 +82,13 @@ Module Example3.
     let (_, cells) := Vm.run vm_new example_block_1 10 in
     cells = [34%Z]
   .
-  Proof.
-    reflexivity.
-  Qed.
+  Proof. reflexivity. Qed.
 
   Example run_example_2 :
-  let (_, cells) := Vm.run vm_new example_block_2 10 in
-  cells = [35%Z]
+    let (_, cells) := Vm.run vm_new example_block_2 10 in
+    cells = [35%Z]
   .
-  Proof.
-    reflexivity.
-  Qed.
+  Proof. reflexivity. Qed.
 End Example3.
 
 Definition set_reg_P (r : reg) (c : cell) : bool :=

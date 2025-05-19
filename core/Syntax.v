@@ -2,9 +2,17 @@ From Stdlib Require Import ZArith.
 From Stdlib Require Import Lists.List.
 Import ListNotations.
 
+Section Ssara.
+
+Class RegClass := {
+  reg : Set;
+  reg_eqb : reg -> reg -> bool;
+  reg_eq_dec : forall r r' : reg, {r = r'} + {r <> r'};
+}.
+Context {reg_instance : RegClass}.
+
 Definition lbl := nat.
 Definition ptr := nat.
-Definition reg := nat.
 
 (*
   This represents a value that can either be an immediate number `x` or the
@@ -19,7 +27,7 @@ Inductive val : Type :=
 Definition eq_val (v1 v2 : val) : bool :=
   match v1, v2 with
   | Imm x1, Imm x2 => Z.eqb x1 x2
-  | Reg x1, Reg x2 => Nat.eqb x1 x2
+  | Reg x1, Reg x2 => reg_eqb x1 x2
   | Ptr x1, Ptr x2 => Nat.eqb x1 x2
   | _, _ => false
   end
@@ -53,16 +61,16 @@ Definition eq_expr (e1 e2 : expr) : bool :=
   | Val x1, Val x2 => eq_val x1 x2
   | Neg x1, Neg x2 => eq_val x1 x2
   | Load x1, Load x2 => eq_val x1 x2
-  | Add x1 y1, Add x2 y2 => (Nat.eqb x1 x2) && (eq_val y1 y2)
-  | Sub x1 y1, Sub x2 y2 => (Nat.eqb x1 x2) && (eq_val y1 y2)
-  | Mul x1 y1, Mul x2 y2 => (Nat.eqb x1 x2) && (eq_val y1 y2)
-  | Div x1 y1, Div x2 y2 => (Nat.eqb x1 x2) && (eq_val y1 y2)
-  | CmpLt x1 y1, CmpLt x2 y2 => (Nat.eqb x1 x2) && (eq_val y1 y2)
-  | CmpLe x1 y1, CmpLe x2 y2 => (Nat.eqb x1 x2) && (eq_val y1 y2)
-  | CmpGt x1 y1, CmpGt x2 y2 => (Nat.eqb x1 x2) && (eq_val y1 y2)
-  | CmpGe x1 y1, CmpGe x2 y2 => (Nat.eqb x1 x2) && (eq_val y1 y2)
-  | CmpEq x1 y1, CmpEq x2 y2 => (Nat.eqb x1 x2) && (eq_val y1 y2)
-  | CmpNe x1 y1, CmpNe x2 y2 => (Nat.eqb x1 x2) && (eq_val y1 y2)
+  | Add x1 y1, Add x2 y2 => (reg_eqb x1 x2) && (eq_val y1 y2)
+  | Sub x1 y1, Sub x2 y2 => (reg_eqb x1 x2) && (eq_val y1 y2)
+  | Mul x1 y1, Mul x2 y2 => (reg_eqb x1 x2) && (eq_val y1 y2)
+  | Div x1 y1, Div x2 y2 => (reg_eqb x1 x2) && (eq_val y1 y2)
+  | CmpLt x1 y1, CmpLt x2 y2 => (reg_eqb x1 x2) && (eq_val y1 y2)
+  | CmpLe x1 y1, CmpLe x2 y2 => (reg_eqb x1 x2) && (eq_val y1 y2)
+  | CmpGt x1 y1, CmpGt x2 y2 => (reg_eqb x1 x2) && (eq_val y1 y2)
+  | CmpGe x1 y1, CmpGe x2 y2 => (reg_eqb x1 x2) && (eq_val y1 y2)
+  | CmpEq x1 y1, CmpEq x2 y2 => (reg_eqb x1 x2) && (eq_val y1 y2)
+  | CmpNe x1 y1, CmpNe x2 y2 => (reg_eqb x1 x2) && (eq_val y1 y2)
   | _, _ => false
   end
 .
@@ -76,9 +84,6 @@ Definition phi_arg : Type := (reg * lbl).
 Inductive phi : Type :=
   | Phi (r : reg) (rs: list phi_arg)
 .
-
-Notation "'r(' x ) <- 'phi' y" :=
-  (Phi x y) (at level 50).
 
 Definition phi_reg (p : phi) : reg :=
   match p with
@@ -96,33 +101,6 @@ Inductive inst : Type :=
   | Def (r : reg) (e : expr)
   | Store (v : val) (r : reg)
 .
-
-Notation "'r(' x ) <- 'load' y" :=
-  (Def x (Load y)) (at level 50).
-Notation "'r(' x ) <- y" :=
-  (Def x (Val y)) (at level 50).
-Notation "'r(' x ) <- 'r(' y ) + z" :=
-  (Def x (Add y z)) (at level 50).
-Notation "'r(' x ) <- 'r(' y ) - z" :=
-  (Def x (Sub y z)) (at level 50).
-Notation "'r(' x ) <- 'r(' y ) * z" :=
-  (Def x (Mul y z)) (at level 50).
-Notation "'r(' x ) <- 'r(' y ) / z" :=
-  (Def x (Div y z)) (at level 50).
-Notation "'r(' x ) <- 'r(' y ) < z" :=
-  (Def x (CmpLt y z)) (at level 50).
-Notation "'r(' x ) <- 'r(' y ) <= z" :=
-  (Def x (CmpLe y z)) (at level 50).
-Notation "'r(' x ) <- 'r(' y ) > z" :=
-  (Def x (CmpGt y z)) (at level 50).
-Notation "'r(' x ) <- 'r(' y ) >= z" :=
-  (Def x (CmpGe y z)) (at level 50).
-Notation "'r(' x ) <- 'r(' y ) == z" :=
-  (Def x (CmpEq y z)) (at level 50).
-Notation "'r(' x ) <- 'r(' y ) != z" :=
-  (Def x (CmpNe y z)) (at level 50).
-Notation "'store' x 'r(' y )" :=
-  (Store x y) (at level 50).
 
 Definition inst_reg (i : inst) : option reg :=
   match i with
@@ -279,3 +257,35 @@ Fixpoint predecessors (b : block) (p : program) : list block :=
   end
 .
 *)
+
+End Ssara.
+
+Notation "'r(' x ) <- 'phi' y" :=
+  (Phi x y) (at level 50).
+
+Notation "'r(' x ) <- 'load' y" :=
+  (Def x (Load y)) (at level 50).
+Notation "'r(' x ) <- y" :=
+  (Def x (Val y)) (at level 50).
+Notation "'r(' x ) <- 'r(' y ) + z" :=
+  (Def x (Add y z)) (at level 50).
+Notation "'r(' x ) <- 'r(' y ) - z" :=
+  (Def x (Sub y z)) (at level 50).
+Notation "'r(' x ) <- 'r(' y ) * z" :=
+  (Def x (Mul y z)) (at level 50).
+Notation "'r(' x ) <- 'r(' y ) / z" :=
+  (Def x (Div y z)) (at level 50).
+Notation "'r(' x ) <- 'r(' y ) < z" :=
+  (Def x (CmpLt y z)) (at level 50).
+Notation "'r(' x ) <- 'r(' y ) <= z" :=
+  (Def x (CmpLe y z)) (at level 50).
+Notation "'r(' x ) <- 'r(' y ) > z" :=
+  (Def x (CmpGt y z)) (at level 50).
+Notation "'r(' x ) <- 'r(' y ) >= z" :=
+  (Def x (CmpGe y z)) (at level 50).
+Notation "'r(' x ) <- 'r(' y ) == z" :=
+  (Def x (CmpEq y z)) (at level 50).
+Notation "'r(' x ) <- 'r(' y ) != z" :=
+  (Def x (CmpNe y z)) (at level 50).
+Notation "'store' x 'r(' y )" :=
+  (Store x y) (at level 50).

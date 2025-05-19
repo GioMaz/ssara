@@ -1,9 +1,14 @@
 From Ssara.Core Require Import Syntax.
 From Stdlib Require Import Lists.List.
+From Stdlib Require Import PeanoNat.
 
+(* Set Implicit Arguments. *)
 (*
   1st property of an SSA program, every instruction is assigned exactly once
 *)
+
+From Ssara.Core Require Import RegNatInstance.
+Existing Instance reg_instance.
 
 Inductive in_program : block -> program -> Prop :=
   | IsProgram : forall b, in_program b b
@@ -16,7 +21,8 @@ Fixpoint nth_ok {A : Type} (i : nat) (l : list A) : bool :=
     | O, nil => false
     | S i', nil => false
     | S i', _ :: t => nth_ok i' t
-  end.
+  end
+.
 
 Definition single_assignment_sec {A : Type} (get_sec : block -> list A) (get_reg : A -> option reg) (b : block) : Prop :=
   forall (i j : nat),

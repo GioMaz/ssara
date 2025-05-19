@@ -1,6 +1,6 @@
 Require Import Ssara.Core.Syntax.
 Require Import Ssara.Core.Vm.
-Require Import Ssara.Core.Coloring.
+Require Import Ssara.Core.RegAlloc.
 Require Import Ssara.Core.LivenessInfo.
 Require Import Ssara.Core.InterfGraph.
 
@@ -30,5 +30,5 @@ Extraction "ssara.ml"
   InterfGraph.ig_v
   InterfGraph.ig_nbors
   InterfGraph.Example4.example_block_1
-  Coloring.eliminate
+  RegAlloc.eliminate
 .

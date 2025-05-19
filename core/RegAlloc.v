@@ -50,8 +50,8 @@ Fixpoint eliminate (g : ig) (fuel : nat) : ig * list reg :=
     match find_next g with
     | Some next =>
       let g' := ig_remove_node g next in
-      let (g'', regs) := eliminate g' fuel' in
-      (g'', next :: regs)
+      let (g'', peo) := eliminate g' fuel' in
+      (g'', next :: peo)
     | None => (g, nil)
     end
   end
@@ -102,6 +102,14 @@ Module Example1.
   Compute
     let g := get_ig example_block_1 fuel in
     let (g' , l) := eliminate g fuel in
-    map (fun r => (r, (ig_nbors g) r)) (ig_v g)
+    l
+    (* map (fun r => (r, (ig_nbors g) r)) (ig_v g) *)
   .
 End Example1.
+
+(*
+TODO:
+- Register allocation
+- Generic map data type
+- Maybe visualize the interference graph in OCaml
+*)

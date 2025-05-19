@@ -131,11 +131,12 @@ Fixpoint run_phi (m : vm) (pred : block) (r : reg) (rs : list (reg * lbl)) : vm 
   end
 .
 
-Fixpoint run_phis (m : vm) (pred : block) (ps : list phi) : vm :=
-  match ps with
-  | nil => m
-  | Phi r rs :: xs => run_phis (run_phi m pred r rs) pred xs
-  end
+Definition run_phis (m : vm) (pred : block) (ps : list phi) : vm :=
+  fold_left
+    (fun m_acc p =>
+      match p with
+      | Phi r rs => run_phi m pred r rs
+      end) ps m
 .
 
 (*

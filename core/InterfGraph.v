@@ -40,6 +40,13 @@ Definition ig_remove_node (g : ig) (r : reg) : ig :=
   (regs_remove r v, nbors)
 .
 
+(* Lemma ig_remove_node_absence :
+  forall (g : ig) (r : reg), In r (ig_v g) -> ~ In r (ig_v (ig_remove_node g r))
+.
+Proof.
+  intros g r. intros H.
+  unfold ig_remove_node. *)
+
 Definition ig_insert_edges (g : ig) (r : reg) (regs : list reg) : ig :=
   fold_left
     (fun g_acc r' => if r =? r' then g else ig_insert_edge r r' g)
