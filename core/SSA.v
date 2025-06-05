@@ -1,14 +1,15 @@
 From Ssara.Core Require Import Syntax.
 From Stdlib Require Import Lists.List.
 From Stdlib Require Import PeanoNat.
+From Ssara.Core Require Import RegClass.
 
 (* Set Implicit Arguments. *)
 (*
   1st property of an SSA program, every instruction is assigned exactly once
 *)
 
-From Ssara.Core Require Import RegNatInstance.
-Existing Instance reg_instance.
+From Ssara.Core Require Import RegVregInstance.
+Existing Instance reg_vreg_instance.
 
 Inductive in_program : block -> program -> Prop :=
   | IsProgram : forall b, in_program b b

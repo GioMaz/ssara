@@ -1,4 +1,5 @@
 From Ssara.Core Require Import Syntax.
+From Ssara.Core Require Import RegClass.
 From Ssara.Core Require Import SSA.
 From Stdlib Require Import Lists.List.
 From Stdlib Require Import ZArith.
@@ -25,7 +26,6 @@ Definition set_reg (m : vm) (r : reg) (c : cell) : vm :=
     Vm (fun r' => if r' =? r then c else regs r') cells
   end
 .
-
 
 Definition get_cell (m : vm) (i : nat) : cell :=
   let fix get_cell_aux (cells : list cell) (i : nat) : cell :=

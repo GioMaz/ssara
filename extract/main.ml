@@ -1,4 +1,4 @@
-(* open Ssara
+(*open Ssara
 
 module LblSet = Set.Make(Int);;
 
@@ -51,8 +51,8 @@ let rec eliminate_fixpoint g =
   match find_next g with
   | Some next ->
     let g' = ig_remove_node g next in
-    let (g'', regs) = eliminate_fixpoint g' in
-    (g'', next :: regs)
+    let (g'', peo) = eliminate_fixpoint g' in
+    (g'', next :: peo)
   | None -> (g, [])
 ;;
 
@@ -77,4 +77,4 @@ let run_example_4 () =
     peo
 ;;
 
-run_example_4 ();; *)
+run_example_4 ();;*)

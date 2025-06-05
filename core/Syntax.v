@@ -1,14 +1,10 @@
 From Stdlib Require Import ZArith.
 From Stdlib Require Import Lists.List.
 Import ListNotations.
+From Ssara.Core Require Import RegClass.
 
-Section Ssara.
+Section Syntax.
 
-Class RegClass := {
-  reg : Set;
-  reg_eqb : reg -> reg -> bool;
-  reg_eq_dec : forall r r' : reg, {r = r'} + {r <> r'};
-}.
 Context {reg_instance : RegClass}.
 
 Definition lbl := nat.
@@ -258,7 +254,7 @@ Fixpoint predecessors (b : block) (p : program) : list block :=
 .
 *)
 
-End Ssara.
+End Syntax.
 
 Notation "'r(' x ) <- 'phi' y" :=
   (Phi x y) (at level 50).

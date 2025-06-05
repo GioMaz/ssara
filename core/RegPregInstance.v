@@ -1,5 +1,7 @@
 From Stdlib Require Import PeanoNat.
-From Ssara.Core Require Import Syntax.
+From Ssara.Core Require Import RegClass.
+From Stdlib Require Import Lists.List.
+Import ListNotations.
 
 Inductive preg : Type :=
   | RAX
@@ -10,6 +12,7 @@ Inductive preg : Type :=
   | RDI
   | RSP
   | RBP
+  | NOREG
 .
 
 Definition preg_eqb (p : preg) (p' : preg) : bool :=
@@ -22,21 +25,31 @@ Definition preg_eqb (p : preg) (p' : preg) : bool :=
   | RDI, RDI => true
   | RSP, RSP => true
   | RBP, RBP => true
+  | NOREG, NOREG => true
   | _, _ => false
   end
 .
 
-Lemma preg_eqb_eq : forall r r', preg_eqb r r' = true <-> r = r'.
+Lemma preg_eqb_eq : forall p p', preg_eqb p p' = true <-> p = p'.
 Proof.
-  destruct r, r'; simpl; split; try congruence; intros; reflexivity.
+  destruct p, p'; simpl; split; try congruence; intros; reflexivity.
 Qed.
 
-Lemma preg_eq_dec : forall r r' : preg, {r = r'} + {r <> r'}.
+Lemma preg_eq_dec : forall p p' : preg, {p = p'} + {p <> p'}.
 Proof.
   decide equality.
+Defined.
+
+Definition preg_all : list preg :=
+  [RAX; RBX; RCX; RDX; RSI; RDI; RSP; RBP; NOREG]
+.
+
+Lemma preg_all_in : forall p, In p preg_all.
+Proof.
+  intros p. destruct p; simpl; repeat (left; reflexivity) || right; try reflexivity.
 Qed.
 
-Instance reg_instance : RegClass := {|
+Instance reg_preg_instance : RegClass := {|
   reg := preg;
   reg_eqb := preg_eqb;
   reg_eq_dec := preg_eq_dec;

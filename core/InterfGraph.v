@@ -1,51 +1,42 @@
 From Ssara.Core Require Import Syntax.
+From Ssara.Core Require Import RegClass.
 From Ssara.Core Require Import Utils.
 From Ssara.Core Require Import LivenessInfo.
+From Ssara.Core Require Import Dict.
 From Stdlib Require Import Lists.List.
 From Stdlib Require Import ZArith.
 From Stdlib Require Import ListSet.
 Import ListNotations.
 
-(* Interference graph definition as a map from a register to its adjacence set *)
-Definition ig : Type := set reg * (reg -> set reg).
-Definition ig_empty : ig := (nil, fun _ => nil).
-Definition ig_update (g : ig) (k : reg) (v : set reg) : ig :=
-  let (regs, nbors) := g in
-  (regs_add k regs, fun r => if r =? k then v else nbors r)
-.
-Definition ig_nbors (g : ig) (k : reg) : set reg :=
-  let (_, nbors) := g in nbors k
-.
-Definition ig_v (g : ig) : set reg :=
-  let (v, _) := g in v
-.
+From Ssara.Core Require Import RegVregInstance.
+Existing Instance reg_vreg_instance.
+
+Instance dict_ig_instance : DictClass := {|
+  key := reg;
+  value := set reg;
+  default := nil;
+  key_eq_dec := Nat.eq_dec;
+|}.
+Definition ig : Type := dict.
 
 Definition ig_update_edge (f : reg -> set reg -> set reg) (r : reg) (r' : reg) (g : ig) : ig :=
-  let regs  := ig_nbors g r in
-  let g'    := ig_update g r (f r' regs) in
-  let regs' := ig_nbors g' r' in
-  ig_update g' r' (f r regs')
+  let regs  := dict_map g r in
+  let g'    := dict_update g r (f r' regs) in
+  let regs' := dict_map g' r' in
+  dict_update g' r' (f r regs')
 .
-
-Definition ig_remove_edge := ig_update_edge regs_remove.
-Definition ig_insert_edge := ig_update_edge regs_add.
+Definition ig_remove_edge := ig_update_edge vregs_remove.
+Definition ig_insert_edge := ig_update_edge vregs_add.
 
 Definition ig_remove_node (g : ig) (r : reg) : ig :=
   let (v, nbors) := fold_left
     (fun g_acc r' =>
       ig_remove_edge r r' g_acc)
-    (ig_v g)
+    (dict_keys g)
     g
   in
-  (regs_remove r v, nbors)
+  (vregs_remove r v, nbors)
 .
-
-(* Lemma ig_remove_node_absence :
-  forall (g : ig) (r : reg), In r (ig_v g) -> ~ In r (ig_v (ig_remove_node g r))
-.
-Proof.
-  intros g r. intros H.
-  unfold ig_remove_node. *)
 
 Definition ig_insert_edges (g : ig) (r : reg) (regs : list reg) : ig :=
   fold_left
@@ -82,7 +73,7 @@ Definition get_ig_programinfo (pi : programinfo) : ig :=
       end
     )
     ls
-    ig_empty
+    dict_empty
 .
 
 Definition get_ig (p : program) (fuel : nat) : ig :=
@@ -146,7 +137,7 @@ Module Example3.
 
   Compute
     let g := get_ig example_block_1 fuel in
-    map (fun r => (r, ig_nbors g r)) (ig_v g)
+    dict_list g
   .
 End Example3.
 
@@ -189,6 +180,6 @@ Module Example4.
 
   Compute
     let g := get_ig example_block_1 fuel in
-    map (fun r => (r, ig_nbors g r)) (ig_v g)
+    dict_list g
   .
 End Example4.

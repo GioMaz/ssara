@@ -1,13 +1,15 @@
 From Ssara.Core Require Import Syntax.
+From Ssara.Core Require Import RegClass.
 From Ssara.Core Require Import Vm.
 From Ssara.Core Require Import Utils.
+From Ssara.Core Require Import Dict.
 From Stdlib Require Import Lists.List.
 From Stdlib Require Import ZArith.
 From Stdlib Require Import ListSet.
 Import ListNotations.
 
-From Ssara.Core Require Import RegNatInstance.
-Existing Instance reg_instance.
+From Ssara.Core Require Import RegVregInstance.
+Existing Instance reg_vreg_instance.
 
 (*
   https://en.wikipedia.org/wiki/Live-variable_analysis
@@ -22,7 +24,7 @@ Inductive instinfo : Type :=
 Definition merge_instinfo (ii : instinfo) (ii' : instinfo) : instinfo :=
   match ii, ii' with
   | InstInfo lout lin, InstInfo lout' lin' =>
-    InstInfo (regs_union lout lout') (regs_union lin lin')
+    InstInfo (vregs_union lout lout') (vregs_union lin lin')
   end
 .
 
@@ -39,24 +41,19 @@ Inductive blockinfo : Type :=
   | BlockInfo (iis : list instinfo)
 .
 
-Definition programinfo : Type := set lbl * (lbl -> option blockinfo).
-Definition programinfo_empty : programinfo := (nil, fun _ => None).
-Definition programinfo_update (pi : programinfo) (l : lbl) (bi : blockinfo) : programinfo :=
-  let (ls, map) := pi in
-  (ls_add l ls, fun l' => if l =? l' then Some bi else map l')
-.
-Definition programinfo_bi (pi : programinfo) (l : lbl) : (option blockinfo)  :=
-  let (_, bi) := pi in bi l
-.
-Definition programinfo_ls (pi : programinfo) : set lbl :=
-  let (ls, _) := pi in ls
-.
+Instance dict_programinfo_instance : DictClass := {|
+  key := lbl;
+  value := option blockinfo;
+  default := None;
+  key_eq_dec := Nat.eq_dec;
+|}.
+Definition programinfo : Type := dict.
 
 Definition programinfo_insert (pi : programinfo) (l : lbl) (bi : blockinfo) : programinfo :=
-  let bi' := programinfo_bi pi l in
+  let bi' := dict_map pi l in
   match bi, bi' with
-  | BlockInfo iis, None => programinfo_update pi l bi
-  | BlockInfo iis, Some (BlockInfo iis') => programinfo_update pi l (BlockInfo (merge_instinfos iis iis'))
+  | BlockInfo iis, None => dict_update pi l (Some bi)
+  | BlockInfo iis, Some (BlockInfo iis') => dict_update pi l (Some (BlockInfo (merge_instinfos iis iis')))
   end
 .
 
@@ -97,7 +94,7 @@ Definition phi_uses (b : block) : set reg :=
   defined.
 *)
 Definition analyze_phis (ps : list phi) (final_live_out : set reg) : instinfo * set reg :=
-  let live_in := regs_union (phi_defs ps) final_live_out in
+  let live_in := vregs_union (phi_defs ps) final_live_out in
   (InstInfo final_live_out live_in, live_in)
 .
 
@@ -115,7 +112,7 @@ Fixpoint analyze_insts (is : list inst) (final_live_out : set reg) : list instin
     let use := inst_args x in
     let def := option_to_list (inst_reg x) in
     let (is', live_out) := analyze_insts xs final_live_out in
-    let live_in := regs_union use (regs_diff live_out def) in (
+    let live_in := vregs_union use (vregs_diff live_out def) in (
       (InstInfo live_out live_in) :: is',
       live_in
     )
@@ -130,7 +127,7 @@ Fixpoint analyze_insts (is : list inst) (final_live_out : set reg) : list instin
   Returns the list of instinfos and the live_in of the instruction.
 *)
 Definition analyze_jinst (j : jinst) (final_live_out : set reg) : instinfo * set reg :=
-  let live_in := regs_union (option_to_list (jinst_args j)) final_live_out in
+  let live_in := vregs_union (option_to_list (jinst_args j)) final_live_out in
   (InstInfo final_live_out live_in, live_in)
 .
 
@@ -149,7 +146,7 @@ Definition analyze_block (b : block) (final_live_out : set reg) : list instinfo 
     let (iis_3, live_in_3) := analyze_jinst j final_live_out in
     let (iis_2, live_in_2) := analyze_insts is live_in_3 in
     let (iis_1, live_in_1) := analyze_phis ps live_in_2 in
-    (iis_1 :: iis_2 ++ [iis_3], regs_diff live_in_1 (phi_defs (get_phis b)))
+    (iis_1 :: iis_2 ++ [iis_3], vregs_diff live_in_1 (phi_defs (get_phis b)))
   end
 .
 
@@ -162,7 +159,7 @@ Fixpoint analyze_program (p : program) (fuel : nat) : programinfo * set reg :=
   | O =>
     (* Get last blockinfo *)
     let (iis, live_in) := analyze_block p nil in
-    (programinfo_insert programinfo_empty (get_lbl p) (BlockInfo iis), live_in)
+    (programinfo_insert dict_empty (get_lbl p) (BlockInfo iis), live_in)
 
   | S fuel' =>
     (* Get successors *)
@@ -175,13 +172,13 @@ Fixpoint analyze_program (p : program) (fuel : nat) : programinfo * set reg :=
     let (pi, live_out) :=
       fold_left
         (fun '(pi_acc, live_out) '(pi_succ, live_in) =>
-          (programinfo_merge pi_acc pi_succ, regs_union live_out live_in))
+          (programinfo_merge pi_acc pi_succ, vregs_union live_out live_in))
         results
-        (programinfo_empty, nil)
+        (dict_empty, nil)
     in
 
     (* Add phi_uses[b] to live_out *)
-    let live_out' := regs_union live_out (phi_uses p) in
+    let live_out' := vregs_union live_out (phi_uses p) in
 
     (* Analyze current block *)
     let (iis, live_in) := analyze_block p live_out' in
@@ -189,7 +186,7 @@ Fixpoint analyze_program (p : program) (fuel : nat) : programinfo * set reg :=
     (* Insert data into map *)
     let pi' := programinfo_insert pi (get_lbl p) (BlockInfo iis) in
 
-    (pi', regs_diff live_in (phi_defs (get_phis p)))
+    (pi', vregs_diff live_in (phi_defs (get_phis p)))
   end
 .
 
@@ -242,8 +239,9 @@ Module Example1.
   .
 
   Compute
-    let '((ls, map), regs) := (analyze_program example_block_1 10) in
-    map 3.
+    let '(pi, regs) := (analyze_program example_block_1 10) in
+    dict_list pi
+  .
 End Example1.
 
 (*
@@ -278,7 +276,7 @@ Module Example2.
 
   Compute
     let (pi, _) := analyze_program example_block_1 10 in
-    (programinfo_bi pi 1, programinfo_bi pi 2)
+    dict_list pi
   .
 End Example2.
 
@@ -335,7 +333,7 @@ Module Example3.
   Definition fuel : nat := 4.
 
   Compute
-    let '((ls, bi), _) := analyze_program example_block_1 fuel in
-    map (fun l => (l, bi l)) ls
+    let '(pi, _) := analyze_program example_block_1 fuel in
+    dict_list pi
   .
 End Example3.
