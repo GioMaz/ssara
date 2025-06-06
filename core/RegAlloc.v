@@ -7,7 +7,8 @@ From Stdlib Require Import Lists.List.
 Import ListNotations.
 From Ssara.Core Require Import Syntax.
 From Stdlib Require Import Bool.
-From Stdlib Require Import ListSet.
+From Ssara.Core Require Import RegPregInstance.
+From Ssara.Core Require Import RegVregInstance.
 
 (* Check whether regs are neighbors of r *)
 Definition neighborsb (r : reg) (regs : list reg) (g : ig) : bool :=
@@ -58,9 +59,6 @@ Fixpoint eliminate (g : ig) (fuel : nat) : ig * list reg :=
   end
 .
 
-From Ssara.Core Require Import RegPregInstance.
-From Ssara.Core Require Import RegVregInstance.
-
 Instance dict_coloring_instance : DictClass := {|
   key := vreg;
   value := preg;
@@ -70,41 +68,45 @@ Instance dict_coloring_instance : DictClass := {|
 Definition coloring := dict.
 
 (*
-  The partial_coloring is performed this way:
+  The coloring is performed this way:
   - Get a perfect elimination order (ordering that eliminates simplicial nodes first)
   - For each node in the peo reinsert it into the graph and color it differently wrt its neighbor
 *)
-Definition color_diff (colors : list preg) : option preg :=
-  match set_diff preg_eq_dec preg_all colors with
+Definition preg_compl (colors : list preg) : option preg :=
+  match pregs_diff preg_all colors with
   | nil => None
   | c :: _ => Some c
   end
 .
 
 (*
-  By definition of peo the `nbors` list contains all the neighbors of `v`
+  By definition of PEO the `nbors` list contains all the neighbors of `v`
 *)
-Definition color_vreg (v : vreg) (deleted : list vreg) (c : coloring) (g : ig) : option preg :=
+Definition color_vreg (v : vreg) (c : coloring) (g : ig) : option preg :=
   let nbors := dict_map g v in
-  let colors := map (dict_map c) nbors in
-  color_diff colors
+  let used := map (dict_map c) nbors in
+  preg_compl used
 .
 
 Definition color (peo : list vreg) (g : ig) : option coloring :=
-  let fix color_aux (peo : list vreg) (deleted : list vreg) (c : coloring) (g : ig) : option coloring :=
+  let fix color_aux (peo : list vreg) (c : coloring) (g : ig) : option coloring :=
     match peo with
     | nil => Some c
     | v :: peo' =>
-      match color_vreg v deleted c g with
+      match color_vreg v c g with
       | Some p =>
         let c' := dict_update c v p in
-        color_aux peo' (v :: deleted) c' g
+        color_aux peo' c' g
       | None => None
       end
     end
   in
-  color_aux peo nil dict_empty g
+  color_aux peo dict_empty g
 .
+
+(*
+  Definition of a parallel IR using physical registers instead
+*)
 
 Definition vphi : Type := @phi reg_vreg_instance.
 Definition pphi : Type := @phi reg_preg_instance.
@@ -134,9 +136,9 @@ Definition pexpr : Type := @expr reg_preg_instance.
 
 Definition color_expr (c : coloring) (e : vexpr) : pexpr :=
   match e with
-  | Val v => @Val reg_preg_instance (color_val c v)
-  | Neg v => @Neg reg_preg_instance (color_val c v)
-  | Load v => @Load reg_preg_instance (color_val c v)
+  | Val v => Val (color_val c v)
+  | Neg v => Neg (color_val c v)
+  | Load v => Load (color_val c v)
   | Add v v' => @Add reg_preg_instance (dict_map c v) (color_val c v')
   | Sub v v' => @Sub reg_preg_instance (dict_map c v) (color_val c v')
   | Mul v v' => @Mul reg_preg_instance (dict_map c v) (color_val c v')
@@ -159,6 +161,10 @@ Definition color_inst (c : coloring) (i : vinst) : pinst :=
     @Def reg_preg_instance
     (dict_map c v)
     (color_expr c e)
+  | Swap v v' =>
+    @Swap reg_preg_instance
+    (dict_map c v)
+    (dict_map c v')
   | Store v v' =>
     @Store reg_preg_instance
     (color_val c v)
@@ -188,7 +194,7 @@ CoFixpoint color_block (c : coloring) (b : vblock) : pblock :=
 
 Fixpoint visit_pblock (b : pblock) (fuel : nat) : pblock :=
   match b, fuel with
-  | _, O => Block O nil nil Halt
+  | _, O => block_empty
   | Block l ps is j, S fuel' =>
     Block l ps is
     match j with
@@ -234,7 +240,7 @@ Module Example1.
     )
   .
 
-  Definition fuel : nat := 10.
+  Definition fuel : nat := 5.
 
   Compute
     let g := get_ig example_block_1 fuel in

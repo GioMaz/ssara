@@ -110,7 +110,7 @@ Fixpoint analyze_insts (is : list inst) (final_live_out : set reg) : list instin
   | nil => (nil, final_live_out)
   | x :: xs =>
     let use := inst_args x in
-    let def := option_to_list (inst_reg x) in
+    let def := inst_reg x in
     let (is', live_out) := analyze_insts xs final_live_out in
     let live_in := vregs_union use (vregs_diff live_out def) in (
       (InstInfo live_out live_in) :: is',

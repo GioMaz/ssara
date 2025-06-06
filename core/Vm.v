@@ -4,6 +4,9 @@ From Ssara.Core Require Import SSA.
 From Stdlib Require Import Lists.List.
 From Stdlib Require Import ZArith.
 
+From Ssara.Core Require Import RegVregInstance.
+Existing Instance reg_vreg_instance.
+
 (* Virtual machine primitives *)
 
 Definition cell : Type := Z.
@@ -12,7 +15,7 @@ Inductive vm : Type :=
   | Vm : (reg -> cell) -> list cell -> vm
 .
 
-Definition vm_new : vm := Vm (fun _ => Z0) nil.
+Definition vm_empty : vm := Vm (fun _ => Z0) nil.
 
 Definition get_reg (m : vm) (r : reg) : cell :=
   match m with
@@ -105,6 +108,10 @@ Definition eval_expr (m : vm) (e : expr) : cell :=
 Definition run_inst (m : vm) (i : inst) : vm :=
   match i with
   | Def r e => set_reg m r (eval_expr m e)
+  | Swap r r' =>
+    let tmp := get_reg m r in
+    let m' := (set_reg m r (get_reg m r')) in
+    set_reg m' r' tmp
   | Store v r =>
     match v with
     | Imm i' => set_cell m (Z.to_nat i') (get_reg m r)

@@ -1,4 +1,4 @@
-From Ssara.Core Require Import Syntax.
+(* From Ssara.Core Require Import Syntax.
 From Stdlib Require Import Lists.List.
 From Stdlib Require Import PeanoNat.
 From Ssara.Core Require Import RegClass.
@@ -179,4 +179,4 @@ Definition strict (p : program) : Prop :=
       )
     end
   )
-. *)
+. *) *)

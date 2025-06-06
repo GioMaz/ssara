@@ -95,13 +95,15 @@ Definition phi_args (p : phi) : list phi_arg :=
 
 Inductive inst : Type :=
   | Def (r : reg) (e : expr)
+  | Swap (r : reg) (r' : reg)
   | Store (v : val) (r : reg)
 .
 
-Definition inst_reg (i : inst) : option reg :=
+Definition inst_reg (i : inst) : list reg :=
   match i with
-  | Def x _ => Some x
-  | Store _ _ => None
+  | Def x _ => [x]
+  | Swap r r' => [r; r']
+  | Store _ _ => []
   end
 .
 
@@ -129,6 +131,7 @@ Definition inst_args (i : inst) : list reg :=
     | CmpEq r v => r :: reg_or_nil v
     | CmpNe r v => r :: reg_or_nil v
     end
+  | Swap r r' => r :: r' :: nil
   | Store v r => r :: reg_or_nil v
   end
 .
@@ -145,6 +148,8 @@ with jinst : Type :=
   | Jmp (b : block)
   | Halt
 .
+
+Definition block_empty : block := Block O nil nil Halt.
 
 Definition jinst_args (j : jinst) : option reg :=
   match j with
@@ -256,7 +261,7 @@ Fixpoint predecessors (b : block) (p : program) : list block :=
 
 End Syntax.
 
-Notation "'r(' x ) <- 'phi' y" :=
+Notation "r( x ) <- 'phi' y" :=
   (Phi x y) (at level 50).
 
 Notation "'r(' x ) <- 'load' y" :=

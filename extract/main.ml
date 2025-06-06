@@ -1,4 +1,4 @@
-(*open Ssara
+(* open Ssara
 
 module LblSet = Set.Make(Int);;
 
@@ -77,4 +77,4 @@ let run_example_4 () =
     peo
 ;;
 
-run_example_4 ();;*)
+run_example_4 ();; *)
