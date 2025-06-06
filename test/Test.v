@@ -78,7 +78,6 @@ Module Example3.
     )
   .
 
-  Compute Vm.run vm_new example_block_1 10.
   Example run_example_1 :
     let (_, cells) := Vm.run vm_new example_block_1 10 in
     cells = [34%Z]

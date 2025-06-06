@@ -1,4 +1,3 @@
-From Ssara.Core Require Import Syntax.
 From Ssara.Core Require Import RegClass.
 From Ssara.Core Require Import Utils.
 From Ssara.Core Require Import InterfGraph.
@@ -6,6 +5,7 @@ From Ssara.Core Require Import Dict.
 From Stdlib Require Import ZArith.
 From Stdlib Require Import Lists.List.
 Import ListNotations.
+From Ssara.Core Require Import Syntax.
 From Stdlib Require Import Bool.
 From Stdlib Require Import ListSet.
 
@@ -64,7 +64,7 @@ From Ssara.Core Require Import RegVregInstance.
 Instance dict_coloring_instance : DictClass := {|
   key := vreg;
   value := preg;
-  default := NOREG;
+  default := RAX;
   key_eq_dec := Nat.eq_dec;
 |}.
 Definition coloring := dict.
@@ -106,16 +106,98 @@ Definition color (peo : list vreg) (g : ig) : option coloring :=
   color_aux peo nil dict_empty g
 .
 
-(* Definition vphi := phi reg_vreg_instance.
-Definition pphi := phi reg_preg_instance.
+Definition vphi : Type := @phi reg_vreg_instance.
+Definition pphi : Type := @phi reg_preg_instance.
 
-Definition color_phi (p : phi) (c : coloring) :=
+Definition color_phi (c : coloring) (p : vphi) : pphi :=
   match p with
-  | Phi v vs => Phi (dict_map c v) (fold_left (dict_map c) vs)
+  | Phi v vs =>
+    @Phi reg_preg_instance
+    (dict_map c v)
+    (map (fun '(v, l) => (dict_map c v, l)) vs)
   end
 .
 
-Definition color_program (p : program) (c : coloring) : program :=
+Definition vval : Type := @val reg_vreg_instance.
+Definition pval : Type := @val reg_preg_instance.
+
+Definition color_val (c : coloring) (v : vval) : pval :=
+  match v with
+  | Imm x => Imm x
+  | Reg v => @Reg reg_preg_instance (dict_map c v)
+  | Ptr p => Ptr p
+  end
+.
+
+Definition vexpr : Type := @expr reg_vreg_instance.
+Definition pexpr : Type := @expr reg_preg_instance.
+
+Definition color_expr (c : coloring) (e : vexpr) : pexpr :=
+  match e with
+  | Val v => @Val reg_preg_instance (color_val c v)
+  | Neg v => @Neg reg_preg_instance (color_val c v)
+  | Load v => @Load reg_preg_instance (color_val c v)
+  | Add v v' => @Add reg_preg_instance (dict_map c v) (color_val c v')
+  | Sub v v' => @Sub reg_preg_instance (dict_map c v) (color_val c v')
+  | Mul v v' => @Mul reg_preg_instance (dict_map c v) (color_val c v')
+  | Div v v' => @Div reg_preg_instance (dict_map c v) (color_val c v')
+  | CmpLt v v' => @CmpLt reg_preg_instance (dict_map c v) (color_val c v')
+  | CmpLe v v' => @CmpLe reg_preg_instance (dict_map c v) (color_val c v')
+  | CmpGt v v' => @CmpGt reg_preg_instance (dict_map c v) (color_val c v')
+  | CmpGe v v' => @CmpGe reg_preg_instance (dict_map c v) (color_val c v')
+  | CmpEq v v' => @CmpEq reg_preg_instance (dict_map c v) (color_val c v')
+  | CmpNe v v' => @CmpNe reg_preg_instance (dict_map c v) (color_val c v')
+  end
+.
+
+Definition vinst : Type := @inst reg_vreg_instance.
+Definition pinst : Type := @inst reg_preg_instance.
+
+Definition color_inst (c : coloring) (i : vinst) : pinst :=
+  match i with
+  | Def v e =>
+    @Def reg_preg_instance
+    (dict_map c v)
+    (color_expr c e)
+  | Store v v' =>
+    @Store reg_preg_instance
+    (color_val c v)
+    (dict_map c v')
+  end
+.
+
+Definition vjinst : Type := @jinst reg_vreg_instance.
+Definition pjinst : Type := @jinst reg_preg_instance.
+Definition vblock : Type := @block reg_vreg_instance.
+Definition pblock : Type := @block reg_preg_instance.
+
+CoFixpoint color_block (c : coloring) (b : vblock) : pblock :=
+  match b with
+  | Block l ps is j =>
+    @Block reg_preg_instance
+    l
+    (map (color_phi c) ps)
+    (map (color_inst c) is)
+    (match j with
+    | Jnz v b1 b2 => @Jnz reg_preg_instance (dict_map c v) (color_block c b1) (color_block c b2)
+    | Jmp b => @Jmp reg_preg_instance (color_block c b)
+    | Halt => Halt
+    end)
+  end
+.
+
+Fixpoint visit_pblock (b : pblock) (fuel : nat) : pblock :=
+  match b, fuel with
+  | _, O => Block O nil nil Halt
+  | Block l ps is j, S fuel' =>
+    Block l ps is
+    match j with
+    | Jnz p b1 b2 => Jnz p (visit_pblock b1 fuel') (visit_pblock b2 fuel')
+    | Jmp b => Jmp (visit_pblock b fuel')
+    | Halt => Halt
+    end
+  end
+.
 
 Module Example1.
   CoFixpoint example_block_2 : block :=
@@ -169,7 +251,13 @@ Module Example1.
     let g := get_ig example_block_1 fuel in
     let (g' , peo) := eliminate g fuel in
     let c := color peo g in
-    dict_list c
+    let p :=
+      match c with
+      | Some c' => color_block c' example_block_1
+      | None => @Block reg_preg_instance O nil nil Halt
+      end
+    in
+    visit_pblock p fuel
   .
 End Example1.
 
@@ -178,4 +266,4 @@ TODO:
 - Generic map data type V
 - Register allocation
 - Maybe visualize the interference graph in OCaml
-*) *)
+*)

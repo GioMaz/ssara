@@ -12,7 +12,6 @@ Inductive preg : Type :=
   | RDI
   | RSP
   | RBP
-  | NOREG
 .
 
 Definition preg_eqb (p : preg) (p' : preg) : bool :=
@@ -25,7 +24,6 @@ Definition preg_eqb (p : preg) (p' : preg) : bool :=
   | RDI, RDI => true
   | RSP, RSP => true
   | RBP, RBP => true
-  | NOREG, NOREG => true
   | _, _ => false
   end
 .
@@ -41,7 +39,7 @@ Proof.
 Defined.
 
 Definition preg_all : list preg :=
-  [RAX; RBX; RCX; RDX; RSI; RDI; RSP; RBP; NOREG]
+  [RAX; RBX; RCX; RDX; RSI; RDI; RSP; RBP]
 .
 
 Lemma preg_all_in : forall p, In p preg_all.

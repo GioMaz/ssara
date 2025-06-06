@@ -1,10 +1,6 @@
-From Ssara.Core Require Import Syntax.
-From Ssara.Core Require Import Vm.
-From Ssara.Core Require Import Utils.
 From Stdlib Require Import Lists.List.
 From Stdlib Require Import ZArith.
 From Stdlib Require Import ListSet.
-Import ListNotations.
 
 Section Dict.
 
