@@ -88,6 +88,11 @@ Definition color_vreg (v : vreg) (c : coloring) (g : ig) : option preg :=
   preg_compl used
 .
 
+(*
+  The None constructor is returned if there aren't enough physical registers
+  for the coloring to happen, this may happen if we don't perform spilling
+  before the coloring.
+*)
 Definition color (peo : list vreg) (g : ig) : option coloring :=
   let fix color_aux (peo : list vreg) (c : coloring) (g : ig) : option coloring :=
     match peo with

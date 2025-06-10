@@ -3,9 +3,9 @@ From Ssara.Core Require Import RegClass.
 From Ssara.Core Require Import Vm.
 From Ssara.Core Require Import Utils.
 From Ssara.Core Require Import Dict.
-From Stdlib Require Import Lists.List.
 From Stdlib Require Import ZArith.
 From Stdlib Require Import ListSet.
+From Stdlib Require Import Lists.List.
 Import ListNotations.
 
 From Ssara.Core Require Import RegVregInstance.
