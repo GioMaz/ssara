@@ -1,6 +1,5 @@
 From Ssara.Core Require Import Syntax.
 From Ssara.Core Require Import RegClass.
-From Ssara.Core Require Import SSA.
 From Stdlib Require Import Lists.List.
 From Stdlib Require Import ZArith.
 

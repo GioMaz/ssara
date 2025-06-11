@@ -1,5 +1,4 @@
 From Stdlib Require Import Lists.List.
-From Stdlib Require Import ZArith.
 From Stdlib Require Import ListSet.
 
 Section Dict.

@@ -1,5 +1,5 @@
 From Ssara.Core Require Import RegClass.
-From Ssara.Core Require Import Utils.
+From Ssara.Core Require Import RegSet.
 From Ssara.Core Require Import InterfGraph.
 From Ssara.Core Require Import Dict.
 From Stdlib Require Import ZArith.
@@ -12,19 +12,19 @@ From Ssara.Core Require Import RegVregInstance.
 
 (* Check whether regs are neighbors of r *)
 Definition neighborsb (r : reg) (regs : list reg) (g : ig) : bool :=
-  vregs_mem r (dict_keys g) &&
+  regs_mem r (dict_keys g) &&
   fold_left
     (fun b r' =>
       b &&
       ((r =? r') ||
-        vregs_mem r' (dict_map g r)))
+        regs_mem r' (dict_map g r)))
     regs
     true
 .
 
 Definition simplicialb (r : reg) (g : ig) : bool :=
   let regs := dict_map g r in
-  vregs_mem r (dict_keys g) &&
+  regs_mem r (dict_keys g) &&
   fold_left (* Check whether the neighbor set of r is a clique *)
     (fun b r =>
       b &&
@@ -73,7 +73,7 @@ Definition coloring := dict.
   - For each node in the peo reinsert it into the graph and color it differently wrt its neighbor
 *)
 Definition preg_compl (colors : list preg) : option preg :=
-  match pregs_diff preg_all colors with
+  match @regs_diff reg_preg_instance preg_all_minus_tmp colors with
   | nil => None
   | c :: _ => Some c
   end
@@ -245,23 +245,30 @@ Module Example1.
     )
   .
 
-  Definition fuel : nat := 5.
+  Definition fuel : nat := 20.
 
-  Compute
-    let g := get_ig example_block_1 fuel in
-    dict_list g
-  .
+  (* Get interference graph *)
+  Definition g : ig := get_ig example_block_1 fuel.
+  Compute dict_list g.
 
+  (* Get perfect elimination ordering *)
+  Definition eliminate_result : (ig * list vreg) := eliminate g fuel.
   Compute
-    let g := get_ig example_block_1 fuel in
-    let (g' , peo) := eliminate g fuel in
+    let (g' , peo) := eliminate_result in
     peo
   .
 
+  (* Get coloring *)
+  Definition c := let (g', peo) := eliminate_result in color peo g.
   Compute
-    let g := get_ig example_block_1 fuel in
-    let (g' , peo) := eliminate g fuel in
-    let c := color peo g in
+    match c with
+    | Some c' => dict_list c'
+    | None => nil
+    end
+  .
+
+  (* Color program *)
+  Compute
     let p :=
       match c with
       | Some c' => color_block c' example_block_1
@@ -271,10 +278,3 @@ Module Example1.
     visit_pblock p fuel
   .
 End Example1.
-
-(*
-TODO:
-- Generic map data type V
-- Register allocation
-- Maybe visualize the interference graph in OCaml
-*)

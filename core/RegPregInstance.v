@@ -17,13 +17,13 @@ Inductive preg : Type :=
 
 Definition preg_eqb (p : preg) (p' : preg) : bool :=
   match p, p' with
-  | RAX, RAX => true
-  | RBX, RBX => true
-  | RCX, RCX => true
-  | RDX, RDX => true
-  | RSI, RSI => true
-  | RDI, RDI => true
-  | RSP, RSP => true
+  | RAX, RAX
+  | RBX, RBX
+  | RCX, RCX
+  | RDX, RDX
+  | RSI, RSI
+  | RDI, RDI
+  | RSP, RSP
   | RBP, RBP => true
   | _, _ => false
   end
@@ -45,7 +45,18 @@ Definition preg_all : list preg :=
 
 Lemma preg_all_in : forall p, In p preg_all.
 Proof.
-  intros p. destruct p; simpl; repeat (left; reflexivity) || right; try reflexivity.
+  intros []; simpl; repeat (left; reflexivity) || right; try reflexivity.
+Qed.
+
+Definition preg_all_minus_tmp : list preg :=
+  [RBX; RCX; RDX; RSI; RDI; RSP; RBP]
+.
+Definition tmp : preg := RAX.
+
+Lemma preg_all_minus_tmp_in : forall p, p <> tmp -> In p preg_all_minus_tmp.
+Proof.
+  intros []; unfold tmp; intros H;
+  try congruence; repeat (left; reflexivity) || right; try reflexivity.
 Qed.
 
 Instance reg_preg_instance : RegClass := {|
@@ -53,9 +64,3 @@ Instance reg_preg_instance : RegClass := {|
   reg_eqb := preg_eqb;
   reg_eq_dec := preg_eq_dec;
 |}.
-
-Definition pregs_union := set_union reg_eq_dec.
-Definition pregs_diff := set_diff reg_eq_dec.
-Definition pregs_add := set_add reg_eq_dec.
-Definition pregs_remove := set_remove reg_eq_dec.
-Definition pregs_mem := set_mem reg_eq_dec.

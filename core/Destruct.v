@@ -66,8 +66,8 @@ Definition stepf (s : state) : state :=
       | _ =>
         if is_last_source dst b
         then State t
-          (replace_last_source b RSP)
-          ((src, dst) :: (dst, RSP) :: l)
+          (replace_last_source b tmp)
+          ((src, dst) :: (dst, tmp) :: l)
         else State t b ((src, dst) :: l)
       end
     end
@@ -80,3 +80,8 @@ Fixpoint order (s : state) (fuel : nat) : state :=
   | S fuel' => order s fuel'
   end
 .
+
+(*
+TODO:
+- Maybe visualize the interference graph in OCaml
+*)

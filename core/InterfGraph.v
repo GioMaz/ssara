@@ -1,6 +1,6 @@
 From Ssara.Core Require Import Syntax.
 From Ssara.Core Require Import RegClass.
-From Ssara.Core Require Import Utils.
+From Ssara.Core Require Import RegSet.
 From Ssara.Core Require Import LivenessInfo.
 From Ssara.Core Require Import Dict.
 From Stdlib Require Import Lists.List.
@@ -25,8 +25,8 @@ Definition ig_update_edge (f : reg -> set reg -> set reg) (r : reg) (r' : reg) (
   let regs' := dict_map g' r' in
   dict_update g' r' (f r regs')
 .
-Definition ig_remove_edge := ig_update_edge vregs_remove.
-Definition ig_insert_edge := ig_update_edge vregs_add.
+Definition ig_remove_edge := ig_update_edge regs_remove.
+Definition ig_insert_edge := ig_update_edge regs_add.
 
 Definition ig_remove_node (g : ig) (r : reg) : ig :=
   let (v, nbors) := fold_left
@@ -35,7 +35,7 @@ Definition ig_remove_node (g : ig) (r : reg) : ig :=
     (dict_keys g)
     g
   in
-  (vregs_remove r v, nbors)
+  (regs_remove r v, nbors)
 .
 
 Definition ig_insert_edges (g : ig) (r : reg) (regs : list reg) : ig :=

@@ -1,8 +1,8 @@
 From Ssara.Core Require Import Syntax.
 From Ssara.Core Require Import RegClass.
-From Ssara.Core Require Import Vm.
 From Ssara.Core Require Import Utils.
 From Ssara.Core Require Import Dict.
+From Ssara.Core Require Import RegSet.
 From Stdlib Require Import ZArith.
 From Stdlib Require Import ListSet.
 From Stdlib Require Import Lists.List.
@@ -24,7 +24,7 @@ Inductive instinfo : Type :=
 Definition merge_instinfo (ii : instinfo) (ii' : instinfo) : instinfo :=
   match ii, ii' with
   | InstInfo lout lin, InstInfo lout' lin' =>
-    InstInfo (vregs_union lout lout') (vregs_union lin lin')
+    InstInfo (regs_union lout lout') (regs_union lin lin')
   end
 .
 
@@ -94,7 +94,7 @@ Definition phi_uses (b : block) : set reg :=
   defined.
 *)
 Definition analyze_phis (ps : list phi) (final_live_out : set reg) : instinfo * set reg :=
-  let live_in := vregs_union (phi_defs ps) final_live_out in
+  let live_in := regs_union (phi_defs ps) final_live_out in
   (InstInfo final_live_out live_in, live_in)
 .
 
@@ -112,7 +112,7 @@ Fixpoint analyze_insts (is : list inst) (final_live_out : set reg) : list instin
     let use := inst_args x in
     let def := inst_reg x in
     let (is', live_out) := analyze_insts xs final_live_out in
-    let live_in := vregs_union use (vregs_diff live_out def) in (
+    let live_in := regs_union use (regs_diff live_out def) in (
       (InstInfo live_out live_in) :: is',
       live_in
     )
@@ -127,7 +127,7 @@ Fixpoint analyze_insts (is : list inst) (final_live_out : set reg) : list instin
   Returns the list of instinfos and the live_in of the instruction.
 *)
 Definition analyze_jinst (j : jinst) (final_live_out : set reg) : instinfo * set reg :=
-  let live_in := vregs_union (option_to_list (jinst_args j)) final_live_out in
+  let live_in := regs_union (option_to_list (jinst_args j)) final_live_out in
   (InstInfo final_live_out live_in, live_in)
 .
 
@@ -146,7 +146,7 @@ Definition analyze_block (b : block) (final_live_out : set reg) : list instinfo 
     let (iis_3, live_in_3) := analyze_jinst j final_live_out in
     let (iis_2, live_in_2) := analyze_insts is live_in_3 in
     let (iis_1, live_in_1) := analyze_phis ps live_in_2 in
-    (iis_1 :: iis_2 ++ [iis_3], vregs_diff live_in_1 (phi_defs (get_phis b)))
+    (iis_1 :: iis_2 ++ [iis_3], regs_diff live_in_1 (phi_defs (get_phis b)))
   end
 .
 
@@ -172,13 +172,13 @@ Fixpoint analyze_program (p : program) (fuel : nat) : programinfo * set reg :=
     let (pi, live_out) :=
       fold_left
         (fun '(pi_acc, live_out) '(pi_succ, live_in) =>
-          (programinfo_merge pi_acc pi_succ, vregs_union live_out live_in))
+          (programinfo_merge pi_acc pi_succ, regs_union live_out live_in))
         results
         (dict_empty, nil)
     in
 
     (* Add phi_uses[b] to live_out *)
-    let live_out' := vregs_union live_out (phi_uses p) in
+    let live_out' := regs_union live_out (phi_uses p) in
 
     (* Analyze current block *)
     let (iis, live_in) := analyze_block p live_out' in
@@ -186,7 +186,7 @@ Fixpoint analyze_program (p : program) (fuel : nat) : programinfo * set reg :=
     (* Insert data into map *)
     let pi' := programinfo_insert pi (get_lbl p) (BlockInfo iis) in
 
-    (pi', vregs_diff live_in (phi_defs (get_phis p)))
+    (pi', regs_diff live_in (phi_defs (get_phis p)))
   end
 .
 
