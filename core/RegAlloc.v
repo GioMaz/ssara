@@ -11,7 +11,7 @@ From Ssara.Core Require Import RegPregInstance.
 From Ssara.Core Require Import RegVregInstance.
 
 (* Check whether regs are neighbors of r *)
-Definition neighborsb (r : reg) (regs : list reg) (g : ig) : bool :=
+Definition are_neighbors (r : reg) (regs : list reg) (g : ig) : bool :=
   regs_mem r (dict_keys g) &&
   fold_left
     (fun b r' =>
@@ -22,13 +22,13 @@ Definition neighborsb (r : reg) (regs : list reg) (g : ig) : bool :=
     true
 .
 
-Definition simplicialb (r : reg) (g : ig) : bool :=
+Definition is_simplicial (r : reg) (g : ig) : bool :=
   let regs := dict_map g r in
   regs_mem r (dict_keys g) &&
   fold_left (* Check whether the neighbor set of r is a clique *)
     (fun b r =>
       b &&
-      neighborsb r regs g
+      are_neighbors r regs g
     )
     regs
     true
@@ -39,7 +39,7 @@ Definition find_next (g : ig) : option reg :=
     match regs with
     | nil => None
     | r :: rs =>
-      if simplicialb r g then Some r else find_next_aux rs
+      if is_simplicial r g then Some r else find_next_aux rs
     end
   in
   find_next_aux (dict_keys g)
