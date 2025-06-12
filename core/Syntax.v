@@ -95,14 +95,12 @@ Section Syntax.
 
   Inductive inst : Type :=
     | Def (r : reg) (e : expr)
-    | Swap (r : reg) (r' : reg)
     | Store (v : val) (r : reg)
   .
 
   Definition inst_reg (i : inst) : list reg :=
     match i with
     | Def x _ => [x]
-    | Swap r r' => [r; r']
     | Store _ _ => []
     end
   .
@@ -131,7 +129,6 @@ Section Syntax.
       | CmpEq r v => r :: reg_or_nil v
       | CmpNe r v => r :: reg_or_nil v
       end
-    | Swap r r' => r :: r' :: nil
     | Store v r => r :: reg_or_nil v
     end
   .

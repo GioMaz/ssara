@@ -48,10 +48,10 @@ Proof.
   intros []; simpl; repeat (left; reflexivity) || right; try reflexivity.
 Qed.
 
+Definition tmp : preg := RAX.
 Definition preg_all_minus_tmp : list preg :=
   [RBX; RCX; RDX; RSI; RDI; RSP; RBP]
 .
-Definition tmp : preg := RAX.
 
 Lemma preg_all_minus_tmp_in : forall p, p <> tmp -> In p preg_all_minus_tmp.
 Proof.

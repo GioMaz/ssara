@@ -35,4 +35,8 @@ Section Dict.
     let (keys, m) := d in map (fun k => (k, m k)) keys
   .
 
+  Definition dict_size (d : dict) : nat :=
+    length (dict_keys d)
+  .
+
 End Dict.

@@ -11,13 +11,13 @@ Existing Instance reg_preg_instance.
 (*
   The parallel move type is defined as a list of assignments of type src -> dst
 *)
-Definition pmove : Type := list (reg * reg).
+Definition moves : Type := list (reg * reg).
 
 Inductive state : Type :=
-  | State (l1 : pmove) (l2 : pmove) (l3 : pmove)
+  | State (l1 : moves) (l2 : moves) (l3 : moves)
 .
 
-Fixpoint split_move (t : pmove) (d : reg) : option (reg * pmove * pmove) :=
+Fixpoint split_move (t : moves) (d : reg) : option (reg * moves * moves) :=
   match t with
   | nil => None
   | (src, dst) as P :: tl =>
@@ -33,7 +33,7 @@ Fixpoint split_move (t : pmove) (d : reg) : option (reg * pmove * pmove) :=
 
 Compute split_move [(RAX, RBX); (RBX, RCX); (RSP, RBP); (RSI, RBP)] RSP.
 
-Fixpoint is_last_source (src : reg) (t : pmove) : bool :=
+Fixpoint is_last_source (src : reg) (t : moves) : bool :=
   match t with
   | nil => false
   | (src', dst) :: nil => reg_eqb src src'
@@ -41,7 +41,7 @@ Fixpoint is_last_source (src : reg) (t : pmove) : bool :=
   end
 .
 
-Fixpoint replace_last_source (b : pmove) (r : reg) : pmove :=
+Fixpoint replace_last_source (b : moves) (r : reg) : moves :=
   match b with
   | nil => nil
   | (_, dst) :: nil => (r, dst) :: nil
@@ -53,7 +53,7 @@ Definition stepf (s : state) : state :=
   match s with
   | State nil nil _ => s
   | State ((src, dst) :: tl) nil l =>
-    if reg_eq_dec src dst
+    if reg_eqb src dst
     then State tl nil l
     else State tl ((src, dst) :: nil) l
   | State t ((src, dst) :: b) l =>
@@ -74,12 +74,21 @@ Definition stepf (s : state) : state :=
   end
 .
 
-Fixpoint order (s : state) (fuel : nat) : state :=
-  match fuel with
-  | O => s
-  | S fuel' => order s fuel'
+Fixpoint pmove_aux (s : state) (fuel : nat) : state :=
+  match fuel, s with
+  | O, _ => s
+  | S _, State nil nil _ => s
+  | S fuel', _ => pmove_aux (stepf s) fuel'
   end
 .
+
+Definition pmove (m : moves) (fuel : nat) : moves :=
+  match pmove_aux (State m nil nil) fuel with
+  | State _ _ tau => rev tau
+  end
+.
+
+Compute pmove [(RBX, RAX); (RAX, RBP); (RSP, RDX)] 10.
 
 (*
 TODO:

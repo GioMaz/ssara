@@ -166,10 +166,6 @@ Definition color_inst (c : coloring) (i : vinst) : pinst :=
     @Def reg_preg_instance
     (dict_map c v)
     (color_expr c e)
-  | Swap v v' =>
-    @Swap reg_preg_instance
-    (dict_map c v)
-    (dict_map c v')
   | Store v v' =>
     @Store reg_preg_instance
     (color_val c v)
