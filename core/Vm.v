@@ -107,10 +107,6 @@ Definition eval_expr (m : vm) (e : expr) : cell :=
 Definition run_inst (m : vm) (i : inst) : vm :=
   match i with
   | Def r e => set_reg m r (eval_expr m e)
-  | Swap r r' =>
-    let tmp := get_reg m r in
-    let m' := (set_reg m r (get_reg m r')) in
-    set_reg m' r' tmp
   | Store v r =>
     match v with
     | Imm i' => set_cell m (Z.to_nat i') (get_reg m r)

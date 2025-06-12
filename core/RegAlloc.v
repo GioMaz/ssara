@@ -62,7 +62,7 @@ Fixpoint eliminate (g : ig) (fuel : nat) : ig * list reg :=
 Instance dict_coloring_instance : DictClass := {|
   key := vreg;
   value := preg;
-  default := RAX;
+  default := tmp;
   key_eq_dec := Nat.eq_dec;
 |}.
 Definition coloring := dict.
@@ -70,7 +70,7 @@ Definition coloring := dict.
 (*
   The coloring is performed this way:
   - Get a perfect elimination order (ordering that eliminates simplicial nodes first)
-  - For each node in the peo reinsert it into the graph and color it differently wrt its neighbor
+  - For each node in the peo reinsert it into the graph and color it differently wrt its neighbors
 *)
 Definition preg_compl (colors : list preg) : option preg :=
   match @regs_diff reg_preg_instance preg_all_minus_tmp colors with
@@ -274,3 +274,69 @@ Module Example1.
     visit_pblock p fuel
   .
 End Example1.
+
+Module Example2.
+  Definition example_block_2 : block :=
+    Block 2 [
+      r(3) <- phi [(0, 1)]
+    ] [
+      store (Ptr 0) r(3)
+    ] (
+      Halt
+    )
+  .
+
+  Definition example_block_3 : block :=
+    Block 3 [
+      r(4) <- phi [(1, 1)]
+    ] [
+      store (Ptr 0) r(4)
+    ] (
+      Halt
+    )
+  .
+
+  Definition example_block_1 : block :=
+    Block 1 [
+    ] [
+      r(0) <- (Imm 34);
+      r(1) <- (Imm 35);
+      r(2) <- r(0) < (Reg 1)
+    ] (
+      Jnz 2 example_block_2 example_block_3
+    )
+  .
+
+  Definition fuel : nat := 20.
+
+  (* Get interference graph *)
+  Definition g : ig := get_ig example_block_1 fuel.
+  Compute dict_list g.
+
+  (* Get perfect elimination ordering *)
+  Definition eliminate_result : (ig * list vreg) := eliminate g fuel.
+  Compute
+    let (g' , peo) := eliminate_result in
+    (dict_list g', peo)
+  .
+
+  (* Get coloring *)
+  Definition c := let (g', peo) := eliminate_result in color peo g.
+  Compute
+    match c with
+    | Some c' => dict_list c'
+    | None => nil
+    end
+  .
+
+  (* Color program *)
+  Compute
+    let p :=
+      match c with
+      | Some c' => color_block c' example_block_1
+      | None => @Block reg_preg_instance O nil nil Halt
+      end
+    in
+    visit_pblock p fuel
+  .
+End Example2.

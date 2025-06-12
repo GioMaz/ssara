@@ -19,7 +19,7 @@ Instance dict_ig_instance : DictClass := {|
 |}.
 Definition ig : Type := dict.
 
-Definition ig_update_edge (f : reg -> set reg -> set reg) (r : reg) (r' : reg) (g : ig) : ig :=
+Definition ig_update_edge (f : reg -> set reg -> set reg) (g : ig) (r : reg) (r' : reg) : ig :=
   let regs  := dict_map g r in
   let g'    := dict_update g r (f r' regs) in
   let regs' := dict_map g' r' in
@@ -28,21 +28,28 @@ Definition ig_update_edge (f : reg -> set reg -> set reg) (r : reg) (r' : reg) (
 Definition ig_remove_edge := ig_update_edge regs_remove.
 Definition ig_insert_edge := ig_update_edge regs_add.
 
+Definition ig_insert_node (g : ig) (r : reg) : ig :=
+  dict_update g r (dict_map g r)
+.
+
 Definition ig_remove_node (g : ig) (r : reg) : ig :=
   let (v, nbors) := fold_left
     (fun g_acc r' =>
-      ig_remove_edge r r' g_acc)
+      ig_remove_edge g_acc r r')
     (dict_keys g)
     g
   in
   (regs_remove r v, nbors)
 .
 
-Definition ig_insert_edges (g : ig) (r : reg) (regs : list reg) : ig :=
-  fold_left
-    (fun g_acc r' => if r =? r' then g else ig_insert_edge r r' g)
-    regs
-    g
+Fixpoint ig_insert_edges (g : ig) (r : reg) (regs : list reg) : ig :=
+  match regs with
+  | nil => g
+  | r' :: tl =>
+    if r =? r'
+    then ig_insert_edges (ig_insert_node g r) r tl
+    else ig_insert_edges (ig_insert_edge g r r') r tl
+  end
 .
 
 Definition ig_insert_clique (g : ig) (regs : list reg) : ig :=
@@ -104,7 +111,7 @@ Axiom get_ig_fixpoint : program -> ig.
          +----------------+
 *)
 
-Module Example3.
+Module Example1.
   CoFixpoint example_block_3 : block :=
     Block 3 [
     ] [
@@ -139,9 +146,9 @@ Module Example3.
     let g := get_ig example_block_1 fuel in
     dict_list g
   .
-End Example3.
+End Example1.
 
-Module Example4.
+Module Example2.
   CoFixpoint example_block_2 : block :=
     Block 2 [
       r(3) <- phi [(1, 1); (5, 4)];
@@ -182,4 +189,49 @@ Module Example4.
     let g := get_ig example_block_1 fuel in
     dict_list g
   .
-End Example4.
+End Example2.
+
+Module Example3.
+  Definition example_block_2 : block :=
+    Block 2 [
+      r(3) <- phi [(0, 1)]
+    ] [
+      store (Ptr 0) r(3)
+    ] (
+      Halt
+    )
+  .
+
+  Definition example_block_3 : block :=
+    Block 3 [
+      r(4) <- phi [(1, 1)]
+    ] [
+      store (Ptr 0) r(4)
+    ] (
+      Halt
+    )
+  .
+
+  Definition example_block_1 : block :=
+    Block 1 [
+    ] [
+      r(0) <- (Imm 34);
+      r(1) <- (Imm 35);
+      r(2) <- r(0) < (Reg 1)
+    ] (
+      Jnz 2 example_block_2 example_block_3
+    )
+  .
+
+  Definition fuel : nat := 4.
+
+  Compute
+    let '(pi, regs) := (analyze_program example_block_1 10) in
+    dict_list pi
+  .
+
+  Compute
+    let g := get_ig example_block_1 fuel in
+    dict_list g
+  .
+End Example3.

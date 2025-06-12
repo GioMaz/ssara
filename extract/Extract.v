@@ -26,6 +26,4 @@ Extraction "ssara.ml"
   Syntax.get_insts
   Vm.run
   Syntax.successors
-  InterfGraph.Example4.example_block_1
-  (* RegAlloc.eliminate *)
 .
