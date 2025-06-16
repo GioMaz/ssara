@@ -127,7 +127,7 @@ Fixpoint analyze_insts (is : list inst) (final_live_out : set reg) : list instin
   Returns the list of instinfos and the live_in of the instruction.
 *)
 Definition analyze_jinst (j : jinst) (final_live_out : set reg) : instinfo * set reg :=
-  let live_in := regs_union (option_to_list (jinst_args j)) final_live_out in
+  let live_in := regs_union (jinst_args j) final_live_out in
   (InstInfo final_live_out live_in, live_in)
 .
 
@@ -231,10 +231,9 @@ Module Example1.
     Block 1 [
     ] [
       r(0) <- (Imm 34);
-      r(1) <- (Imm 35);
-      r(2) <- r(0) < (Reg 1)
+      r(1) <- (Imm 35)
     ] (
-      Jnz 2 example_block_2 example_block_3
+      if r(0) < (Reg 1) then example_block_2 else example_block_3
     )
   .
 
@@ -263,14 +262,14 @@ Module Example2.
     ] [
       r(0) <- (Imm 100)
     ] (
-      Jmp example_block_2
+      Jump example_block_2
     )
   with example_block_2 : block :=
     Block 2 [
     ] [
       r(1) <- (Reg 0)
     ] (
-      Jmp example_block_1
+      Jump example_block_1
     )
   .
 
@@ -308,7 +307,7 @@ Module Example3.
       r(5) <- r(3) + (Imm 1);
       r(6) <- r(4) + (Imm 1)
     ] (
-      Jmp example_block_2
+      Jump example_block_2
     )
   with example_block_2 : block :=
     Block 2 [
@@ -316,7 +315,7 @@ Module Example3.
       r(4) <- phi [(2, 1); (6, 3)]
     ] [
     ] (
-      Jmp example_block_3
+      Jump example_block_3
     )
   .
 
@@ -326,7 +325,7 @@ Module Example3.
       r(1) <- (Imm 34);
       r(2) <- (Imm 35)
     ] (
-      Jmp example_block_2
+      Jump example_block_2
     )
   .
 

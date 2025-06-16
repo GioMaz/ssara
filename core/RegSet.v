@@ -4,7 +4,7 @@ From Ssara.Core Require Import RegClass.
 Section RegSet.
 
   Context {reg_instance : RegClass}.
-  
+
   (* Set of virtual registers *)
   Definition regs_union := set_union reg_eq_dec.
   Definition regs_diff := set_diff reg_eq_dec.

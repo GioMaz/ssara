@@ -9,7 +9,7 @@ From Stdlib Require Import ListSet.
 Import ListNotations.
 
 From Ssara.Core Require Import RegVregInstance.
-Existing Instance reg_vreg_instance.
+Local Existing Instance reg_vreg_instance.
 
 Instance dict_ig_instance : DictClass := {|
   key := reg;
@@ -70,7 +70,7 @@ Definition ig_insert_instinfos (g : ig) (iis: list instinfo) : ig :=
   fold_left (fun g' ii => ig_insert_instinfo g' ii) iis g
 .
 
-Definition get_ig_programinfo (pi : programinfo) : ig :=
+Definition get_ig (pi : programinfo) : ig :=
   let (ls, nbors) := pi in
   fold_left
     (fun g l =>
@@ -82,13 +82,6 @@ Definition get_ig_programinfo (pi : programinfo) : ig :=
     ls
     dict_empty
 .
-
-Definition get_ig (p : program) (fuel : nat) : ig :=
-  let (pi, _) := analyze_program p fuel in
-  get_ig_programinfo pi
-.
-
-Axiom get_ig_fixpoint : program -> ig.
 
 (*
   +-----------+
@@ -118,7 +111,7 @@ Module Example1.
       r(5) <- r(3) + (Imm 1);
       r(6) <- r(4) + (Imm 1)
     ] (
-      Jmp example_block_2
+      Jump example_block_2
     )
   with example_block_2 : block :=
     Block 2 [
@@ -126,7 +119,7 @@ Module Example1.
       r(4) <- phi [(2, 1); (6, 3)]
     ] [
     ] (
-      Jmp example_block_3
+      Jump example_block_3
     )
   .
 
@@ -136,14 +129,15 @@ Module Example1.
       r(1) <- (Imm 34);
       r(2) <- (Imm 35)
     ] (
-      Jmp example_block_2
+      Jump example_block_2
     )
   .
 
   Definition fuel : nat := 4.
 
   Compute
-    let g := get_ig example_block_1 fuel in
+    let '(pi, _) := analyze_program example_block_1 fuel in
+    let g := get_ig pi in
     dict_list g
   .
 End Example1.
@@ -155,7 +149,7 @@ Module Example2.
       r(4) <- phi [(2, 1); (6, 4)]
     ] [
     ] (
-      Jmp example_block_3
+      Jump example_block_3
     )
   with example_block_3 : block :=
     Block 3 [
@@ -163,13 +157,13 @@ Module Example2.
       r(5) <- r(3) + (Imm 1);
       r(6) <- r(4) + (Imm 1)
     ] (
-      Jmp example_block_4
+      Jump example_block_4
     )
   with example_block_4 : block :=
     Block 4 [
     ] [
     ] (
-      Jmp example_block_2
+      Jump example_block_2
     )
   .
 
@@ -179,14 +173,15 @@ Module Example2.
       r(1) <- (Imm 34);
       r(2) <- (Imm 35)
     ] (
-      Jmp example_block_2
+      Jump example_block_2
     )
   .
 
   Definition fuel : nat := 4.
 
   Compute
-    let g := get_ig example_block_1 fuel in
+    let '(pi, _) := analyze_program example_block_1 fuel in
+    let g := get_ig pi in
     dict_list g
   .
 End Example2.
@@ -216,10 +211,9 @@ Module Example3.
     Block 1 [
     ] [
       r(0) <- (Imm 34);
-      r(1) <- (Imm 35);
-      r(2) <- r(0) < (Reg 1)
+      r(1) <- (Imm 35)
     ] (
-      Jnz 2 example_block_2 example_block_3
+      if r(0) < (Reg 1) then example_block_2 else example_block_3
     )
   .
 
@@ -231,7 +225,8 @@ Module Example3.
   .
 
   Compute
-    let g := get_ig example_block_1 fuel in
+    let '(pi, _) := analyze_program example_block_1 fuel in
+    let g := get_ig pi in
     dict_list g
   .
 End Example3.

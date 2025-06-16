@@ -1,8 +1,11 @@
-Require Import Ssara.Core.Syntax.
-Require Import Ssara.Core.Vm.
-Require Import Ssara.Core.RegAlloc.
-Require Import Ssara.Core.LivenessInfo.
-Require Import Ssara.Core.InterfGraph.
+From Ssara.Core Require Import Syntax.
+From Ssara.Core Require Import Vm.
+From Ssara.Core Require Import RegAlloc.
+From Ssara.Core Require Import LivenessInfo.
+From Ssara.Core Require Import InterfGraph.
+From Ssara.Core Require Import Peo.
+From Ssara.Core Require Import RegPregInstance.
+From Ssara.Core Require Import RegVregInstance.
 
 Require Extraction.
 Extraction Language OCaml.
@@ -23,7 +26,10 @@ From Stdlib Require Import ExtrOcamlZInt.
 
 (* Extract *)
 Extraction "ssara.ml"
-  Syntax.get_insts
-  Vm.run
-  Syntax.successors
+  LivenessInfo.analyze_program
+  InterfGraph.get_ig
+  Peo.eliminate
+  RegAlloc.get_coloring
+  RegAlloc.color_program
+  RegAlloc.Example1.example_block_1
 .

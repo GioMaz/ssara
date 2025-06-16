@@ -1,63 +1,16 @@
 From Ssara.Core Require Import RegClass.
 From Ssara.Core Require Import RegSet.
+From Ssara.Core Require Import LivenessInfo.
 From Ssara.Core Require Import InterfGraph.
+From Ssara.Core Require Import Peo.
 From Ssara.Core Require Import Dict.
 From Stdlib Require Import ZArith.
 From Stdlib Require Import Lists.List.
 Import ListNotations.
 From Ssara.Core Require Import Syntax.
 From Stdlib Require Import Bool.
-From Ssara.Core Require Import RegPregInstance.
 From Ssara.Core Require Import RegVregInstance.
-
-(* Check whether regs are neighbors of r *)
-Definition are_neighbors (r : reg) (regs : list reg) (g : ig) : bool :=
-  regs_mem r (dict_keys g) &&
-  fold_left
-    (fun b r' =>
-      b &&
-      ((r =? r') ||
-        regs_mem r' (dict_map g r)))
-    regs
-    true
-.
-
-Definition is_simplicial (r : reg) (g : ig) : bool :=
-  let regs := dict_map g r in
-  regs_mem r (dict_keys g) &&
-  fold_left (* Check whether the neighbor set of r is a clique *)
-    (fun b r =>
-      b &&
-      are_neighbors r regs g
-    )
-    regs
-    true
-.
-
-Definition find_next (g : ig) : option reg :=
-  let fix find_next_aux (regs : list reg) : option reg :=
-    match regs with
-    | nil => None
-    | r :: rs =>
-      if is_simplicial r g then Some r else find_next_aux rs
-    end
-  in
-  find_next_aux (dict_keys g)
-.
-
-Fixpoint eliminate (g : ig) (fuel : nat) : ig * list reg :=
-  match fuel with
-  | O => (g, nil)
-  | S fuel' =>
-    match find_next g with
-    | Some next =>
-      let g' := ig_remove_node g next in
-      let (g'', peo) := eliminate g' fuel' in
-      (g'', next :: peo)
-    | None => (g, nil)
-    end
-  end
-.
+From Ssara.Core Require Import RegPregInstance.
 
 Instance dict_coloring_instance : DictClass := {|
   key := vreg;
@@ -93,20 +46,20 @@ Definition color_vreg (v : vreg) (c : coloring) (g : ig) : option preg :=
   for the coloring to happen, this may happen if we don't perform spilling
   before the coloring.
 *)
-Definition color (peo : list vreg) (g : ig) : option coloring :=
-  let fix color_aux (peo : list vreg) (c : coloring) (g : ig) : option coloring :=
+Definition get_coloring (peo : list vreg) (g : ig) : option coloring :=
+  let fix get_coloring_aux (peo : list vreg) (c : coloring) (g : ig) : option coloring :=
     match peo with
     | nil => Some c
     | v :: peo' =>
       match color_vreg v c g with
       | Some p =>
         let c' := dict_update c v p in
-        color_aux peo' c' g
+        get_coloring_aux peo' c' g
       | None => None
       end
     end
   in
-  color_aux peo dict_empty g
+  get_coloring_aux peo dict_empty g
 .
 
 (*
@@ -148,12 +101,6 @@ Definition color_expr (c : coloring) (e : vexpr) : pexpr :=
   | Sub v v' => @Sub reg_preg_instance (dict_map c v) (color_val c v')
   | Mul v v' => @Mul reg_preg_instance (dict_map c v) (color_val c v')
   | Div v v' => @Div reg_preg_instance (dict_map c v) (color_val c v')
-  | CmpLt v v' => @CmpLt reg_preg_instance (dict_map c v) (color_val c v')
-  | CmpLe v v' => @CmpLe reg_preg_instance (dict_map c v) (color_val c v')
-  | CmpGt v v' => @CmpGt reg_preg_instance (dict_map c v) (color_val c v')
-  | CmpGe v v' => @CmpGe reg_preg_instance (dict_map c v) (color_val c v')
-  | CmpEq v v' => @CmpEq reg_preg_instance (dict_map c v) (color_val c v')
-  | CmpNe v v' => @CmpNe reg_preg_instance (dict_map c v) (color_val c v')
   end
 .
 
@@ -175,36 +122,30 @@ Definition color_inst (c : coloring) (i : vinst) : pinst :=
 
 Definition vjinst : Type := @jinst reg_vreg_instance.
 Definition pjinst : Type := @jinst reg_preg_instance.
-Definition vblock : Type := @block reg_vreg_instance.
-Definition pblock : Type := @block reg_preg_instance.
+Definition vprogram : Type := @program reg_vreg_instance.
+Definition pprogram : Type := @program reg_preg_instance.
 
-CoFixpoint color_block (c : coloring) (b : vblock) : pblock :=
-  match b with
+CoFixpoint color_program (c : coloring) (p : vprogram) : pprogram :=
+  match p with
   | Block l ps is j =>
     @Block reg_preg_instance
     l
     (map (color_phi c) ps)
     (map (color_inst c) is)
     (match j with
-    | Jnz v b1 b2 => @Jnz reg_preg_instance (dict_map c v) (color_block c b1) (color_block c b2)
-    | Jmp b => @Jmp reg_preg_instance (color_block c b)
+    | CondJump c' r v b1 b2 =>
+      @CondJump reg_preg_instance c'
+      (dict_map c r)
+      (color_val c v)
+      (color_program c b1)
+      (color_program c b2)
+    | Jump b => @Jump reg_preg_instance (color_program c b)
     | Halt => Halt
     end)
   end
 .
 
-Fixpoint visit_pblock (b : pblock) (fuel : nat) : pblock :=
-  match b, fuel with
-  | _, O => block_empty
-  | Block l ps is j, S fuel' =>
-    Block l ps is
-    match j with
-    | Jnz p b1 b2 => Jnz p (visit_pblock b1 fuel') (visit_pblock b2 fuel')
-    | Jmp b => Jmp (visit_pblock b fuel')
-    | Halt => Halt
-    end
-  end
-.
+Existing Instance reg_vreg_instance.
 
 Module Example1.
   CoFixpoint example_block_2 : block :=
@@ -213,7 +154,7 @@ Module Example1.
       r(4) <- phi [(2, 1); (6, 4)]
     ] [
     ] (
-      Jmp example_block_3
+      Jump example_block_3
     )
   with example_block_3 : block :=
     Block 3 [
@@ -221,13 +162,13 @@ Module Example1.
       r(5) <- r(3) + (Imm 1);
       r(6) <- r(4) + (Imm 1)
     ] (
-      Jmp example_block_4
+      Jump example_block_4
     )
   with example_block_4 : block :=
     Block 4 [
     ] [
     ] (
-      Jmp example_block_2
+      Jump example_block_2
     )
   .
 
@@ -237,25 +178,26 @@ Module Example1.
       r(1) <- (Imm 34);
       r(2) <- (Imm 35)
     ] (
-      Jmp example_block_2
+      Jump example_block_2
     )
   .
 
   Definition fuel : nat := 20.
 
+  (* Get liveness information *)
+  Definition pi : programinfo := fst (analyze_program example_block_1 fuel).
+  Compute dict_list pi.
+
   (* Get interference graph *)
-  Definition g : ig := get_ig example_block_1 fuel.
+  Definition g : ig := get_ig pi.
   Compute dict_list g.
 
   (* Get perfect elimination ordering *)
-  Definition eliminate_result : (ig * list vreg) := eliminate g fuel.
-  Compute
-    let (g' , peo) := eliminate_result in
-    peo
-  .
+  Definition peo : list vreg := let (g', peo) := eliminate g fuel in peo.
+  Compute peo.
 
   (* Get coloring *)
-  Definition c := let (g', peo) := eliminate_result in color peo g.
+  Definition c := get_coloring peo g.
   Compute
     match c with
     | Some c' => dict_list c'
@@ -267,11 +209,11 @@ Module Example1.
   Compute
     let p :=
       match c with
-      | Some c' => color_block c' example_block_1
+      | Some c' => color_program c' example_block_1
       | None => @Block reg_preg_instance O nil nil Halt
       end
     in
-    visit_pblock p fuel
+    visit_program p fuel
   .
 End Example1.
 
@@ -300,28 +242,28 @@ Module Example2.
     Block 1 [
     ] [
       r(0) <- (Imm 34);
-      r(1) <- (Imm 35);
-      r(2) <- r(0) < (Reg 1)
+      r(1) <- (Imm 35)
     ] (
-      Jnz 2 example_block_2 example_block_3
+      if r(0) < (Reg 1) then example_block_2 else example_block_3
     )
   .
 
   Definition fuel : nat := 20.
 
+  (* Get liveness information *)
+  Definition pi : programinfo := fst (analyze_program example_block_1 fuel).
+  Compute dict_list pi.
+
   (* Get interference graph *)
-  Definition g : ig := get_ig example_block_1 fuel.
+  Definition g : ig := get_ig pi.
   Compute dict_list g.
 
   (* Get perfect elimination ordering *)
-  Definition eliminate_result : (ig * list vreg) := eliminate g fuel.
-  Compute
-    let (g' , peo) := eliminate_result in
-    (dict_list g', peo)
-  .
+  Definition peo : list vreg := let (g', peo) := eliminate g fuel in peo.
+  Compute peo.
 
   (* Get coloring *)
-  Definition c := let (g', peo) := eliminate_result in color peo g.
+  Definition c := get_coloring peo g.
   Compute
     match c with
     | Some c' => dict_list c'
@@ -333,10 +275,10 @@ Module Example2.
   Compute
     let p :=
       match c with
-      | Some c' => color_block c' example_block_1
+      | Some c' => color_program c' example_block_1
       | None => @Block reg_preg_instance O nil nil Halt
       end
     in
-    visit_pblock p fuel
+    visit_program p fuel
   .
 End Example2.

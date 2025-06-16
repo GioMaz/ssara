@@ -1,5 +1,7 @@
 (* From Ssara.Core Require Import Syntax.
 From Stdlib Require Import Lists.List.
+Import ListNotations.
+From Stdlib Require Import ZArith.
 From Stdlib Require Import PeanoNat.
 From Ssara.Core Require Import RegClass.
 
@@ -10,6 +12,53 @@ From Ssara.Core Require Import RegClass.
 
 From Ssara.Core Require Import RegVregInstance.
 Existing Instance reg_vreg_instance.
+
+(* Examples of ill-formed programs *)
+Module Example1.
+  Definition double_assignment : block :=
+    Block 0 [
+    ] [
+      r(1) <- (Imm 0);
+      r(1) <- (Imm 1)
+    ]
+    Halt
+  .
+
+  Definition undefined_variable : block :=
+    Block 0 [
+    ] [
+      r(1) <- (Reg 0)
+    ]
+    Halt
+  .
+
+  Definition double_lbl_2 : block :=
+    Block 0 [
+    ] [
+    ]
+    Halt
+  .
+  Definition double_lbl_1 : block :=
+    Block 0 [
+    ] [
+    ]
+    (Jmp double_lbl_2)
+  .
+
+  Definition ill_formed_phi_2 : block :=
+    Block 1 [
+      r(0) <- phi [(1, 0); (2, 1); (3, 2)]
+    ] [
+    ]
+    Halt
+  .
+  Definition ill_formed_phi_1 : block :=
+    Block 0 [
+    ] [
+    ]
+    (Jmp ill_formed_phi_2)
+  .
+End Example1.
 
 Inductive in_program : block -> program -> Prop :=
   | IsProgram : forall b, in_program b b
@@ -73,7 +122,7 @@ Definition well_formed_phis_block (b : block) : Prop :=
 
 Definition well_formed_phis_program (p : program) : Prop :=
   forall (b : block), in_program b p -> well_formed_phis_block b
-.
+. *)
 
 (* (*
   2nd property of an SSA program is strictness, that means that an instruction
@@ -179,4 +228,4 @@ Definition strict (p : program) : Prop :=
       )
     end
   )
-. *) *)
+. *)

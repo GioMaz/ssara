@@ -94,13 +94,6 @@ Definition eval_expr (m : vm) (e : expr) : cell :=
   | Syntax.Mul r v => eval_binop m Z.mul r v
   | Syntax.Div r v => eval_binop m Z.div r v
 
-  | CmpLt r v => eval_binop m (fun a b => if Z.ltb a b then 1 else 0) r v
-  | CmpLe r v => eval_binop m (fun a b => if Z.leb a b then 1 else 0) r v
-  | CmpGt r v => eval_binop m (fun a b => if Z.gtb a b then 1 else 0) r v
-  | CmpGe r v => eval_binop m (fun a b => if Z.geb a b then 1 else 0) r v
-  | CmpEq r v => eval_binop m (fun a b => if Z.eqb a b then 1 else 0) r v
-  | CmpNe r v => eval_binop m (fun a b => if Z.eqb a b then 0 else 1) r v
-
   end%Z
 .
 
@@ -141,6 +134,29 @@ Definition run_phis (m : vm) (pred : block) (ps : list phi) : vm :=
       end) ps m
 .
 
+Definition eval_cond (m : vm) (c : cond) (r : reg) (v : val) : bool :=
+  let neb x y := negb (Z.eqb x y) in
+  let op :=
+    match c with
+    | Jeq => Z.eqb
+    | Jne => neb
+    | Jlt => Z.ltb
+    | Jle => Z.leb
+    | Jgt => Z.gtb
+    | Jge => Z.geb
+    end
+  in
+  let x := (get_reg m r) in
+  let y :=
+    match v with
+    | Imm i => i
+    | Reg r => (get_reg m r)
+    | Ptr p => (get_cell m p)
+    end
+  in
+  op x y
+.
+
 (*
   Since the entry block has no predecessors the order of evaluation of
   instruction between two blocks b and b' is (instructions of b) (jump
@@ -152,12 +168,12 @@ Fixpoint run (m : vm) (p : program) (fuel : nat) : vm :=
   | Block _ _ is j, S fuel' =>
     let m' := run_insts m is in
     match j with
-    | Jnz r b1 b2 =>
-      if Z.eqb (get_reg m' r) 0 then
+    | CondJump c r v b1 b2 =>
+      if eval_cond m c r v then
         run (run_phis m' p (get_phis b1)) b1 fuel'
       else
         run (run_phis m' p (get_phis b2)) b2 fuel'
-    | Jmp b1 => run (run_phis m' p (get_phis b1)) b1 fuel'
+    | Jump b1 => run (run_phis m' p (get_phis b1)) b1 fuel'
     | Halt => m'
     end
   end

@@ -2,12 +2,11 @@ From Stdlib Require Import Lists.List.
 From Stdlib Require Import ListSet.
 
 Section Dict.
-
   Class DictClass := {
     key : Set;
-      value : Type;
-      default : value;
-      key_eq_dec : forall k k' : key, {k = k'} + {k <> k'};
+    value : Type;
+    default : value;
+    key_eq_dec : forall k k' : key, {k = k'} + {k <> k'};
   }.
   Context {dict_instance : DictClass}.
 

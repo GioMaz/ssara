@@ -7,7 +7,7 @@ From Stdlib Require Import Bool.
 From QuickChick Require Import QuickChick.
 Import ListNotations.
 
-From Ssara.Core Require Import RegVregInstance.
+(* From Ssara.Core Require Import RegVregInstance.
 Existing Instance reg_vreg_instance.
 
 (* Example 1 *)
@@ -125,4 +125,4 @@ QuickChick store_P.
 
 (*
 TODO: Look into QuickChick generators and QuickChick conversion from predicates to fixpoints
-*)
+*) *)

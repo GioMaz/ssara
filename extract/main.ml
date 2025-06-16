@@ -1,6 +1,21 @@
-(* open Ssara
+open Ssara
 
-module LblSet = Set.Make(Int);;
+let regalloc program fuel =
+  let (pi, _) = analyze_program program fuel in (* Get liveness info *)
+  let g = get_ig pi in                          (* Get interference graph *)
+  let (_, peo) = eliminate g fuel in            (* Get peo *)
+  let c_opt = get_coloring peo g in             (* Get coloring *)
+  match c_opt with
+  | Some c -> Some (color_program c program)
+  | None -> None
+;;
+
+match regalloc Example1.example_block_1 10 with
+| Some _ -> print_string "Yes\n"
+| None -> print_string "No\n"
+;;
+
+(* module LblSet = Set.Make(Int);;
 
 (* Get all the labels from a program until a fixpoint is reached *)
 let get_labels_fixpoint p =

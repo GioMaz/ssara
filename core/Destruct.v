@@ -35,19 +35,19 @@ Fixpoint split_move (t : moves) (d : reg) : option (reg * moves * moves) :=
 
 Compute split_move [(RAX, RBX); (RBX, RCX); (RSP, RBP); (RSI, RBP)] RSP.
 
-Fixpoint is_last_source (src : reg) (t : moves) : bool :=
+Fixpoint is_last_src (src : reg) (t : moves) : bool :=
   match t with
   | nil => false
   | (src', dst) :: nil => reg_eqb src src'
-  | _ :: tl => is_last_source src tl
+  | _ :: tl => is_last_src src tl
   end
 .
 
-Fixpoint replace_last_source (b : moves) (r : reg) : moves :=
+Fixpoint replace_last_src (b : moves) (r : reg) : moves :=
   match b with
   | nil => nil
   | (_, dst) :: nil => (r, dst) :: nil
-  | _ :: tl => replace_last_source tl r
+  | _ :: tl => replace_last_src tl r
   end
 .
 
@@ -66,9 +66,9 @@ Definition stepf (s : state) : state :=
       match b with
       | nil => State t nil ((src, dst) :: l)
       | _ =>
-        if is_last_source dst b
+        if is_last_src dst b
         then State t
-          (replace_last_source b tmp)
+          (replace_last_src b tmp)
           ((src, dst) :: (dst, tmp) :: l)
         else State t b ((src, dst) :: l)
       end
@@ -90,10 +90,14 @@ Definition pmove (m : moves) (fuel : nat) : moves :=
   end
 .
 
-Compute pmove [(RBX, RDX); (RDX, RBX)] 10.
-
 (* Destructed block *)
-Definition dblock : Type := block.
+CoInductive dblock : Type :=
+  | DBlock (l : lbl) (is : list inst) (dj : djinst)
+with djinst : Type :=
+  | DCondJump : cond -> reg -> val -> list inst -> dblock -> list inst -> dblock -> djinst
+  | DJump : list inst -> dblock -> djinst
+  | DHalt : djinst
+.
 
 Fixpoint phi_to_move (pred : lbl) (r : reg) (rs : list phi_arg) : option (reg * reg) :=
   match rs with
@@ -128,35 +132,32 @@ Compute
   moves_to_insts ms
 .
 
+Definition succ_to_insts (pred : lbl) (succ : block) : list inst :=
+  let ms := phis_to_moves pred (get_phis succ) in
+  moves_to_insts ms
+.
+
 CoFixpoint block_to_dblock (b : block) : dblock :=
   match b with
   | Block l ps is j =>
-    Block l ps is
+    DBlock l is
     match j with
-    | Jnz r b1 b2 => Jnz r (succ_to_dblock l b1) (succ_to_dblock l b2)
-    | Jmp b => Jmp (succ_to_dblock l b)
-    | Halt => Halt
+    | CondJump c r v b1 b2 => DCondJump c r v (succ_to_insts l b1) (block_to_dblock b1) (succ_to_insts l b2) (block_to_dblock b2)
+    | Jump b' => DJump (succ_to_insts l b') (block_to_dblock b')
+    | Halt => DHalt
     end
-  end
-
-with succ_to_dblock (pred : lbl) (succ : block) : dblock :=
-  match succ with
-  | Block _ ps _ _ =>
-    let ms := phis_to_moves pred ps in
-    let is := moves_to_insts ms in
-    Block pred nil is (Jmp (block_to_dblock succ))
   end
 .
 
 Fixpoint visit_dblock (d : dblock) (fuel : nat) : dblock :=
   match fuel, d with
   | O, _ => d
-  | S fuel', Block l _ is j =>
-    Block l nil is
-    match j with
-    | Jnz r d1 d2 => Jnz r (visit_dblock d1 fuel') (visit_dblock d2 fuel')
-    | Jmp d => Jmp (visit_dblock d fuel')
-    | Halt => Halt
+  | S fuel', DBlock l is dj =>
+    DBlock l is
+    match dj with
+    | DCondJump c r v is1 d1 is2 d2 => DCondJump c r v is1 (visit_dblock d1 fuel') is2 (visit_dblock d2 fuel')
+    | DJump is d => DJump is (visit_dblock d fuel')
+    | DHalt => DHalt
     end
   end
 .
@@ -168,7 +169,7 @@ Module Example1.
       r(RSP) <- phi [(RSP, 1); (RSP, 4)]
     ] [
     ] (
-      Jmp example_block_3
+      Jump example_block_3
     )
   with example_block_3 : block :=
     Block 3 [
@@ -176,13 +177,13 @@ Module Example1.
       r(RBP) <- r(RBP) + (Imm 1);
       r(RSP) <- r(RSP) + (Imm 1)
     ] (
-      Jmp example_block_4
+      Jump example_block_4
     )
   with example_block_4 : block :=
     Block 4 [
     ] [
     ] (
-      Jmp example_block_2
+      Jump example_block_2
     )
   .
 
@@ -192,7 +193,7 @@ Module Example1.
       r(RBP) <- (Imm 34);
       r(RSP) <- (Imm 35)
     ] (
-      Jmp example_block_2
+      Jump example_block_2
     )
   .
 
@@ -230,10 +231,9 @@ Module Example2.
     Block 1 [
     ] [
       r(RBP) <- (Imm 34);
-      r(RSP) <- (Imm 35);
-      r(RDI) <- r(RBP) < (Reg RSP)
+      r(RSP) <- (Imm 35)
     ] (
-      Jnz RDI example_block_2 example_block_3
+      if r(RBP) < (Reg RSP) then example_block_2 else example_block_3
     )
   .
 
@@ -245,9 +245,3 @@ Module Example2.
     visit_dblock d fuel
   .
 End Example2.
-
-
-(*
-TODO:
-- Maybe visualize the interference graph in OCaml
-*)

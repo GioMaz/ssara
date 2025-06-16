@@ -7,8 +7,8 @@ Section Syntax.
 
   Context {reg_instance : RegClass}.
 
-  Definition lbl := nat.
   Definition ptr := nat.
+  Definition lbl := nat.
 
   (*
     This represents a value that can either be an immediate number `x` or the
@@ -44,12 +44,6 @@ Section Syntax.
     | Sub : reg -> val -> expr
     | Mul : reg -> val -> expr
     | Div : reg -> val -> expr
-    | CmpLt : reg -> val -> expr
-    | CmpLe : reg -> val -> expr
-    | CmpGt : reg -> val -> expr
-    | CmpGe : reg -> val -> expr
-    | CmpEq : reg -> val -> expr
-    | CmpNe : reg -> val -> expr
   .
 
   Definition eq_expr (e1 e2 : expr) : bool :=
@@ -61,12 +55,6 @@ Section Syntax.
     | Sub x1 y1, Sub x2 y2 => (reg_eqb x1 x2) && (eq_val y1 y2)
     | Mul x1 y1, Mul x2 y2 => (reg_eqb x1 x2) && (eq_val y1 y2)
     | Div x1 y1, Div x2 y2 => (reg_eqb x1 x2) && (eq_val y1 y2)
-    | CmpLt x1 y1, CmpLt x2 y2 => (reg_eqb x1 x2) && (eq_val y1 y2)
-    | CmpLe x1 y1, CmpLe x2 y2 => (reg_eqb x1 x2) && (eq_val y1 y2)
-    | CmpGt x1 y1, CmpGt x2 y2 => (reg_eqb x1 x2) && (eq_val y1 y2)
-    | CmpGe x1 y1, CmpGe x2 y2 => (reg_eqb x1 x2) && (eq_val y1 y2)
-    | CmpEq x1 y1, CmpEq x2 y2 => (reg_eqb x1 x2) && (eq_val y1 y2)
-    | CmpNe x1 y1, CmpNe x2 y2 => (reg_eqb x1 x2) && (eq_val y1 y2)
     | _, _ => false
     end
   .
@@ -105,13 +93,14 @@ Section Syntax.
     end
   .
 
+  Definition reg_or_nil (v : val) : list reg :=
+    match v with
+    | Reg r => [r]
+    | _ => []
+    end
+  .
+
   Definition inst_args (i : inst) : list reg :=
-    let reg_or_nil (v : val) : list reg :=
-      match v with
-      | Reg r => [r]
-      | _ => []
-      end
-    in
     match i with
     | Def x y =>
       match y with
@@ -122,16 +111,12 @@ Section Syntax.
       | Sub r v => r :: reg_or_nil v
       | Mul r v => r :: reg_or_nil v
       | Div r v => r :: reg_or_nil v
-      | CmpLt r v => r :: reg_or_nil v
-      | CmpLe r v => r :: reg_or_nil v
-      | CmpGt r v => r :: reg_or_nil v
-      | CmpGe r v => r :: reg_or_nil v
-      | CmpEq r v => r :: reg_or_nil v
-      | CmpNe r v => r :: reg_or_nil v
       end
     | Store v r => r :: reg_or_nil v
     end
   .
+
+  Inductive cond : Type := Jeq | Jne | Jlt | Jle | Jgt | Jge.
 
   (*
     A block lbl is necessary in order to define the semantics of phi
@@ -141,18 +126,18 @@ Section Syntax.
     | Block (l : lbl) (ps : list phi) (is : list inst) (j : jinst)
 
   with jinst : Type :=
-    | Jnz (r : reg) (b1 : block) (b2 : block)
-    | Jmp (b : block)
+    | CondJump : cond -> reg -> val -> block -> block -> jinst
+    | Jump : block -> jinst
     | Halt
   .
 
   Definition block_empty : block := Block O nil nil Halt.
 
-  Definition jinst_args (j : jinst) : option reg :=
+  Definition jinst_args (j : jinst) : list reg :=
     match j with
-    | Jnz r _ _ => Some r
-    | Jmp _ => None
-    | Halt => None
+    | CondJump _ r v _ _ => r :: reg_or_nil v
+    | Jump _ => nil
+    | Halt => nil
     end
   .
 
@@ -194,24 +179,15 @@ Section Syntax.
   (* The starting block is the first block of CFG *)
   Definition program : Type := block.
 
-  (*
-    Block instruction, represents all the possible instructions that could be
-    found inside a basic block
-  *)
-  Inductive binst : Type :=
-    | Bphi (p : phi)
-    | Binst (i : inst)
-    | Bjinst (j : jinst)
-  .
-
-  Definition start (p : program) : binst :=
-    let (_, ps, is, j) := p in
-    match ps with
-    | p :: _ => Bphi p
-    | nil =>
-      match is with
-      | i :: _ => Binst i
-      | nil => Bjinst j
+  Fixpoint visit_program (p : program) (fuel : nat) : block :=
+    match p, fuel with
+    | _, O => block_empty
+    | Block l ps is j, S fuel' =>
+      Block l ps is
+      match j with
+      | CondJump c r v b1 b2 => CondJump c r v (visit_program b1 fuel') (visit_program b2 fuel')
+      | Jump b => Jump (visit_program b fuel')
+      | Halt => Halt
       end
     end
   .
@@ -232,11 +208,13 @@ Section Syntax.
 
   Definition successors (b : block) : list block :=
     match get_jinst b with
-    | Jnz _ b1 b2 => [b1; b2]
-    | Jmp b => [b]
+    | CondJump c r v b1 b2 => [b1; b2]
+    | Jump b => [b]
     | Halt => []
     end
   .
+
+End Syntax.
 
   (*
   Definition predecessor (b : block) (b' : block) : bool :=
@@ -256,8 +234,6 @@ Section Syntax.
   .
   *)
 
-End Syntax.
-
 Notation "r( x ) <- 'phi' y" :=
   (Phi x y) (at level 50).
 
@@ -273,17 +249,17 @@ Notation "'r(' x ) <- 'r(' y ) * z" :=
   (Def x (Mul y z)) (at level 50).
 Notation "'r(' x ) <- 'r(' y ) / z" :=
   (Def x (Div y z)) (at level 50).
-Notation "'r(' x ) <- 'r(' y ) < z" :=
-  (Def x (CmpLt y z)) (at level 50).
-Notation "'r(' x ) <- 'r(' y ) <= z" :=
-  (Def x (CmpLe y z)) (at level 50).
-Notation "'r(' x ) <- 'r(' y ) > z" :=
-  (Def x (CmpGt y z)) (at level 50).
-Notation "'r(' x ) <- 'r(' y ) >= z" :=
-  (Def x (CmpGe y z)) (at level 50).
-Notation "'r(' x ) <- 'r(' y ) == z" :=
-  (Def x (CmpEq y z)) (at level 50).
-Notation "'r(' x ) <- 'r(' y ) != z" :=
-  (Def x (CmpNe y z)) (at level 50).
 Notation "'store' x 'r(' y )" :=
   (Store x y) (at level 50).
+Notation "'if' 'r(' x ) = y 'then' b1 'else' b2" :=
+  (CondJump Jlt x y b1 b2) (at level 50).
+Notation "'if' 'r(' x ) <> y 'then' b1 'else' b2" :=
+  (CondJump Jne x y b1 b2) (at level 50).
+Notation "'if' 'r(' x ) < y 'then' b1 'else' b2" :=
+  (CondJump Jlt x y b1 b2) (at level 50).
+Notation "'if' 'r(' x ) <= y 'then' b1 'else' b2" :=
+  (CondJump Jle x y b1 b2) (at level 50).
+Notation "'if' 'r(' x ) > y 'then' b1 'else' b2" :=
+  (CondJump Jgt x y b1 b2) (at level 50).
+Notation "'if' 'r(' x ) >= y 'then' b1 'else' b2" :=
+  (CondJump Jge x y b1 b2) (at level 50).
