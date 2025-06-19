@@ -3,7 +3,7 @@ open Ssara
 let regalloc program fuel =
   let (pi, _) = analyze_program program fuel in (* Get liveness info *)
   let g = get_ig pi in                          (* Get interference graph *)
-  let (_, peo) = eliminate g fuel in            (* Get peo *)
+  let (_, peo) = eliminate g in                 (* Get peo *)
   let c_opt = get_coloring peo g in             (* Get coloring *)
   match c_opt with
   | Some c -> Some (color_program c program)

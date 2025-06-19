@@ -15,16 +15,12 @@ Section Dict.
 
   Definition dict_update (d : dict) (k : key) (v : value) : dict :=
     let (keys, m) := d in
-    (set_add key_eq_dec k keys, fun k' => if key_eq_dec k' k then v else m k')
+    (set_add key_eq_dec k keys, fun k' => if key_eq_dec k k' then v else m k')
   .
 
-  Definition dict_map (d : dict) (k : key) : value :=
-    let (_, m) := d in m k
-  .
+  Definition dict_map (d : dict) (k : key) : value := (snd d) k.
 
-  Definition dict_keys (d : dict) : set key :=
-    let (keys, _) := d in keys
-  .
+  Definition dict_keys (d : dict) : set key := fst d.
 
   Definition dict_values (d : dict) : set value :=
     let (keys, m) := d in map m keys
@@ -32,6 +28,10 @@ Section Dict.
 
   Definition dict_list (d : dict) : list (key * value) :=
     let (keys, m) := d in map (fun k => (k, m k)) keys
+  .
+
+  Definition dict_mem (d : dict) (k : key) : bool :=
+    existsb (fun k' => if key_eq_dec k k' then true else false) (dict_keys d)
   .
 
   Definition dict_size (d : dict) : nat :=

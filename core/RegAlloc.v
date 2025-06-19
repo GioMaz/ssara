@@ -193,17 +193,11 @@ Module Example1.
   Compute dict_list g.
 
   (* Get perfect elimination ordering *)
-  Definition peo : list vreg := let (g', peo) := eliminate g fuel in peo.
+  (* Definition peo : list vreg := let (g', peo) := eliminate g in peo.
   Compute peo.
 
   (* Get coloring *)
   Definition c := get_coloring peo g.
-  Compute
-    match c with
-    | Some c' => dict_list c'
-    | None => nil
-    end
-  .
 
   (* Color program *)
   Compute
@@ -214,7 +208,7 @@ Module Example1.
       end
     in
     visit_program p fuel
-  .
+  . *)
 End Example1.
 
 Module Example2.
@@ -259,7 +253,7 @@ Module Example2.
   Compute dict_list g.
 
   (* Get perfect elimination ordering *)
-  Definition peo : list vreg := let (g', peo) := eliminate g fuel in peo.
+  (* Definition peo : list vreg := let (g', peo) := eliminate g fuel in peo.
   Compute peo.
 
   (* Get coloring *)
@@ -280,5 +274,5 @@ Module Example2.
       end
     in
     visit_program p fuel
-  .
+  . *)
 End Example2.

@@ -18,6 +18,8 @@ Instance dict_ig_instance : DictClass := {|
   key_eq_dec := Nat.eq_dec;
 |}.
 Definition ig : Type := dict.
+Definition ig_empty : ig := dict_empty.
+Definition ig_map : ig -> reg -> set reg := dict_map.
 
 Definition ig_update_edge (f : reg -> set reg -> set reg) (g : ig) (r : reg) (r' : reg) : ig :=
   let regs  := dict_map g r in
@@ -33,14 +35,39 @@ Definition ig_insert_node (g : ig) (r : reg) : ig :=
 .
 
 Definition ig_remove_node (g : ig) (r : reg) : ig :=
-  let (v, nbors) := fold_left
-    (fun g_acc r' =>
-      ig_remove_edge g_acc r r')
-    (dict_keys g)
-    g
-  in
-  (regs_remove r v, nbors)
+  (regs_remove r (dict_keys g),
+    snd (fold_left (fun g_acc r' => ig_remove_edge g_acc r r') (dict_keys g) g))
 .
+
+Lemma regs_size_decrease :
+  forall (r : reg) (rs : list reg), In r rs -> length (regs_remove r rs) < length rs
+.
+Proof.
+  intros r rs H. generalize dependent r.
+  induction rs as [|hd rs IH].  (* Induction over the size of the list *)
+  - contradiction.
+  - simpl. intros r H. destruct H. (* Case analysis on (regs_remove r (hd :: rs)) *)
+    + rewrite H. destruct Nat.eq_dec. auto. contradiction.
+    + destruct Nat.eq_dec.
+      * auto.
+Search (_ < _ -> S _ < S _).
+      * simpl. apply Arith_base.lt_n_S_stt. apply IH. assumption.
+Qed.
+
+Lemma dict_size_decrease :
+  forall (g : ig) (n : reg), In n (dict_keys g) -> dict_size (ig_remove_node g n) < dict_size g
+.
+Proof.
+  intros g n H.
+  destruct g as [keys map].
+  induction keys as [|r rs IH].
+  - contradiction.
+  - destruct (r :: rs).
+    contradiction.
+    unfold ig_remove_node. unfold dict_size. unfold dict_keys. unfold fst.
+    unfold dict_keys in H. unfold fst in H.
+    apply regs_size_decrease. assumption.
+Qed.
 
 Fixpoint ig_insert_edges (g : ig) (r : reg) (regs : list reg) : ig :=
   match regs with
@@ -51,6 +78,40 @@ Fixpoint ig_insert_edges (g : ig) (r : reg) (regs : list reg) : ig :=
     else ig_insert_edges (ig_insert_edge g r r') r tl
   end
 .
+
+(* Definition ig : Type := set reg * set (reg * reg).
+Definition ig_empty : ig := (nil, nil).
+Definition ig_map (g : ig) (r : reg) : list reg :=
+  let e := filter (fun '(r', _) => reg_eqb r r') (snd g) in
+  map fst e
+.
+
+Lemma edge_eq_dec : forall e e' : (reg * reg), {e = e'} + {e <> e'}.
+Proof.
+  decide equality.
+  - apply reg_eq_dec.
+  - apply reg_eq_dec.
+Qed.
+
+Definition ig_insert_edge (g : ig) (r : reg) (r' : reg) : ig :=
+  let (v, e) := g in
+  (regs_add r' (regs_add r v),
+  set_add edge_eq_dec (r, r') (set_add edge_eq_dec (r, r') e))
+.
+
+Definition ig_insert_node (g : ig) (r : reg) : ig :=
+  let (v, e) := g in (regs_add r v, e)
+.
+
+Fixpoint ig_insert_edges (g : ig) (r : reg) (rs : list reg) : ig :=
+  match rs with
+  | nil => g
+  | r' :: tl =>
+    if r =? r'
+    then ig_insert_edges (ig_insert_node g r) r tl
+    else ig_insert_edges (ig_insert_edge g r r') r tl
+  end
+. *)
 
 Definition ig_insert_clique (g : ig) (regs : list reg) : ig :=
   fold_left
@@ -80,7 +141,7 @@ Definition get_ig (pi : programinfo) : ig :=
       end
     )
     ls
-    dict_empty
+    ig_empty
 .
 
 (*
@@ -138,7 +199,7 @@ Module Example1.
   Compute
     let '(pi, _) := analyze_program example_block_1 fuel in
     let g := get_ig pi in
-    dict_list g
+    g
   .
 End Example1.
 
@@ -182,7 +243,7 @@ Module Example2.
   Compute
     let '(pi, _) := analyze_program example_block_1 fuel in
     let g := get_ig pi in
-    dict_list g
+    g
   .
 End Example2.
 
@@ -227,6 +288,6 @@ Module Example3.
   Compute
     let '(pi, _) := analyze_program example_block_1 fuel in
     let g := get_ig pi in
-    dict_list g
+    g
   .
 End Example3.
