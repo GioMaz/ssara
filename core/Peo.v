@@ -10,47 +10,48 @@ From Ssara.Core Require Import RegVregInstance.
 Existing Instance reg_vreg_instance.
 
 (* Check whether regs are neighbors of r *)
-Definition are_neighbors (r : reg) (regs : list reg) (g : ig) : bool :=
-  regs_mem r (dict_keys g) &&
+Definition are_neighbors (r : reg) (regs : list reg) (ig : InterfGraph.dict) : bool :=
+  regs_mem r (InterfGraph.keys ig) &&
   fold_left
     (fun b r' =>
       b &&
       ((r =? r') ||
-        regs_mem r' (ig_map g r)))
+        regs_mem r' (InterfGraph.get ig r)))
     regs
     true
 .
 
-Definition is_simplicial (r : reg) (g : ig) : bool :=
-  let regs := ig_map g r in
-  regs_mem r (dict_keys g) &&
+Definition is_simplicial (r : reg) (ig : InterfGraph.dict) : bool :=
+  let regs := InterfGraph.get ig r in
+  regs_mem r (InterfGraph.keys ig) &&
   fold_left (* Check whether the neighbor set of r is a clique *)
     (fun b r =>
       b &&
-      are_neighbors r regs g
+      are_neighbors r regs ig
     )
     regs
     true
 .
 
-Fixpoint find_next_aux (regs : list reg) (g : ig) : option reg :=
+Fixpoint find_next_aux (regs : list reg) (ig : InterfGraph.dict) : option reg :=
   match regs with
   | nil => None
   | r :: rs =>
-    if is_simplicial r g then Some r else find_next_aux rs g
+    if is_simplicial r ig then Some r else find_next_aux rs ig
   end
 .
 
-Definition find_next (g : ig) : option reg :=
-  find_next_aux (dict_keys g) g
+Definition find_next (ig : InterfGraph.dict) : option reg :=
+  find_next_aux (InterfGraph.keys ig) ig
 . 
 
 Lemma find_next_mem :
-  forall (g : ig) (n : reg), find_next g = Some n -> In n (dict_keys g)
+  forall (ig : InterfGraph.dict) (n : reg),
+    find_next ig = Some n -> In n (InterfGraph.keys ig)
 .
 Proof.
   intros g n H. unfold find_next in H. generalize dependent n.
-  induction (dict_keys g) as [|r rs IH].
+  induction (InterfGraph.keys g) as [|r rs IH].
   - intros n'. simpl. congruence.
   - intros n'. simpl.
     destruct (is_simplicial r g).
@@ -61,13 +62,13 @@ Qed.
 From Stdlib Require Import FunInd.
 From Stdlib Require Import Recdef.
 
-Function eliminate (g : ig) {measure dict_size g} : ig * list vreg :=
-  match find_next g with
+Function eliminate (ig : InterfGraph.dict) {measure InterfGraph.size ig} : list vreg :=
+  match find_next ig with
   | Some next =>
-    let g' := ig_remove_node g next in
-    let (g'', peo) := eliminate g' in
-    (g'', next :: peo)
-  | None => (g, nil)
+    let g' := ig_remove_node ig next in
+    let peo := eliminate g' in
+    next :: peo
+  | None => nil
   end
 .
 Proof.

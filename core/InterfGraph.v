@@ -11,32 +11,30 @@ Import ListNotations.
 From Ssara.Core Require Import RegVregInstance.
 Local Existing Instance reg_vreg_instance.
 
-Instance dict_ig_instance : DictClass := {|
-  key := reg;
-  value := set reg;
-  default := nil;
-  key_eq_dec := Nat.eq_dec;
-|}.
-Definition ig : Type := dict.
-Definition ig_empty : ig := dict_empty.
-Definition ig_map : ig -> reg -> set reg := dict_map.
+Module InterfGraphParams <: DICT_PARAMS.
+  Definition key : Set := reg.
+  Definition value : Type := set reg.
+  Definition default : value := nil.
+  Definition key_eq_dec := reg_eq_dec.
+End InterfGraphParams.
+Module InterfGraph := MakeDict(InterfGraphParams).
 
-Definition ig_update_edge (f : reg -> set reg -> set reg) (g : ig) (r : reg) (r' : reg) : ig :=
-  let regs  := dict_map g r in
-  let g'    := dict_update g r (f r' regs) in
-  let regs' := dict_map g' r' in
-  dict_update g' r' (f r regs')
+Definition ig_update_edge (f : reg -> set reg -> set reg) (ig : InterfGraph.dict) (r : reg) (r' : reg) : InterfGraph.dict :=
+  let regs  := InterfGraph.get ig r in
+  let ig'    := InterfGraph.update ig r (f r' regs) in
+  let regs' := InterfGraph.get ig' r' in
+  InterfGraph.update ig' r' (f r regs')
 .
 Definition ig_remove_edge := ig_update_edge regs_remove.
 Definition ig_insert_edge := ig_update_edge regs_add.
 
-Definition ig_insert_node (g : ig) (r : reg) : ig :=
-  dict_update g r (dict_map g r)
+Definition ig_insert_node (ig : InterfGraph.dict) (r : reg) : InterfGraph.dict :=
+  InterfGraph.update ig r (InterfGraph.get ig r)
 .
 
-Definition ig_remove_node (g : ig) (r : reg) : ig :=
-  (regs_remove r (dict_keys g),
-    snd (fold_left (fun g_acc r' => ig_remove_edge g_acc r r') (dict_keys g) g))
+Definition ig_remove_node (ig : InterfGraph.dict) (r : reg) : InterfGraph.dict :=
+  (regs_remove r (InterfGraph.keys ig),
+    snd (fold_left (fun g_acc r' => ig_remove_edge g_acc r r') (InterfGraph.keys ig) ig))
 .
 
 Lemma regs_size_decrease :
@@ -55,7 +53,8 @@ Search (_ < _ -> S _ < S _).
 Qed.
 
 Lemma dict_size_decrease :
-  forall (g : ig) (n : reg), In n (dict_keys g) -> dict_size (ig_remove_node g n) < dict_size g
+  forall (ig : InterfGraph.dict) (n : reg),
+    In n (InterfGraph.keys ig) -> InterfGraph.size (ig_remove_node ig n) < InterfGraph.size ig
 .
 Proof.
   intros g n H.
@@ -64,74 +63,40 @@ Proof.
   - contradiction.
   - destruct (r :: rs).
     contradiction.
-    unfold ig_remove_node. unfold dict_size. unfold dict_keys. unfold fst.
-    unfold dict_keys in H. unfold fst in H.
+    unfold ig_remove_node. unfold InterfGraph.size. unfold InterfGraph.keys. unfold fst.
+    unfold InterfGraph.keys in H. unfold fst in H.
     apply regs_size_decrease. assumption.
 Qed.
 
-Fixpoint ig_insert_edges (g : ig) (r : reg) (regs : list reg) : ig :=
+Fixpoint ig_insert_edges (ig : InterfGraph.dict) (r : reg) (regs : list reg) : InterfGraph.dict :=
   match regs with
-  | nil => g
+  | nil => ig
   | r' :: tl =>
     if r =? r'
-    then ig_insert_edges (ig_insert_node g r) r tl
-    else ig_insert_edges (ig_insert_edge g r r') r tl
+    then ig_insert_edges (ig_insert_node ig r) r tl
+    else ig_insert_edges (ig_insert_edge ig r r') r tl
   end
 .
 
-(* Definition ig : Type := set reg * set (reg * reg).
-Definition ig_empty : ig := (nil, nil).
-Definition ig_map (g : ig) (r : reg) : list reg :=
-  let e := filter (fun '(r', _) => reg_eqb r r') (snd g) in
-  map fst e
-.
-
-Lemma edge_eq_dec : forall e e' : (reg * reg), {e = e'} + {e <> e'}.
-Proof.
-  decide equality.
-  - apply reg_eq_dec.
-  - apply reg_eq_dec.
-Qed.
-
-Definition ig_insert_edge (g : ig) (r : reg) (r' : reg) : ig :=
-  let (v, e) := g in
-  (regs_add r' (regs_add r v),
-  set_add edge_eq_dec (r, r') (set_add edge_eq_dec (r, r') e))
-.
-
-Definition ig_insert_node (g : ig) (r : reg) : ig :=
-  let (v, e) := g in (regs_add r v, e)
-.
-
-Fixpoint ig_insert_edges (g : ig) (r : reg) (rs : list reg) : ig :=
-  match rs with
-  | nil => g
-  | r' :: tl =>
-    if r =? r'
-    then ig_insert_edges (ig_insert_node g r) r tl
-    else ig_insert_edges (ig_insert_edge g r r') r tl
-  end
-. *)
-
-Definition ig_insert_clique (g : ig) (regs : list reg) : ig :=
+Definition ig_insert_clique (ig : InterfGraph.dict) (regs : list reg) : InterfGraph.dict :=
   fold_left
     (fun g_acc r => (ig_insert_edges g_acc r regs))
     regs
-    g
+    ig
 .
 
-Definition ig_insert_instinfo (g : ig) (ii : instinfo) : ig :=
+Definition ig_insert_instinfo (ig : InterfGraph.dict) (ii : instinfo) : InterfGraph.dict :=
   match ii with
   | InstInfo live_in live_out =>
-    ig_insert_clique (ig_insert_clique g live_in) live_out 
+    ig_insert_clique (ig_insert_clique ig live_in) live_out 
   end
 .
 
-Definition ig_insert_instinfos (g : ig) (iis: list instinfo) : ig :=
-  fold_left (fun g' ii => ig_insert_instinfo g' ii) iis g
+Definition ig_insert_instinfos (ig : InterfGraph.dict) (iis: list instinfo) : InterfGraph.dict :=
+  fold_left (fun g' ii => ig_insert_instinfo g' ii) iis ig
 .
 
-Definition get_ig (pi : programinfo) : ig :=
+Definition get_ig (pi : ProgramInfo.dict) : InterfGraph.dict :=
   let (ls, nbors) := pi in
   fold_left
     (fun g l =>
@@ -141,7 +106,7 @@ Definition get_ig (pi : programinfo) : ig :=
       end
     )
     ls
-    ig_empty
+    InterfGraph.empty
 .
 
 (*
@@ -199,7 +164,7 @@ Module Example1.
   Compute
     let '(pi, _) := analyze_program example_block_1 fuel in
     let g := get_ig pi in
-    g
+    InterfGraph.list g
   .
 End Example1.
 
@@ -243,7 +208,7 @@ Module Example2.
   Compute
     let '(pi, _) := analyze_program example_block_1 fuel in
     let g := get_ig pi in
-    g
+    InterfGraph.list g
   .
 End Example2.
 
@@ -282,12 +247,12 @@ Module Example3.
 
   Compute
     let '(pi, regs) := (analyze_program example_block_1 10) in
-    dict_list pi
+    ProgramInfo.list pi
   .
 
   Compute
     let '(pi, _) := analyze_program example_block_1 fuel in
     let g := get_ig pi in
-    g
+    InterfGraph.list g
   .
 End Example3.

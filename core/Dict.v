@@ -1,7 +1,7 @@
 From Stdlib Require Import Lists.List.
 From Stdlib Require Import ListSet.
 
-Section Dict.
+(* Section Dict.
   Class DictClass := {
     key : Set;
     value : Type;
@@ -38,4 +38,42 @@ Section Dict.
     length (dict_keys d)
   .
 
-End Dict.
+End Dict. *)
+
+Module Type DICT_PARAMS.
+  Parameter key : Set.
+  Parameter value : Type.
+  Parameter default : value.
+  Parameter key_eq_dec : forall k k' : key, {k = k'} + {k <> k'}.
+End DICT_PARAMS.
+
+Module MakeDict (P : DICT_PARAMS).
+  Definition dict : Type := set P.key * (P.key -> P.value).
+
+  Definition empty : dict := (nil, fun _ => P.default).
+
+  Definition update (d : dict) (k : P.key) (v : P.value) : dict :=
+    let (keys, m) := d in
+    (set_add P.key_eq_dec k keys, fun k' => if P.key_eq_dec k k' then v else m k')
+  .
+
+  Definition get (d : dict) (k : P.key) : P.value := (snd d) k.
+
+  Definition keys (d : dict) : set P.key := fst d.
+
+  Definition values (d : dict) : set P.value :=
+    let (keys, m) := d in map m keys
+  .
+
+  Definition list (d : dict) : list (P.key * P.value) :=
+    let (keys, m) := d in map (fun k => (k, m k)) keys
+  .
+
+  Definition mem (d : dict) (k : P.key) : bool :=
+    existsb (fun k' => if P.key_eq_dec k k' then true else false) (keys d)
+  .
+
+  Definition size (d : dict) : nat :=
+    length (keys d)
+  .
+End MakeDict.

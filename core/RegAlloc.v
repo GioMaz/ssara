@@ -12,13 +12,13 @@ From Stdlib Require Import Bool.
 From Ssara.Core Require Import RegVregInstance.
 From Ssara.Core Require Import RegPregInstance.
 
-Instance dict_coloring_instance : DictClass := {|
-  key := vreg;
-  value := preg;
-  default := tmp;
-  key_eq_dec := Nat.eq_dec;
-|}.
-Definition coloring := dict.
+Module ColoringParams <: DICT_PARAMS.
+  Definition key : Set := vreg.
+  Definition value : Type := preg.
+  Definition default : value := tmp.
+  Definition key_eq_dec := Nat.eq_dec.
+End ColoringParams.
+Module Coloring := MakeDict(ColoringParams).
 
 (*
   The coloring is performed this way:
@@ -35,9 +35,9 @@ Definition preg_compl (colors : list preg) : option preg :=
 (*
   By definition of PEO the `nbors` list contains all the neighbors of `v`
 *)
-Definition color_vreg (v : vreg) (c : coloring) (g : ig) : option preg :=
-  let nbors := dict_map g v in
-  let used := map (dict_map c) nbors in
+Definition color_vreg (v : vreg) (c : Coloring.dict) (ig : InterfGraph.dict) : option preg :=
+  let nbors := InterfGraph.get ig v in
+  let used := map (Coloring.get c) nbors in
   preg_compl used
 .
 
@@ -46,20 +46,20 @@ Definition color_vreg (v : vreg) (c : coloring) (g : ig) : option preg :=
   for the coloring to happen, this may happen if we don't perform spilling
   before the coloring.
 *)
-Definition get_coloring (peo : list vreg) (g : ig) : option coloring :=
-  let fix get_coloring_aux (peo : list vreg) (c : coloring) (g : ig) : option coloring :=
+Definition get_coloring (peo : list vreg) (ig : InterfGraph.dict) : option Coloring.dict :=
+  let fix get_coloring_aux (peo : list vreg) (c : Coloring.dict) (ig : InterfGraph.dict) : option Coloring.dict :=
     match peo with
     | nil => Some c
     | v :: peo' =>
-      match color_vreg v c g with
+      match color_vreg v c ig with
       | Some p =>
-        let c' := dict_update c v p in
-        get_coloring_aux peo' c' g
+        let c' := Coloring.update c v p in
+        get_coloring_aux peo' c' ig
       | None => None
       end
     end
   in
-  get_coloring_aux peo dict_empty g
+  get_coloring_aux peo Coloring.empty ig
 .
 
 (*
@@ -69,22 +69,22 @@ Definition get_coloring (peo : list vreg) (g : ig) : option coloring :=
 Definition vphi : Type := @phi reg_vreg_instance.
 Definition pphi : Type := @phi reg_preg_instance.
 
-Definition color_phi (c : coloring) (p : vphi) : pphi :=
+Definition color_phi (c : Coloring.dict) (p : vphi) : pphi :=
   match p with
   | Phi v vs =>
     @Phi reg_preg_instance
-    (dict_map c v)
-    (map (fun '(v, l) => (dict_map c v, l)) vs)
+    (Coloring.get c v)
+    (map (fun '(v, l) => (Coloring.get c v, l)) vs)
   end
 .
 
 Definition vval : Type := @val reg_vreg_instance.
 Definition pval : Type := @val reg_preg_instance.
 
-Definition color_val (c : coloring) (v : vval) : pval :=
+Definition color_val (c : Coloring.dict) (v : vval) : pval :=
   match v with
   | Imm x => Imm x
-  | Reg v => @Reg reg_preg_instance (dict_map c v)
+  | Reg v => @Reg reg_preg_instance (Coloring.get c v)
   | Ptr p => Ptr p
   end
 .
@@ -92,31 +92,31 @@ Definition color_val (c : coloring) (v : vval) : pval :=
 Definition vexpr : Type := @expr reg_vreg_instance.
 Definition pexpr : Type := @expr reg_preg_instance.
 
-Definition color_expr (c : coloring) (e : vexpr) : pexpr :=
+Definition color_expr (c : Coloring.dict) (e : vexpr) : pexpr :=
   match e with
   | Val v => Val (color_val c v)
   | Neg v => Neg (color_val c v)
   | Load v => Load (color_val c v)
-  | Add v v' => @Add reg_preg_instance (dict_map c v) (color_val c v')
-  | Sub v v' => @Sub reg_preg_instance (dict_map c v) (color_val c v')
-  | Mul v v' => @Mul reg_preg_instance (dict_map c v) (color_val c v')
-  | Div v v' => @Div reg_preg_instance (dict_map c v) (color_val c v')
+  | Add v v' => @Add reg_preg_instance (Coloring.get c v) (color_val c v')
+  | Sub v v' => @Sub reg_preg_instance (Coloring.get c v) (color_val c v')
+  | Mul v v' => @Mul reg_preg_instance (Coloring.get c v) (color_val c v')
+  | Div v v' => @Div reg_preg_instance (Coloring.get c v) (color_val c v')
   end
 .
 
 Definition vinst : Type := @inst reg_vreg_instance.
 Definition pinst : Type := @inst reg_preg_instance.
 
-Definition color_inst (c : coloring) (i : vinst) : pinst :=
+Definition color_inst (c : Coloring.dict) (i : vinst) : pinst :=
   match i with
   | Def v e =>
     @Def reg_preg_instance
-    (dict_map c v)
+    (Coloring.get c v)
     (color_expr c e)
   | Store v v' =>
     @Store reg_preg_instance
     (color_val c v)
-    (dict_map c v')
+    (Coloring.get c v')
   end
 .
 
@@ -125,7 +125,7 @@ Definition pjinst : Type := @jinst reg_preg_instance.
 Definition vprogram : Type := @program reg_vreg_instance.
 Definition pprogram : Type := @program reg_preg_instance.
 
-CoFixpoint color_program (c : coloring) (p : vprogram) : pprogram :=
+CoFixpoint color_program (c : Coloring.dict) (p : vprogram) : pprogram :=
   match p with
   | Block l ps is j =>
     @Block reg_preg_instance
@@ -135,7 +135,7 @@ CoFixpoint color_program (c : coloring) (p : vprogram) : pprogram :=
     (match j with
     | CondJump c' r v b1 b2 =>
       @CondJump reg_preg_instance c'
-      (dict_map c r)
+      (Coloring.get c r)
       (color_val c v)
       (color_program c b1)
       (color_program c b2)
@@ -185,15 +185,15 @@ Module Example1.
   Definition fuel : nat := 20.
 
   (* Get liveness information *)
-  Definition pi : programinfo := fst (analyze_program example_block_1 fuel).
-  Compute dict_list pi.
+  Definition pi : ProgramInfo.dict := fst (analyze_program example_block_1 fuel).
+  Compute ProgramInfo.list pi.
 
   (* Get interference graph *)
-  Definition g : ig := get_ig pi.
-  Compute dict_list g.
+  Definition ig : InterfGraph.dict := get_ig pi.
+  Compute InterfGraph.list ig.
 
   (* Get perfect elimination ordering *)
-  (* Definition peo : list vreg := let (g', peo) := eliminate g in peo.
+  (* Definition peo : list vreg := eliminate g.
   Compute peo.
 
   (* Get coloring *)
@@ -245,12 +245,12 @@ Module Example2.
   Definition fuel : nat := 20.
 
   (* Get liveness information *)
-  Definition pi : programinfo := fst (analyze_program example_block_1 fuel).
-  Compute dict_list pi.
+  Definition pi : ProgramInfo.dict := fst (analyze_program example_block_1 fuel).
+  Compute ProgramInfo.list pi.
 
   (* Get interference graph *)
-  Definition g : ig := get_ig pi.
-  Compute dict_list g.
+  Definition ig : InterfGraph.dict := get_ig pi.
+  Compute InterfGraph.list ig.
 
   (* Get perfect elimination ordering *)
   (* Definition peo : list vreg := let (g', peo) := eliminate g fuel in peo.

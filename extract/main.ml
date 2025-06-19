@@ -3,12 +3,31 @@ open Ssara
 let regalloc program fuel =
   let (pi, _) = analyze_program program fuel in (* Get liveness info *)
   let g = get_ig pi in                          (* Get interference graph *)
-  let (_, peo) = eliminate g in                 (* Get peo *)
+  let peo = eliminate g in                      (* Get peo *)
   let c_opt = get_coloring peo g in             (* Get coloring *)
   match c_opt with
   | Some c -> Some (color_program c program)
   | None -> None
 ;;
+
+let rec print_phis phis =
+  let print_phi p =
+    match p with
+    | Phi (r, rs) ->
+      Printf.printf "%d" r;
+  in
+  match phis with
+  | [] -> ()
+  | p :: ps ->
+    print_phi p;
+    print_phis ps
+;;
+
+let print_program program =
+  match program with
+  | Block (l, _, _, _) ->
+    Printf.printf "%d" l;
+  ;;
 
 match regalloc Example1.example_block_1 10 with
 | Some _ -> print_string "Yes\n"
