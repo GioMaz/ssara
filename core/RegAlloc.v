@@ -63,7 +63,8 @@ Definition get_coloring (peo : list vreg) (g : ig) : option coloring :=
 .
 
 (*
-  Definition of a parallel IR using physical registers instead
+  Converting the intermediate representation into one using physical registers
+  instead.
 *)
 
 Definition vphi : Type := @phi reg_vreg_instance.
@@ -145,7 +146,7 @@ CoFixpoint color_program (c : coloring) (p : vprogram) : pprogram :=
   end
 .
 
-Existing Instance reg_vreg_instance.
+(* Existing Instance reg_vreg_instance.
 
 Module Example1.
   CoFixpoint example_block_2 : block :=
@@ -275,4 +276,4 @@ Module Example2.
     in
     visit_program p fuel
   . *)
-End Example2.
+End Example2. *)

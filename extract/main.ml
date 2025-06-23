@@ -1,19 +1,24 @@
 open Ssara
 
-let regalloc program fuel =
+let a = color_program;;
+let _ = a;
+
+(* let regalloc program fuel =
   let (pi, _) = analyze_program program fuel in (* Get liveness info *)
   let g = get_ig pi in                          (* Get interference graph *)
-  let (_, peo) = eliminate g in                 (* Get peo *)
-  let c_opt = get_coloring peo g in             (* Get coloring *)
-  match c_opt with
-  | Some c -> Some (color_program c program)
+  let peo = eliminate g in                      (* Get peo *)
+  let c = get_coloring peo g in             (* Get coloring *)
+  match c with
+  | Some c' -> Some (color_program c' program)
   | None -> None
 ;;
 
-match regalloc Example1.example_block_1 10 with
+let _ = regalloc;; *)
+
+(* match regalloc Example1.example_block_1 10 with
 | Some _ -> print_string "Yes\n"
 | None -> print_string "No\n"
-;;
+;; *)
 
 (* module LblSet = Set.Make(Int);;
 
@@ -58,7 +63,7 @@ let get_ig_fixpoint p =
     else
       get_ig_fixpoint_aux g fuel
   in
-  get_ig_fixpoint_aux ig_empty 0
+  get_ig_fixpoint_aux dict_empty 0
 ;;
 
 (* Eliminate nodes following a PEO until a fixpoint is reached *)
