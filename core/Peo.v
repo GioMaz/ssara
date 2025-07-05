@@ -40,8 +40,8 @@ From Stdlib Require Import Recdef.
 Function eliminate (g : ig) {measure dict_size g} : list vreg :=
   match find_next g with
   | Some next =>
-    let g' := ig_remove_node g next in
-    let peo := eliminate g' in
+    let g := ig_remove_node g next in
+    let peo := eliminate g in
     next :: peo
   | None => nil
   end

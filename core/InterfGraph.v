@@ -92,7 +92,7 @@ Definition ig_insert_instinfo (g : ig) (ii : instinfo) : ig :=
 .
 
 Definition ig_insert_instinfos (g : ig) (iis: list instinfo) : ig :=
-  fold_left (fun g' ii => ig_insert_instinfo g' ii) iis g
+  fold_left ig_insert_instinfo iis g
 .
 
 Definition get_ig (pi : programinfo) : ig :=

@@ -75,10 +75,10 @@ Definition phi_defs (ps : list phi) : set reg :=
 .
 
 Definition phi_uses (b : block) : set reg :=
-  let ps := flat_map (fun b => get_phis b) (successors b) in  (* Get all phis from successors *)
+  let ps := flat_map get_phis (successors b) in               (* Get all phis from successors *)
   let args := flat_map phi_args ps in                         (* Get all arguments of phis *)
   let pairs := filter (fun '(_, l) => l =? get_lbl b) args in (* Keep only those that come from the current label *)
-  map (fun '(r, _) => r) pairs                                (* Get only the registers *)
+  map fst pairs                                               (* Get only the registers *)
 .
 
 (*
@@ -178,10 +178,10 @@ Fixpoint analyze_program (p : program) (fuel : nat) : programinfo * set reg :=
     in
 
     (* Add phi_uses[b] to live_out *)
-    let live_out' := regs_union live_out (phi_uses p) in
+    let live_out := regs_union live_out (phi_uses p) in
 
     (* Analyze current block *)
-    let (iis, live_in) := analyze_block p live_out' in
+    let (iis, live_in) := analyze_block p live_out in
 
     (* Insert data into map *)
     let pi' := programinfo_insert pi (get_lbl p) (BlockInfo iis) in
