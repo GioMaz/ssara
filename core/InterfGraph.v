@@ -48,11 +48,10 @@ Proof.
     + rewrite H. destruct Nat.eq_dec. auto. contradiction.
     + destruct Nat.eq_dec.
       * auto.
-Search (_ < _ -> S _ < S _).
       * simpl. apply Arith_base.lt_n_S_stt. apply IH. assumption.
 Qed.
 
-Lemma dict_size_decrease :
+Lemma ig_size_decrease :
   forall (g : ig) (n : reg), In n (dict_keys g) -> dict_size (ig_remove_node g n) < dict_size g
 .
 Proof.

@@ -49,6 +49,6 @@ Function eliminate (g : ig) {measure dict_size g} : list vreg :=
 Proof.
   intros g n H.
   apply find_next_in in H.
-  apply dict_size_decrease.
+  apply ig_size_decrease.
   assumption.
 Qed.
