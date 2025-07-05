@@ -7,7 +7,7 @@ From Stdlib Require Import Bool.
 From QuickChick Require Import QuickChick.
 Import ListNotations.
 
-(* From Ssara.Core Require Import RegVregInstance.
+From Ssara.Core Require Import RegVregInstance.
 Existing Instance reg_vreg_instance.
 
 (* Example 1 *)
@@ -20,8 +20,7 @@ Module Example1.
       r(3) <- r(2) * (Imm 2);
       r(4) <- r(3) + (Imm 1);
       store (Ptr 5) r(4);
-      r(5) <- load (Ptr 5);
-      r(6) <- r(4) < (Imm 420)
+      r(5) <- load (Ptr 5)
     ] (
       Halt
     )
@@ -38,9 +37,9 @@ End Example1.
 
 Module Exmaple2.
   CoFixpoint example_block_1 :=
-    Block 0 nil nil (Jmp example_block_2)
+    Block 0 nil nil (Jump example_block_2)
   with example_block_2 :=
-    Block 1 nil nil (Jmp (example_block_1))
+    Block 1 nil nil (Jump example_block_1)
   .
 
   Example run_example : Vm.run vm_empty example_block_1 1000 = vm_empty.
@@ -65,7 +64,7 @@ Module Example3.
     ] [
       r(0) <- (Imm 34)
     ] (
-      Jmp example_block_3
+      Jump example_block_3
     )
   .
 
@@ -74,7 +73,7 @@ Module Example3.
     ] [
       r(1) <- (Imm 35)
     ] (
-      Jmp example_block_3
+      Jump example_block_3
     )
   .
 
@@ -90,6 +89,47 @@ Module Example3.
   .
   Proof. reflexivity. Qed.
 End Example3.
+
+(* Example 4 *)
+Module Example4.
+  Definition example_block_3 : block :=
+    Block 3 [
+    ] [
+      store (Ptr 0) r(5)
+    ] (
+      Halt
+    )
+  .
+
+  CoFixpoint example_block_2 : block :=
+    Block 2 [
+      r(2) <- phi [(0, 1); (4, 2)];  (* Iterator *)
+      r(3) <- phi [(1, 1); (5, 2)]   (* Accumulator *)
+    ] [
+      r(4) <- r(2) - (Imm 1);
+      r(5) <- r(3) * (Reg 4)
+    ] (
+      if r(4) <= (Imm 1) then example_block_3 else example_block_2
+    )
+  .
+
+  Definition example_block_1 : block :=
+    Block 1 [
+    ] [
+      r(0) <- Imm 5;  (* Iterator *)
+      r(1) <- Reg 0   (* Accumulator *)
+    ] (
+      Jump example_block_2
+    )
+  .
+
+  Compute eval_cond (Vm.set_reg vm_empty 0 20%Z) Jle 0 (Imm (21)).
+
+  Compute
+    let (regs, cells) := Vm.run vm_empty example_block_1 100 in
+    (map regs [0; 1; 2; 3; 4; 5], cells)
+  .
+End Example4.
 
 Definition set_reg_P (r : reg) (c : cell) : bool :=
   let (regs, _) := (set_reg vm_empty r c) in
@@ -125,4 +165,4 @@ QuickChick store_P.
 
 (*
 TODO: Look into QuickChick generators and QuickChick conversion from predicates to fixpoints
-*) *)
+*)

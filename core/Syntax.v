@@ -121,6 +121,8 @@ Section Syntax.
   (*
     A block lbl is necessary in order to define the semantics of phi
     instructions.
+    Unlike some SSA intermediate representations, labels here can collide with
+    virtual register.
   *)
   CoInductive block : Type :=
     | Block (l : lbl) (ps : list phi) (is : list inst) (j : jinst)

@@ -113,27 +113,6 @@ Definition run_insts (m : vm) (is : list inst) : vm :=
   fold_left (fun m_acc i => run_inst m_acc i) is m
 .
 
-(* Phi semantics *)
-
-Fixpoint run_phi (m : vm) (pred : block) (r : reg) (rs : list (reg * lbl)) : vm :=
-  match rs with
-  | nil => m
-  | (r', l) :: xs =>
-    if l =? get_lbl pred then
-      set_reg m r (get_reg m r')
-    else
-      run_phi m pred r xs
-  end
-.
-
-Definition run_phis (m : vm) (pred : block) (ps : list phi) : vm :=
-  fold_left
-    (fun m_acc p =>
-      match p with
-      | Phi r rs => run_phi m pred r rs
-      end) ps m
-.
-
 Definition eval_cond (m : vm) (c : cond) (r : reg) (v : val) : bool :=
   let neb x y := negb (Z.eqb x y) in
   let op :=
@@ -157,6 +136,25 @@ Definition eval_cond (m : vm) (c : cond) (r : reg) (v : val) : bool :=
   op x y
 .
 
+(* Phi semantics *)
+
+Fixpoint run_phi (m : vm) (pred : block) (r : reg) (rs : list (reg * lbl)) : vm :=
+  match rs with
+  | nil => m
+  | (r', l) :: xs =>
+    if l =? get_lbl pred then
+      set_reg m r (get_reg m r')
+    else
+      run_phi m pred r xs
+  end
+.
+
+Definition run_phis (m : vm) (pred : block) (ps : list phi) : vm :=
+  fold_left
+    (fun m_acc '(Phi r rs) => run_phi m_acc pred r rs)
+    ps m
+.
+
 (*
   Since the entry block has no predecessors the order of evaluation of
   instruction between two blocks b and b' is (instructions of b) (jump
@@ -166,15 +164,15 @@ Fixpoint run (m : vm) (p : program) (fuel : nat) : vm :=
   match p, fuel with
   | _, O => m
   | Block _ _ is j, S fuel' =>
-    let m' := run_insts m is in
+    let m := run_insts m is in
     match j with
     | CondJump c r v b1 b2 =>
       if eval_cond m c r v then
-        run (run_phis m' p (get_phis b1)) b1 fuel'
+        run (run_phis m p (get_phis b1)) b1 fuel'
       else
-        run (run_phis m' p (get_phis b2)) b2 fuel'
-    | Jump b1 => run (run_phis m' p (get_phis b1)) b1 fuel'
-    | Halt => m'
+        run (run_phis m p (get_phis b2)) b2 fuel'
+    | Jump b1 => run (run_phis m p (get_phis b1)) b1 fuel'
+    | Halt => m
     end
   end
 .
