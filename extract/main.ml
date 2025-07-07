@@ -15,7 +15,7 @@ let regalloc program fuel =
 ;;
 
 let main () =
-  let irvreg_program = Example2.example_block_1 in
+  let irvreg_program = Example1.example_block_1 in
   let irpreg_program = regalloc irvreg_program 10 in
   gen_irpreg_program irpreg_program
 ;;

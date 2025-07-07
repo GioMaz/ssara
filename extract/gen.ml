@@ -35,19 +35,30 @@ let string_of_val v =
   | IRPreg.Ptr p -> Printf.sprintf "(%d)" p
 ;;
 
+(*
+  Since we are generating X86 assembly where the ALU instructions take only two
+  arguments we have to convert our three address code instructions to fit into
+  the X86 ones.
+  To do so we simply prepend an instruction that moves the first argument of
+  the operation into the target register.
+*)
+let gen_3ac_2ac_move r r' =
+  if r <> r' then Printf.printf "mov %s, %s" (string_of_preg r') (string_of_preg r)
+;;
+
 let gen_insts is =
   let gen_inst i =
     Printf.printf "\t";
     (match i with
-    | IRPreg.Def (r, IRPreg.Val v)      -> Printf.printf "mov  %s, %s" (string_of_val v) (string_of_preg r)
-    | IRPreg.Def (r, IRPreg.Neg v)      -> Printf.printf "neg  %s, %s" (string_of_val v) (string_of_preg r)
-    | IRPreg.Def (r, IRPreg.Load v)     -> Printf.printf "load %s, %s" (string_of_val v) (string_of_preg r)
-    | IRPreg.Def (r, IRPreg.Add (_, v)) -> Printf.printf "add  %s, %s" (string_of_val v) (string_of_preg r)
-    | IRPreg.Def (r, IRPreg.Sub (_, v)) -> Printf.printf "sub  %s, %s" (string_of_val v) (string_of_preg r)
-    | IRPreg.Def (r, IRPreg.Mul (_, v)) -> Printf.printf "mul  %s, %s" (string_of_val v) (string_of_preg r)
-    | IRPreg.Def (r, IRPreg.Div (_, v)) -> Printf.printf "div  %s, %s" (string_of_val v) (string_of_preg r)
-    | IRPreg.Store (v, r)               -> Printf.printf "mov  %s, %s" (string_of_val v) (string_of_preg r));
-    Printf.printf ";\n"
+    | IRPreg.Def (r, IRPreg.Val v)        -> Printf.printf "mov  %s, %s" (string_of_val v) (string_of_preg r)
+    | IRPreg.Def (r, IRPreg.Neg v)        -> Printf.printf "neg  %s, %s" (string_of_val v) (string_of_preg r)
+    | IRPreg.Def (r, IRPreg.Load v)       -> Printf.printf "load %s, %s" (string_of_val v) (string_of_preg r)
+    | IRPreg.Store (v, r)                 -> Printf.printf "mov  %s, %s" (string_of_val v) (string_of_preg r)
+    | IRPreg.Def (r, IRPreg.Add (r', v))  -> gen_3ac_2ac_move r r'; Printf.printf "add  %s, %s" (string_of_val v) (string_of_preg r)
+    | IRPreg.Def (r, IRPreg.Sub (r', v))  -> gen_3ac_2ac_move r r'; Printf.printf "sub  %s, %s" (string_of_val v) (string_of_preg r)
+    | IRPreg.Def (r, IRPreg.Mul (r', v))  -> gen_3ac_2ac_move r r'; Printf.printf "mul  %s, %s" (string_of_val v) (string_of_preg r)
+    | IRPreg.Def (r, IRPreg.Div (r', v))  -> gen_3ac_2ac_move r r'; Printf.printf "div  %s, %s" (string_of_val v) (string_of_preg r));
+    Printf.printf "\n"
   in
   List.iter gen_inst is
 ;;
@@ -77,7 +88,7 @@ let gen_irpreg_program program =
     gen_label l;
     gen_insts is;
 
-    match (Lazy.force_val j) with
+    match Lazy.force_val j with
     | IRPreg.CondJump (c, r, v, b1, b2) ->
       (* Generate code for conditional jump *)
       let l1 = IRPreg.get_lbl b1 in
