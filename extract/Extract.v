@@ -5,8 +5,6 @@ From Ssara.Core Require Import InterfGraph.
 From Ssara.Core Require Import Peo.
 From Ssara.Core Require Import RegAlloc.
 From Ssara.Core Require Import Destruct.
-From Ssara.Core Require Import RegPregInstance.
-From Ssara.Core Require Import RegVregInstance.
 
 Require Extraction.
 Extraction Language OCaml.
@@ -32,5 +30,6 @@ Extraction "ssara.ml"
   Peo.eliminate
   RegAlloc.get_coloring
   RegAlloc.color_program
-  (* RegAlloc.Example1.example_block_1 *)
+  RegAlloc.Example1.example_block_1
+  Destruct.ssa_destruct
 .

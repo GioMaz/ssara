@@ -1,12 +1,9 @@
 From Ssara.Core Require Import IR.
-From Ssara.Core Require Import RegClass.
 From Stdlib Require Import Lists.List.
 From Stdlib Require Import ZArith.
 
-From Ssara.Core Require Import RegVregInstance.
-Existing Instance reg_vreg_instance.
-
-(* Virtual machine primitives *)
+From Ssara.Core Require Import IRVregModule.
+Import IRVreg.
 
 Definition cell : Type := Z.
 
@@ -15,6 +12,8 @@ Inductive vm : Type :=
 .
 
 Definition vm_empty : vm := Vm (fun _ => Z0) nil.
+
+(* Virtual machine primitives *)
 
 Definition get_reg (m : vm) (r : reg) : cell :=
   match m with
@@ -89,10 +88,10 @@ Definition eval_expr (m : vm) (e : expr) : cell :=
     | Ptr p => get_cell m p
     end
 
-  | IR.Add r v => eval_binop m Z.add r v
-  | IR.Sub r v => eval_binop m Z.sub r v
-  | IR.Mul r v => eval_binop m Z.mul r v
-  | IR.Div r v => eval_binop m Z.div r v
+  | Add r v => eval_binop m Z.add r v
+  | Sub r v => eval_binop m Z.sub r v
+  | Mul r v => eval_binop m Z.mul r v
+  | Div r v => eval_binop m Z.div r v
 
   end%Z
 .

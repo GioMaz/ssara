@@ -1,14 +1,24 @@
 From Stdlib Require Import ZArith.
 From Stdlib Require Import Lists.List.
+From Stdlib Require Import ListSet.
 Import ListNotations.
-From Ssara.Core Require Import RegClass.
 
-Section IR.
+(* Register independent definitions *)
+Definition ptr := nat.
+Definition lbl := nat.
+Inductive cond : Type := Jeq | Jne | Jlt | Jle | Jgt | Jge.
 
-  Context {reg_instance : RegClass}.
+(* Register dependent definitions *)
+Module Type IR_PARAMS.
+  Parameter reg : Set.
+  Parameter reg_eqb : reg -> reg -> bool.
+  Parameter reg_eq_dec : forall r r' : reg, {r = r'} + {r <> r'}.
+End IR_PARAMS.
 
-  Definition ptr := nat.
-  Definition lbl := nat.
+Module MakeIR (IR: IR_PARAMS).
+  Definition reg := IR.reg.
+  Definition reg_eqb := IR.reg_eqb.
+  Definition reg_eq_dec := IR.reg_eq_dec.
 
   (*
     This represents a value that can either be an immediate number `x` or the
@@ -116,8 +126,6 @@ Section IR.
     end
   .
 
-  Inductive cond : Type := Jeq | Jne | Jlt | Jle | Jgt | Jge.
-
   (*
     A block lbl is necessary in order to define the semantics of phi
     instructions.
@@ -197,52 +205,41 @@ Section IR.
     end
   .
 
-End IR.
+  (* Set of virtual registers *)
+  Definition regs_union   := set_union  reg_eq_dec.
+  Definition regs_diff    := set_diff   reg_eq_dec.
+  Definition regs_add     := set_add    reg_eq_dec.
+  Definition regs_remove  := set_remove reg_eq_dec.
+  Definition regs_mem     := set_mem    reg_eq_dec.
 
-  (*
-  Definition predecessor (b : block) (b' : block) : bool :=
-    let (_, _, j) := b in
-    match j with
-    | Jnz _ b1 b2 => (eq_block b1 b') || (eq_block b2 b')
-    | Jmp b1 => eq_block b1 b'
-    | Halt => false
-    end
-  .
+  Notation "r( x ) <- 'phi' y" :=
+    (Phi x y) (at level 50).
 
-  Fixpoint predecessors (b : block) (p : program) : list block :=
-    match p with
-    | nil => nil
-    | b' :: bs => if predecessor b' b then b :: (predecessors b bs) else (predecessors b bs)
-    end
-  .
-  *)
+  Notation "'r(' x ) <- 'load' y" :=
+    (Def x (Load y)) (at level 50).
+  Notation "'r(' x ) <- y" :=
+    (Def x (Val y)) (at level 50).
+  Notation "'r(' x ) <- 'r(' y ) + z" :=
+    (Def x (Add y z)) (at level 50).
+  Notation "'r(' x ) <- 'r(' y ) - z" :=
+    (Def x (Sub y z)) (at level 50).
+  Notation "'r(' x ) <- 'r(' y ) * z" :=
+    (Def x (Mul y z)) (at level 50).
+  Notation "'r(' x ) <- 'r(' y ) / z" :=
+    (Def x (Div y z)) (at level 50).
+  Notation "'store' x 'r(' y )" :=
+    (Store x y) (at level 50).
+  Notation "'if' 'r(' x ) = y 'then' b1 'else' b2" :=
+    (CondJump Jlt x y b1 b2) (at level 50).
+  Notation "'if' 'r(' x ) <> y 'then' b1 'else' b2" :=
+    (CondJump Jne x y b1 b2) (at level 50).
+  Notation "'if' 'r(' x ) < y 'then' b1 'else' b2" :=
+    (CondJump Jlt x y b1 b2) (at level 50).
+  Notation "'if' 'r(' x ) <= y 'then' b1 'else' b2" :=
+    (CondJump Jle x y b1 b2) (at level 50).
+  Notation "'if' 'r(' x ) > y 'then' b1 'else' b2" :=
+    (CondJump Jgt x y b1 b2) (at level 50).
+  Notation "'if' 'r(' x ) >= y 'then' b1 'else' b2" :=
+    (CondJump Jge x y b1 b2) (at level 50).
 
-Notation "r( x ) <- 'phi' y" :=
-  (Phi x y) (at level 50).
-
-Notation "'r(' x ) <- 'load' y" :=
-  (Def x (Load y)) (at level 50).
-Notation "'r(' x ) <- y" :=
-  (Def x (Val y)) (at level 50).
-Notation "'r(' x ) <- 'r(' y ) + z" :=
-  (Def x (Add y z)) (at level 50).
-Notation "'r(' x ) <- 'r(' y ) - z" :=
-  (Def x (Sub y z)) (at level 50).
-Notation "'r(' x ) <- 'r(' y ) * z" :=
-  (Def x (Mul y z)) (at level 50).
-Notation "'r(' x ) <- 'r(' y ) / z" :=
-  (Def x (Div y z)) (at level 50).
-Notation "'store' x 'r(' y )" :=
-  (Store x y) (at level 50).
-Notation "'if' 'r(' x ) = y 'then' b1 'else' b2" :=
-  (CondJump Jlt x y b1 b2) (at level 50).
-Notation "'if' 'r(' x ) <> y 'then' b1 'else' b2" :=
-  (CondJump Jne x y b1 b2) (at level 50).
-Notation "'if' 'r(' x ) < y 'then' b1 'else' b2" :=
-  (CondJump Jlt x y b1 b2) (at level 50).
-Notation "'if' 'r(' x ) <= y 'then' b1 'else' b2" :=
-  (CondJump Jle x y b1 b2) (at level 50).
-Notation "'if' 'r(' x ) > y 'then' b1 'else' b2" :=
-  (CondJump Jgt x y b1 b2) (at level 50).
-Notation "'if' 'r(' x ) >= y 'then' b1 'else' b2" :=
-  (CondJump Jge x y b1 b2) (at level 50).
+End MakeIR.

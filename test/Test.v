@@ -1,4 +1,3 @@
-From Ssara.Core Require Import RegClass.
 From Ssara.Core Require Import IR.
 Require Import Ssara.Core.Vm.
 From Stdlib Require Import Lists.List.
@@ -7,8 +6,8 @@ From Stdlib Require Import Bool.
 From QuickChick Require Import QuickChick.
 Import ListNotations.
 
-From Ssara.Core Require Import RegVregInstance.
-Existing Instance reg_vreg_instance.
+From Ssara.Core Require Import IRVregModule.
+Import IRVreg.
 
 (* Example 1 *)
 

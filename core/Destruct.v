@@ -1,14 +1,12 @@
 From Ssara.Core Require Import IR.
 From Stdlib Require Import ZArith.
-From Ssara.Core Require Import RegAlloc.
-From Ssara.Core Require Import RegClass.
 From Stdlib Require Import Lists.List.
 Import ListNotations.
 
-(* https://xavierleroy.org/publi/parallel-move.pdf *)
+From Ssara.Core Require Import IRPregModule.
+Import IRPreg.
 
-From Ssara.Core Require Import RegPregInstance.
-Existing Instance reg_preg_instance.
+(* https://xavierleroy.org/publi/parallel-move.pdf *)
 
 (*
   The parallel move type is defined as a list of assignments of type src -> dst
@@ -90,15 +88,6 @@ Definition pmove (m : moves) (fuel : nat) : moves :=
   end
 .
 
-(* Destructed block *)
-CoInductive dblock : Type :=
-  | DBlock (l : lbl) (is : list inst) (dj : djinst)
-with djinst : Type :=
-  | DCondJump : cond -> reg -> val -> list inst -> dblock -> list inst -> dblock -> djinst
-  | DJump : list inst -> dblock -> djinst
-  | DHalt : djinst
-.
-
 Fixpoint phi_to_move (pred : lbl) (r : reg) (rs : list phi_arg) : option (reg * reg) :=
   match rs with
   | nil => None
@@ -137,29 +126,26 @@ Definition succ_to_insts (pred : lbl) (succ : block) : list inst :=
   moves_to_insts ms
 .
 
-CoFixpoint block_to_dblock (b : block) : dblock :=
+Definition prepend_insts (b : block) (is : list inst) : block :=
   match b with
-  | Block l ps is j =>
-    DBlock l is
-    match j with
-    | CondJump c r v b1 b2 => DCondJump c r v (succ_to_insts l b1) (block_to_dblock b1) (succ_to_insts l b2) (block_to_dblock b2)
-    | Jump b' => DJump (succ_to_insts l b') (block_to_dblock b')
-    | Halt => DHalt
-    end
+  | Block l ps is' j =>
+    Block l ps (is ++ is') j
   end
 .
 
-Fixpoint visit_dblock (d : dblock) (fuel : nat) : dblock :=
-  match fuel, d with
-  | O, _ => d
-  | S fuel', DBlock l is dj =>
-    DBlock l is
-    match dj with
-    | DCondJump c r v is1 d1 is2 d2 => DCondJump c r v is1 (visit_dblock d1 fuel') is2 (visit_dblock d2 fuel')
-    | DJump is d => DJump is (visit_dblock d fuel')
-    | DHalt => DHalt
+Definition ssa_destruct (b : block) :=
+  let cofix ssa_destruct_aux (pred : lbl) (b : block) : block :=
+    match b with
+    | Block l ps is j =>
+      Block l nil ((succ_to_insts pred b) ++ is)
+      match j with
+      | CondJump c r v b1 b2 => CondJump c r v (ssa_destruct_aux l b1) (ssa_destruct_aux l b2)
+      | Jump b' => Jump (ssa_destruct_aux l b')
+      | Halt => Halt
+      end
     end
-  end
+  in
+  ssa_destruct_aux (get_lbl b) b
 .
 
 Module Example1.
@@ -199,10 +185,10 @@ Module Example1.
 
   Definition fuel : nat := 20.
 
-  (* Destruct phis *)
+  (* ssa_destruct phis *)
   Compute
-    let d := block_to_dblock example_block_1 in
-    visit_dblock d fuel
+    let d := ssa_destruct example_block_1 in
+    visit_program d fuel
   .
 End Example1.
 
@@ -239,9 +225,9 @@ Module Example2.
 
   Definition fuel : nat := 20.
 
-  (* Destruct phis *)
+  (* ssa_destruct phis *)
   Compute
-    let d := block_to_dblock example_block_1 in
-    visit_dblock d fuel
+    let d := ssa_destruct example_block_1 in
+    visit_program d fuel
   .
 End Example2.

@@ -1,5 +1,3 @@
-From Ssara.Core Require Import RegClass.
-From Ssara.Core Require Import RegSet.
 From Ssara.Core Require Import LivenessInfo.
 From Ssara.Core Require Import InterfGraph.
 From Ssara.Core Require Import Peo.
@@ -9,16 +7,17 @@ From Stdlib Require Import Lists.List.
 Import ListNotations.
 From Ssara.Core Require Import IR.
 From Stdlib Require Import Bool.
-From Ssara.Core Require Import RegVregInstance.
-From Ssara.Core Require Import RegPregInstance.
 
-Instance dict_coloring_instance : DictClass := {|
-  key := vreg;
-  value := preg;
-  default := tmp;
-  key_eq_dec := Nat.eq_dec;
-|}.
-Definition coloring := dict.
+From Ssara.Core Require Import IRVregModule.
+From Ssara.Core Require Import IRPregModule.
+
+Module ColoringParams <: DICT_PARAMS.
+  Definition key := vreg.
+  Definition value := preg.
+  Definition default : value := tmp.
+  Definition key_eq_dec := Nat.eq_dec.
+End ColoringParams.
+Module Coloring := MakeDict ColoringParams.
 
 (*
   The coloring is performed this way:
@@ -26,7 +25,7 @@ Definition coloring := dict.
   - For each node in the peo reinsert it into the graph and color it differently wrt its neighbors
 *)
 Definition preg_compl (colors : list preg) : option preg :=
-  match @regs_diff reg_preg_instance preg_all_minus_tmp colors with
+  match IRPreg.regs_diff preg_all_minus_tmp colors with
   | nil => None
   | c :: _ => Some c
   end
@@ -35,9 +34,9 @@ Definition preg_compl (colors : list preg) : option preg :=
 (*
   By definition of PEO the `nbors` list contains all the neighbors of `v`
 *)
-Definition color_vreg (v : vreg) (c : coloring) (g : ig) : option preg :=
-  let nbors := dict_map g v in
-  let used := map (dict_map c) nbors in
+Definition color_vreg (v : vreg) (c : Coloring.dict) (g : InterfGraph.dict) : option preg :=
+  let nbors := InterfGraph.get g v in
+  let used := map (Coloring.get c) nbors in
   preg_compl used
 .
 
@@ -46,20 +45,20 @@ Definition color_vreg (v : vreg) (c : coloring) (g : ig) : option preg :=
   for the coloring to happen, this may happen if we don't perform spilling
   before the coloring.
 *)
-Definition get_coloring (peo : list vreg) (g : ig) : option coloring :=
-  let fix get_coloring_aux (peo : list vreg) (c : coloring) (g : ig) : option coloring :=
+Definition get_coloring (peo : list vreg) (g : InterfGraph.dict) : option Coloring.dict :=
+  let fix get_coloring_aux (peo : list vreg) (c : Coloring.dict ) (g : InterfGraph.dict) : option Coloring.dict :=
     match peo with
     | nil => Some c
     | v :: peo =>
       match color_vreg v c g with
       | Some p =>
-        let c := dict_update c v p in
+        let c := Coloring.update c v p in
         get_coloring_aux peo c g
       | None => None
       end
     end
   in
-  get_coloring_aux peo dict_empty g
+  get_coloring_aux peo Coloring.empty g
 .
 
 (*
@@ -67,86 +66,69 @@ Definition get_coloring (peo : list vreg) (g : ig) : option coloring :=
   instead.
 *)
 
-Definition vphi : Type := @phi reg_vreg_instance.
-Definition pphi : Type := @phi reg_preg_instance.
-
-Definition color_phi (c : coloring) (p : vphi) : pphi :=
+Definition color_phi (c : Coloring.dict) (p : IRVreg.phi) : IRPreg.phi :=
   match p with
-  | Phi v vs =>
-    @Phi reg_preg_instance
-    (dict_map c v)
-    (map (fun '(v, l) => (dict_map c v, l)) vs)
+  | IRVreg.Phi v vs =>
+    IRPreg.Phi
+    (Coloring.get c v)
+    (map (fun '(v, l) => (Coloring.get c v, l)) vs)
   end
 .
 
-Definition vval : Type := @val reg_vreg_instance.
-Definition pval : Type := @val reg_preg_instance.
-
-Definition color_val (c : coloring) (v : vval) : pval :=
+Definition color_val (c : Coloring.dict) (v : IRVreg.val) : IRPreg.val :=
   match v with
-  | Imm x => Imm x
-  | Reg v => @Reg reg_preg_instance (dict_map c v)
-  | Ptr p => Ptr p
+  | IRVreg.Imm x => IRPreg.Imm x
+  | IRVreg.Reg v => IRPreg.Reg (Coloring.get c v)
+  | IRVreg.Ptr p => IRPreg.Ptr p
   end
 .
 
-Definition vexpr : Type := @expr reg_vreg_instance.
-Definition pexpr : Type := @expr reg_preg_instance.
-
-Definition color_expr (c : coloring) (e : vexpr) : pexpr :=
+Definition color_expr (c : Coloring.dict) (e : IRVreg.expr) : IRPreg.expr :=
   match e with
-  | Val v => Val (color_val c v)
-  | Neg v => Neg (color_val c v)
-  | Load v => Load (color_val c v)
-  | Add v v' => @Add reg_preg_instance (dict_map c v) (color_val c v')
-  | Sub v v' => @Sub reg_preg_instance (dict_map c v) (color_val c v')
-  | Mul v v' => @Mul reg_preg_instance (dict_map c v) (color_val c v')
-  | Div v v' => @Div reg_preg_instance (dict_map c v) (color_val c v')
+  | IRVreg.Val v => IRPreg.Val (color_val c v)
+  | IRVreg.Neg v => IRPreg.Neg (color_val c v)
+  | IRVreg.Load v => IRPreg.Load (color_val c v)
+  | IRVreg.Add v v' => IRPreg.Add (Coloring.get c v) (color_val c v')
+  | IRVreg.Sub v v' => IRPreg.Sub (Coloring.get c v) (color_val c v')
+  | IRVreg.Mul v v' => IRPreg.Mul (Coloring.get c v) (color_val c v')
+  | IRVreg.Div v v' => IRPreg.Div (Coloring.get c v) (color_val c v')
   end
 .
 
-Definition vinst : Type := @inst reg_vreg_instance.
-Definition pinst : Type := @inst reg_preg_instance.
-
-Definition color_inst (c : coloring) (i : vinst) : pinst :=
+Definition color_inst (c : Coloring.dict) (i : IRVreg.inst) : IRPreg.inst :=
   match i with
-  | Def v e =>
-    @Def reg_preg_instance
-    (dict_map c v)
+  | IRVreg.Def v e =>
+    IRPreg.Def
+    (Coloring.get c v)
     (color_expr c e)
-  | Store v v' =>
-    @Store reg_preg_instance
+  | IRVreg.Store v v' =>
+    IRPreg.Store
     (color_val c v)
-    (dict_map c v')
+    (Coloring.get c v')
   end
 .
 
-Definition vjinst : Type := @jinst reg_vreg_instance.
-Definition pjinst : Type := @jinst reg_preg_instance.
-Definition vprogram : Type := @program reg_vreg_instance.
-Definition pprogram : Type := @program reg_preg_instance.
-
-CoFixpoint color_program (c : coloring) (p : vprogram) : pprogram :=
+CoFixpoint color_program (c : Coloring.dict) (p : IRVreg.program) : IRPreg.program :=
   match p with
-  | Block l ps is j =>
-    @Block reg_preg_instance
+  | IRVreg.Block l ps is j =>
+    IRPreg.Block
     l
     (map (color_phi c) ps)
     (map (color_inst c) is)
     (match j with
-    | CondJump c' r v b1 b2 =>
-      @CondJump reg_preg_instance c'
-      (dict_map c r)
+    | IRVreg.CondJump c' r v b1 b2 =>
+      IRPreg.CondJump c'
+      (Coloring.get c r)
       (color_val c v)
       (color_program c b1)
       (color_program c b2)
-    | Jump b => @Jump reg_preg_instance (color_program c b)
-    | Halt => Halt
+    | IRVreg.Jump b => IRPreg.Jump (color_program c b)
+    | IRVreg.Halt => IRPreg.Halt
     end)
   end
 .
 
-(* Existing Instance reg_vreg_instance.
+Import IRVreg.
 
 Module Example1.
   CoFixpoint example_block_2 : block :=
@@ -183,7 +165,7 @@ Module Example1.
     )
   .
 
-  Definition fuel : nat := 20.
+  (* Definition fuel : nat := 20.
 
   (* Get liveness information *)
   Definition pi : programinfo := fst (analyze_program example_block_1 fuel).
@@ -194,7 +176,7 @@ Module Example1.
   Compute dict_list g.
 
   (* Get perfect elimination ordering *)
-  (* Definition peo : list vreg := let (g', peo) := eliminate g in peo.
+  Definition peo : list vreg := let peo := eliminate g in peo.
   Compute peo.
 
   (* Get coloring *)
@@ -212,6 +194,7 @@ Module Example1.
   . *)
 End Example1.
 
+(*
 Module Example2.
   Definition example_block_2 : block :=
     Block 2 [

@@ -1,7 +1,6 @@
 From Stdlib Require Import PeanoNat.
 From Stdlib Require Import ListSet.
-From Ssara.Core Require Import RegClass.
-From Ssara.Core Require Import RegSet.
+From Ssara.Core Require Import IR.
 From Stdlib Require Import Lists.List.
 Import ListNotations.
 
@@ -40,13 +39,15 @@ Proof.
   decide equality.
 Defined.
 
-Instance reg_preg_instance : RegClass := {|
-  reg := preg;
-  reg_eqb := preg_eqb;
-  reg_eq_dec := preg_eq_dec;
-|}.
+Module IRPregParams <: IR_PARAMS.
+  Definition reg := preg.
+  Definition reg_eqb := preg_eqb.
+  Definition reg_eq_dec := preg_eq_dec.
+End IRPregParams.
 
-Definition preg_all : set reg :=
+Module IRPreg := MakeIR(IRPregParams).
+
+Definition preg_all : set preg :=
   [RAX; RBX; RCX; RDX; RSI; RDI; RSP; RBP]
 .
 
@@ -55,8 +56,8 @@ Proof.
   intros []; simpl; repeat (left; reflexivity) || right; try reflexivity.
 Qed.
 
-Definition tmp : reg := RAX.
-Definition preg_all_minus_tmp : set preg := regs_diff preg_all [tmp].
+Definition tmp : preg := RAX.
+Definition preg_all_minus_tmp := IRPreg.regs_diff preg_all [tmp].
 Lemma preg_all_minus_tmp_in : forall p, p <> tmp -> In p preg_all_minus_tmp.
 Proof.
   intros []; unfold tmp; intros H;

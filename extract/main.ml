@@ -1,19 +1,112 @@
 open Ssara
 
-let a = color_program;;
-let _ = a;
-
-(* let regalloc program fuel =
+let regalloc program fuel =
   let (pi, _) = analyze_program program fuel in (* Get liveness info *)
   let g = get_ig pi in                          (* Get interference graph *)
   let peo = eliminate g in                      (* Get peo *)
-  let c = get_coloring peo g in             (* Get coloring *)
+  let c = get_coloring peo g in                 (* Get coloring *)
   match c with
   | Some c' -> Some (color_program c' program)
   | None -> None
 ;;
 
-let _ = regalloc;; *)
+let program_empty = IRPreg.Block (0, [], [], Lazy.from_val IRPreg.Halt);;
+
+let gen_label l =
+  Printf.printf "%d:\n" l
+;;
+
+let string_of_preg preg =
+  match preg with
+  | RAX -> "%rax"
+  | RBX -> "%rbx"
+  | RCX -> "%rcx"
+  | RDX -> "%rdx"
+  | RSI -> "%rsi"
+  | RDI -> "%rdi"
+  | RSP -> "%rsp"
+  | RBP -> "%rbp"
+;;
+
+let gen_insts is =
+  let gen_inst i =
+    Printf.printf "\t";
+    (match i with
+    | IRPreg.Def (r, IRPreg.Val _)  -> (Printf.printf "mov %s" (string_of_preg r))
+    | IRPreg.Def (r, IRPreg.Neg _)  -> (Printf.printf "neg %s" (string_of_preg r))
+    | IRPreg.Def (r, IRPreg.Load _) -> (Printf.printf "load %s" (string_of_preg r))
+    | IRPreg.Def (r, IRPreg.Add _)  -> (Printf.printf "add %s" (string_of_preg r))
+    | IRPreg.Def (r, IRPreg.Sub _)  -> (Printf.printf "sub %s" (string_of_preg r))
+    | IRPreg.Def (r, IRPreg.Mul _)  -> (Printf.printf "mul %s" (string_of_preg r))
+    | IRPreg.Def (r, IRPreg.Div _)  -> (Printf.printf "div %s" (string_of_preg r))
+    | IRPreg.Store (_, _) -> ());
+    Printf.printf "\n"
+  in
+  List.iter gen_inst is
+;;
+
+let gen_IRPreg_program program =
+  match Lazy.force_val program with
+  | IRPreg.Block (l, _ps, is, _j) ->
+    gen_label l;
+    gen_insts is
+;;
+
+
+let main () =
+  let irvreg_program = Example1.example_block_1 in
+  let irvreg_program = regalloc irvreg_program 10 in
+  match irvreg_program with
+  | Some program -> gen_IRPreg_program program
+  | None -> Printf.printf "Failed to perform register allocation"
+;;
+
+main ()
+
+(* Repress compiler errors *)
+let _ = regalloc;;
+let _ = program_empty;;
+let _ = gen_IRPreg_program;;
+let _ = regalloc Example1.example_block_1 10;;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 (* match regalloc Example1.example_block_1 10 with
 | Some _ -> print_string "Yes\n"

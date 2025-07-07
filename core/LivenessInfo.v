@@ -1,15 +1,13 @@
 From Ssara.Core Require Import IR.
-From Ssara.Core Require Import RegClass.
 From Ssara.Core Require Import Utils.
 From Ssara.Core Require Import Dict.
-From Ssara.Core Require Import RegSet.
 From Stdlib Require Import ZArith.
 From Stdlib Require Import ListSet.
 From Stdlib Require Import Lists.List.
 Import ListNotations.
 
-From Ssara.Core Require Import RegVregInstance.
-Existing Instance reg_vreg_instance.
+From Ssara.Core Require Import IRVregModule.
+Import IRVreg.
 
 (*
   https://en.wikipedia.org/wiki/Live-variable_analysis
@@ -41,23 +39,24 @@ Inductive blockinfo : Type :=
   | BlockInfo (iis : list instinfo)
 .
 
-Instance dict_programinfo_instance : DictClass := {|
-  key := lbl;
-  value := option blockinfo;
-  default := None;
-  key_eq_dec := Nat.eq_dec;
-|}.
-Definition programinfo : Type := dict.
+Module ProgramInfoParams <: DICT_PARAMS.
+  Definition key := lbl.
+  Definition value := option blockinfo.
+  Definition default : value:= None.
+  Definition key_eq_dec := Nat.eq_dec.
+End ProgramInfoParams.
 
-Definition programinfo_insert (pi : programinfo) (l : lbl) (bi : blockinfo) : programinfo :=
-  let bi' := dict_map pi l in
+Module ProgramInfo := MakeDict ProgramInfoParams.
+
+Definition programinfo_insert (pi : ProgramInfo.dict) (l : lbl) (bi : blockinfo) : ProgramInfo.dict :=
+  let bi' := ProgramInfo.get pi l in
   match bi, bi' with
-  | BlockInfo iis, None => dict_update pi l (Some bi)
-  | BlockInfo iis, Some (BlockInfo iis') => dict_update pi l (Some (BlockInfo (merge_instinfos iis iis')))
+  | BlockInfo iis, None => ProgramInfo.update pi l (Some bi)
+  | BlockInfo iis, Some (BlockInfo iis') => ProgramInfo.update pi l (Some (BlockInfo (merge_instinfos iis iis')))
   end
 .
 
-Definition programinfo_merge (pi : programinfo) (pi' : programinfo) : programinfo :=
+Definition programinfo_merge (pi : ProgramInfo.dict) (pi' : ProgramInfo.dict) : ProgramInfo.dict :=
   let (ls, map) := pi in
   fold_left
     (fun pi_acc l =>
@@ -154,12 +153,12 @@ Definition analyze_block (b : block) (final_live_out : set reg) : list instinfo 
   Returns the programinfo with depth `fuel` and live_in[p] which can be used to
   check whether the program uses any uninitialized variable.
 *)
-Fixpoint analyze_program (p : program) (fuel : nat) : programinfo * set reg :=
+Fixpoint analyze_program (p : program) (fuel : nat) : ProgramInfo.dict * set reg :=
   match fuel with
   | O =>
     (* Get last blockinfo *)
     let (iis, live_in) := analyze_block p nil in
-    (programinfo_insert dict_empty (get_lbl p) (BlockInfo iis), live_in)
+    (programinfo_insert ProgramInfo.empty (get_lbl p) (BlockInfo iis), live_in)
 
   | S fuel' =>
     (* Get successors *)
@@ -174,7 +173,7 @@ Fixpoint analyze_program (p : program) (fuel : nat) : programinfo * set reg :=
         (fun '(pi_acc, live_out) '(pi_succ, live_in) =>
           (programinfo_merge pi_acc pi_succ, regs_union live_out live_in))
         results
-        (dict_empty, nil)
+        (ProgramInfo.empty, nil)
     in
 
     (* Add phi_uses[b] to live_out *)
@@ -239,7 +238,7 @@ Module Example1.
 
   Compute
     let '(pi, regs) := (analyze_program example_block_1 10) in
-    dict_list pi
+    ProgramInfo.list pi
   .
 End Example1.
 
@@ -275,7 +274,7 @@ Module Example2.
 
   Compute
     let (pi, _) := analyze_program example_block_1 10 in
-    dict_list pi
+    ProgramInfo.list pi
   .
 End Example2.
 
@@ -333,6 +332,6 @@ Module Example3.
 
   Compute
     let '(pi, _) := analyze_program example_block_1 fuel in
-    dict_list pi
+    ProgramInfo.list pi
   .
 End Example3.
