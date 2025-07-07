@@ -2,6 +2,43 @@ open Ssara
 
 module LblSet = Set.Make(Int);;
 
+type opcode =
+  | MOV
+  | NEG
+  | ADD
+  | SUB
+  | MUL
+  | DIV
+  | RET
+  | JMP
+  | CMP
+  | JL
+  | JLE
+  | JG
+  | JGE
+  | JE
+  | JNE
+;;
+
+let string_of_opcode i =
+  match i with
+  | MOV -> "mov"
+  | NEG -> "neg"
+  | ADD -> "add"
+  | SUB -> "sub"
+  | MUL -> "mul"
+  | DIV -> "div"
+  | RET -> "ret"
+  | JMP -> "jmp"
+  | CMP -> "cmp"
+  | JL  -> "jl"
+  | JLE -> "jle"
+  | JG  -> "jg"
+  | JGE -> "jge"
+  | JE  -> "je"
+  | JNE -> "jne"
+;;
+
 let gen_label l =
   Printf.printf "%d:\n" l
 ;;
@@ -18,14 +55,14 @@ let string_of_preg preg =
   | RBP -> "%rbp"
 ;;
 
-let string_of_cond c =
+let opcode_of_cond c =
   match c with
-  | Jeq -> "jeq"
-  | Jne -> "jne"
-  | Jlt -> "jl"
-  | Jle -> "jle"
-  | Jgt -> "jg"
-  | Jge -> "jge"
+  | Jeq -> JE
+  | Jne -> JNE
+  | Jlt -> JL
+  | Jle -> JLE
+  | Jgt -> JG
+  | Jge -> JGE
 ;;
 
 let string_of_val v = 
@@ -35,46 +72,56 @@ let string_of_val v =
   | IRPreg.Ptr p -> Printf.sprintf "(%d)" p
 ;;
 
+let gen_bininst opcode arg1 arg2 =
+  Printf.printf "\t%s\t%s,\t%s\t;\n" (string_of_opcode opcode) arg1 arg2
+;;
+
+let gen_uninst opcode arg =
+  Printf.printf "\t%s\t%s\t\t;\n" (string_of_opcode opcode) arg
+;;
+
+let gen_nullinst opcode =
+  Printf.printf "\t%s\t\t\t;\n" (string_of_opcode opcode)
+;;
+
 (*
-  Since we are generating X86 assembly where the ALU instructions take only two
+  Since we are generating x86 assembly where the ALU instructions take only two
   arguments we have to convert our three address code instructions to fit into
-  the X86 ones.
+  the x86 ones.
   To do so we simply prepend an instruction that moves the first argument of
   the operation into the target register.
 *)
 let gen_3ac_2ac_move r r' =
-  if r <> r' then Printf.printf "mov %s, %s" (string_of_preg r') (string_of_preg r)
+  if r <> r' then gen_bininst MOV (string_of_preg r') (string_of_preg r)
 ;;
 
 let gen_insts is =
   let gen_inst i =
-    Printf.printf "\t";
     (match i with
-    | IRPreg.Def (r, IRPreg.Val v)        -> Printf.printf "mov  %s, %s" (string_of_val v) (string_of_preg r)
-    | IRPreg.Def (r, IRPreg.Neg v)        -> Printf.printf "neg  %s, %s" (string_of_val v) (string_of_preg r)
-    | IRPreg.Def (r, IRPreg.Load v)       -> Printf.printf "load %s, %s" (string_of_val v) (string_of_preg r)
-    | IRPreg.Store (v, r)                 -> Printf.printf "mov  %s, %s" (string_of_val v) (string_of_preg r)
-    | IRPreg.Def (r, IRPreg.Add (r', v))  -> gen_3ac_2ac_move r r'; Printf.printf "add  %s, %s" (string_of_val v) (string_of_preg r)
-    | IRPreg.Def (r, IRPreg.Sub (r', v))  -> gen_3ac_2ac_move r r'; Printf.printf "sub  %s, %s" (string_of_val v) (string_of_preg r)
-    | IRPreg.Def (r, IRPreg.Mul (r', v))  -> gen_3ac_2ac_move r r'; Printf.printf "mul  %s, %s" (string_of_val v) (string_of_preg r)
-    | IRPreg.Def (r, IRPreg.Div (r', v))  -> gen_3ac_2ac_move r r'; Printf.printf "div  %s, %s" (string_of_val v) (string_of_preg r));
-    Printf.printf "\n"
+    | IRPreg.Def (r, IRPreg.Val v)        -> gen_bininst MOV  (string_of_val v) (string_of_preg r)
+    | IRPreg.Def (r, IRPreg.Neg v)        -> gen_bininst NEG  (string_of_val v) (string_of_preg r)
+    | IRPreg.Def (r, IRPreg.Load v)       -> gen_bininst MOV (string_of_val v) (string_of_preg r)
+    | IRPreg.Store (v, r)                 -> gen_bininst MOV  (string_of_val v) (string_of_preg r)
+    | IRPreg.Def (r, IRPreg.Add (r', v))  -> gen_3ac_2ac_move r r'; gen_bininst ADD (string_of_val v) (string_of_preg r)
+    | IRPreg.Def (r, IRPreg.Sub (r', v))  -> gen_3ac_2ac_move r r'; gen_bininst SUB (string_of_val v) (string_of_preg r)
+    | IRPreg.Def (r, IRPreg.Mul (r', v))  -> gen_3ac_2ac_move r r'; gen_bininst MUL (string_of_val v) (string_of_preg r)
+    | IRPreg.Def (r, IRPreg.Div (r', v))  -> gen_3ac_2ac_move r r'; gen_bininst DIV (string_of_val v) (string_of_preg r));
   in
   List.iter gen_inst is
 ;;
 
 let gen_condjump c r v b1 b2 =
-  Printf.printf "\tcmp %s, %s\n" (string_of_preg r) (string_of_val v);
-  Printf.printf "\t%s %d\n" (string_of_cond c) (IRPreg.get_lbl b1);
-  Printf.printf "\tjmp %d\n" (IRPreg.get_lbl b2)
+  gen_bininst CMP                 (string_of_preg r) (string_of_val v);
+  gen_uninst  (opcode_of_cond c)  (string_of_int (IRPreg.get_lbl b1));
+  gen_uninst  JMP                 (string_of_int (IRPreg.get_lbl b2))
 ;;
 
 let gen_jump b =
-  Printf.printf "\tjmp %d\n" (IRPreg.get_lbl b)
+  gen_uninst JMP (string_of_int (IRPreg.get_lbl b))
 ;;
 
 let gen_halt () =
-  Printf.printf "\tret\n"
+  gen_nullinst RET
 ;;
 
 let gen_irpreg_program program =
