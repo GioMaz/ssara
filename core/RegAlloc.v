@@ -7,7 +7,7 @@ From Ssara.Core Require Import Dict.
 From Stdlib Require Import ZArith.
 From Stdlib Require Import Lists.List.
 Import ListNotations.
-From Ssara.Core Require Import Syntax.
+From Ssara.Core Require Import IR.
 From Stdlib Require Import Bool.
 From Ssara.Core Require Import RegVregInstance.
 From Ssara.Core Require Import RegPregInstance.
@@ -50,11 +50,11 @@ Definition get_coloring (peo : list vreg) (g : ig) : option coloring :=
   let fix get_coloring_aux (peo : list vreg) (c : coloring) (g : ig) : option coloring :=
     match peo with
     | nil => Some c
-    | v :: peo' =>
+    | v :: peo =>
       match color_vreg v c g with
       | Some p =>
-        let c' := dict_update c v p in
-        get_coloring_aux peo' c' g
+        let c := dict_update c v p in
+        get_coloring_aux peo c g
       | None => None
       end
     end

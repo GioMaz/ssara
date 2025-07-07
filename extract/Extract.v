@@ -1,5 +1,5 @@
 From Ssara.Core Require Import Vm.
-From Ssara.Core Require Import Syntax.
+From Ssara.Core Require Import IR.
 From Ssara.Core Require Import LivenessInfo.
 From Ssara.Core Require Import InterfGraph.
 From Ssara.Core Require Import Peo.

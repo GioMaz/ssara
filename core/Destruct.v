@@ -1,4 +1,4 @@
-From Ssara.Core Require Import Syntax.
+From Ssara.Core Require Import IR.
 From Stdlib Require Import ZArith.
 From Ssara.Core Require Import RegAlloc.
 From Ssara.Core Require Import RegClass.

@@ -1,5 +1,5 @@
 From Ssara.Core Require Import RegClass.
-From Ssara.Core Require Import Syntax.
+From Ssara.Core Require Import IR.
 Require Import Ssara.Core.Vm.
 From Stdlib Require Import Lists.List.
 From Stdlib Require Import ZArith.
@@ -116,14 +116,12 @@ Module Example4.
   Definition example_block_1 : block :=
     Block 1 [
     ] [
-      r(0) <- Imm 5;  (* Iterator *)
+      r(0) <- Imm 6;  (* Iterator *)
       r(1) <- Reg 0   (* Accumulator *)
     ] (
       Jump example_block_2
     )
   .
-
-  Compute eval_cond (Vm.set_reg vm_empty 0 20%Z) Jle 0 (Imm (21)).
 
   Compute
     let (regs, cells) := Vm.run vm_empty example_block_1 100 in

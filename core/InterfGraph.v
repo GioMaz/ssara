@@ -1,4 +1,4 @@
-From Ssara.Core Require Import Syntax.
+From Ssara.Core Require Import IR.
 From Ssara.Core Require Import RegClass.
 From Ssara.Core Require Import RegSet.
 From Ssara.Core Require Import LivenessInfo.
@@ -21,9 +21,9 @@ Definition ig : Type := dict.
 
 Definition ig_update_edge (f : reg -> set reg -> set reg) (g : ig) (r : reg) (r' : reg) : ig :=
   let regs  := dict_map g r in
-  let g'    := dict_update g r (f r' regs) in
-  let regs' := dict_map g' r' in
-  dict_update g' r' (f r regs')
+  let g    := dict_update g r (f r' regs) in
+  let regs := dict_map g r' in
+  dict_update g r' (f r regs)
 .
 Definition ig_remove_edge := ig_update_edge regs_remove.
 Definition ig_insert_edge := ig_update_edge regs_add.

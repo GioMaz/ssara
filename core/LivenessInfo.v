@@ -1,4 +1,4 @@
-From Ssara.Core Require Import Syntax.
+From Ssara.Core Require Import IR.
 From Ssara.Core Require Import RegClass.
 From Ssara.Core Require Import Utils.
 From Ssara.Core Require Import Dict.
@@ -111,9 +111,9 @@ Fixpoint analyze_insts (is : list inst) (final_live_out : set reg) : list instin
   | x :: xs =>
     let use := inst_args x in
     let def := inst_reg x in
-    let (is', live_out) := analyze_insts xs final_live_out in
+    let (is, live_out) := analyze_insts xs final_live_out in
     let live_in := regs_union use (regs_diff live_out def) in (
-      (InstInfo live_out live_in) :: is',
+      (InstInfo live_out live_in) :: is,
       live_in
     )
   end
@@ -184,9 +184,9 @@ Fixpoint analyze_program (p : program) (fuel : nat) : programinfo * set reg :=
     let (iis, live_in) := analyze_block p live_out in
 
     (* Insert data into map *)
-    let pi' := programinfo_insert pi (get_lbl p) (BlockInfo iis) in
+    let pi := programinfo_insert pi (get_lbl p) (BlockInfo iis) in
 
-    (pi', regs_diff live_in (phi_defs (get_phis p)))
+    (pi, regs_diff live_in (phi_defs (get_phis p)))
   end
 .
 
@@ -204,7 +204,7 @@ Fixpoint analyze_program (p : program) (fuel : nat) : programinfo * set reg :=
   +-------------+  +-------------+
 *)
 
-From Ssara.Core Require Import Syntax.
+From Ssara.Core Require Import IR.
 
 Module Example1.
   Definition example_block_2 : block :=

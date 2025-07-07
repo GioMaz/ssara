@@ -1,4 +1,4 @@
-From Ssara.Core Require Import Syntax.
+From Ssara.Core Require Import IR.
 From Ssara.Core Require Import RegClass.
 From Stdlib Require Import Lists.List.
 From Stdlib Require Import ZArith.
@@ -89,10 +89,10 @@ Definition eval_expr (m : vm) (e : expr) : cell :=
     | Ptr p => get_cell m p
     end
 
-  | Syntax.Add r v => eval_binop m Z.add r v
-  | Syntax.Sub r v => eval_binop m Z.sub r v
-  | Syntax.Mul r v => eval_binop m Z.mul r v
-  | Syntax.Div r v => eval_binop m Z.div r v
+  | IR.Add r v => eval_binop m Z.add r v
+  | IR.Sub r v => eval_binop m Z.sub r v
+  | IR.Mul r v => eval_binop m Z.mul r v
+  | IR.Div r v => eval_binop m Z.div r v
 
   end%Z
 .

@@ -3,7 +3,7 @@ From Stdlib Require Import Lists.List.
 Import ListNotations.
 From Ssara.Core Require Import RegClass.
 
-Section Syntax.
+Section IR.
 
   Context {reg_instance : RegClass}.
 
@@ -159,25 +159,6 @@ Section Syntax.
     let (_, _, _, j) := b in j
   .
 
-  (*
-  Fixpoint eq_jinst (j1 j2 : jinst) : bool :=
-    match j1, j2 with
-    | Jnz r b1 b2, Jnz r' b1' b2' => (Nat.eqb r r') && (eq_block b1 b1') && (eq_block b2 b2')
-    | Jmp b, Jmp b' => eq_block b b'
-    | Halt, Halt => true
-    | _, _ => false
-    end
-
-  with eq_block (b1 : block) (b2 : block) : bool :=
-    match (b1, b2) with
-    | (Block ps1 is1 j1, Block ps2 is2 j2) =>
-      (eq_list_phi ps1 ps2)
-      && (eq_list_inst is1 is2)
-      && (eq_jinst j1 j2)
-    end
-  .
-  *)
-
   (* The starting block is the first block of CFG *)
   Definition program : Type := block.
 
@@ -216,7 +197,7 @@ Section Syntax.
     end
   .
 
-End Syntax.
+End IR.
 
   (*
   Definition predecessor (b : block) (b' : block) : bool :=

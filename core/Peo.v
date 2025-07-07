@@ -25,7 +25,7 @@ Definition is_simplicial (g : ig) (r : reg) : bool :=
 
 Definition find_next (g : ig) : option reg :=
   find (is_simplicial g) (dict_keys g)
-. 
+.
 
 Lemma find_next_in :
   forall (g : ig) (n : reg), find_next g = Some n -> In n (dict_keys g)
