@@ -1,13 +1,18 @@
 open Ssara
 
+module LblSet = Set.Make(Int);;
+
 let regalloc program fuel =
   let (pi, _) = analyze_program program fuel in (* Get liveness info *)
   let g = get_ig pi in                          (* Get interference graph *)
   let peo = eliminate g in                      (* Get peo *)
-  let c = get_coloring peo g in                 (* Get coloring *)
-  match c with
-  | Some c' -> Some (color_program c' program)
-  | None -> None
+  let coloring =                                (* Get coloring *)
+    match get_coloring peo g with 
+    | Some c -> c
+    | None -> failwith "Error, there aren't enough registers"
+  in
+  let irpreg_program = color_program coloring program in
+  ssa_destruct irpreg_program
 ;;
 
 let program_empty = IRPreg.Block (0, [], [], Lazy.from_val IRPreg.Halt);;
@@ -28,42 +33,89 @@ let string_of_preg preg =
   | RBP -> "%rbp"
 ;;
 
+let string_of_val v = 
+  match v with
+  | IRPreg.Imm x -> Printf.sprintf "$%d" x
+  | IRPreg.Reg r -> Printf.sprintf "%s" (string_of_preg r)
+  | IRPreg.Ptr p -> Printf.sprintf "(%d)" p
+;;
+
 let gen_insts is =
   let gen_inst i =
     Printf.printf "\t";
     (match i with
-    | IRPreg.Def (r, IRPreg.Val _)  -> (Printf.printf "mov %s" (string_of_preg r))
-    | IRPreg.Def (r, IRPreg.Neg _)  -> (Printf.printf "neg %s" (string_of_preg r))
-    | IRPreg.Def (r, IRPreg.Load _) -> (Printf.printf "load %s" (string_of_preg r))
-    | IRPreg.Def (r, IRPreg.Add _)  -> (Printf.printf "add %s" (string_of_preg r))
-    | IRPreg.Def (r, IRPreg.Sub _)  -> (Printf.printf "sub %s" (string_of_preg r))
-    | IRPreg.Def (r, IRPreg.Mul _)  -> (Printf.printf "mul %s" (string_of_preg r))
-    | IRPreg.Def (r, IRPreg.Div _)  -> (Printf.printf "div %s" (string_of_preg r))
+    | IRPreg.Def (r, IRPreg.Val v)       -> (Printf.printf "mov   %s, %s"   (string_of_val v) (string_of_preg r))
+    | IRPreg.Def (r, IRPreg.Neg v)       -> (Printf.printf "neg   %s, %s"   (string_of_val v) (string_of_preg r))
+    | IRPreg.Def (r, IRPreg.Load v)      -> (Printf.printf "load  %s, %s"   (string_of_val v) (string_of_preg r))
+    | IRPreg.Def (r, IRPreg.Add (_, v))  -> (Printf.printf "add   %s, %s"   (string_of_val v) (string_of_preg r))
+    | IRPreg.Def (r, IRPreg.Sub (_, v))  -> (Printf.printf "sub   %s, %s"   (string_of_val v) (string_of_preg r))
+    | IRPreg.Def (r, IRPreg.Mul (_, v))  -> (Printf.printf "mul   %s, %s"   (string_of_val v) (string_of_preg r))
+    | IRPreg.Def (r, IRPreg.Div (_, v))  -> (Printf.printf "div   %s, %s"   (string_of_val v) (string_of_preg r))
     | IRPreg.Store (_, _) -> ());
     Printf.printf "\n"
   in
   List.iter gen_inst is
 ;;
 
-let gen_IRPreg_program program =
-  match Lazy.force_val program with
-  | IRPreg.Block (l, _ps, is, _j) ->
-    gen_label l;
-    gen_insts is
+let gen_condjump c r v b1 b2 =
+  Printf.printf "\tcmp %s %s\n" (string_of_preg r) (string_of_val v);
+  Printf.printf "\t";
+  (match c with
+  | Jeq -> Printf.printf "jeq %d\n" (IRPreg.get_lbl b1)
+  | Jne -> Printf.printf "jne %d\n" (IRPreg.get_lbl b1)
+  | Jlt -> Printf.printf "jlt %d\n" (IRPreg.get_lbl b1)
+  | Jle -> Printf.printf "jle %d\n" (IRPreg.get_lbl b1)
+  | Jgt -> Printf.printf "jgt %d\n" (IRPreg.get_lbl b1)
+  | Jge -> Printf.printf "jge %d\n" (IRPreg.get_lbl b1));
+  Printf.printf "\tjmp %d\n" (IRPreg.get_lbl b2)
 ;;
 
+let gen_jump b =
+  Printf.printf "\tjmp %d\n" (IRPreg.get_lbl b)
+;;
+
+let gen_halt () =
+  Printf.printf "\tret 0\n"
+;;
+
+let gen_IRPreg_program program =
+  let rec gen_IRPreg_program_aux program visited =
+    match Lazy.force_val program with
+    | IRPreg.Block (l, ps, is, j) ->
+      if List.is_empty ps then (
+        gen_label l;
+        gen_insts is;
+        match (Lazy.force_val j) with
+        | IRPreg.CondJump (c, r, v, b1, b2) ->
+          let l1 = IRPreg.get_lbl b1 in
+          let l2 = IRPreg.get_lbl b2 in
+          gen_condjump c r v b1 b2;
+          if not (LblSet.mem l1 visited) then
+            gen_IRPreg_program_aux b1 (LblSet.add l1 visited);
+          if not (LblSet.mem l2 visited) then
+            gen_IRPreg_program_aux b2 (LblSet.add l2 visited);
+        | IRPreg.Jump b ->
+          let l = IRPreg.get_lbl b in
+          gen_jump b;
+          if not (LblSet.mem l visited) then
+            gen_IRPreg_program_aux b (LblSet.add l visited);
+        | IRPreg.Halt ->
+          gen_halt ()
+      ) else
+        failwith "Malformed program, should not contain phi instructions"
+  in
+  gen_IRPreg_program_aux program LblSet.empty
+;;
 
 let main () =
   let irvreg_program = Example1.example_block_1 in
-  let irvreg_program = regalloc irvreg_program 10 in
-  match irvreg_program with
-  | Some program -> gen_IRPreg_program program
-  | None -> Printf.printf "Failed to perform register allocation"
+  let irpreg_program = regalloc irvreg_program 10 in
+  gen_IRPreg_program irpreg_program
 ;;
 
 main ()
 
-(* Repress compiler errors *)
+(* Suppress compiler errors *)
 let _ = regalloc;;
 let _ = program_empty;;
 let _ = gen_IRPreg_program;;

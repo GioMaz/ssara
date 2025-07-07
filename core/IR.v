@@ -4,8 +4,6 @@ From Stdlib Require Import ListSet.
 Import ListNotations.
 
 (* Register independent definitions *)
-Definition ptr := nat.
-Definition lbl := nat.
 Inductive cond : Type := Jeq | Jne | Jlt | Jle | Jgt | Jge.
 
 (* Register dependent definitions *)
@@ -19,6 +17,9 @@ Module MakeIR (IR: IR_PARAMS).
   Definition reg := IR.reg.
   Definition reg_eqb := IR.reg_eqb.
   Definition reg_eq_dec := IR.reg_eq_dec.
+
+  Definition ptr := nat.
+  Definition lbl := nat.
 
   (*
     This represents a value that can either be an immediate number `x` or the

@@ -12,8 +12,8 @@ From Ssara.Core Require Import IRVregModule.
 From Ssara.Core Require Import IRPregModule.
 
 Module ColoringParams <: DICT_PARAMS.
-  Definition key := vreg.
-  Definition value := preg.
+  Definition key := IRVreg.reg.
+  Definition value := IRPreg.reg.
   Definition default : value := tmp.
   Definition key_eq_dec := Nat.eq_dec.
 End ColoringParams.
@@ -34,7 +34,7 @@ Definition preg_compl (colors : list preg) : option preg :=
 (*
   By definition of PEO the `nbors` list contains all the neighbors of `v`
 *)
-Definition color_vreg (v : vreg) (c : Coloring.dict) (g : InterfGraph.dict) : option preg :=
+Definition color_vreg (v : IRVreg.reg) (c : Coloring.dict) (g : InterfGraph.dict) : option preg :=
   let nbors := InterfGraph.get g v in
   let used := map (Coloring.get c) nbors in
   preg_compl used
@@ -45,8 +45,8 @@ Definition color_vreg (v : vreg) (c : Coloring.dict) (g : InterfGraph.dict) : op
   for the coloring to happen, this may happen if we don't perform spilling
   before the coloring.
 *)
-Definition get_coloring (peo : list vreg) (g : InterfGraph.dict) : option Coloring.dict :=
-  let fix get_coloring_aux (peo : list vreg) (c : Coloring.dict ) (g : InterfGraph.dict) : option Coloring.dict :=
+Definition get_coloring (peo : list IRVreg.reg) (g : InterfGraph.dict) : option Coloring.dict :=
+  let fix get_coloring_aux (peo : list IRVreg.reg) (c : Coloring.dict ) (g : InterfGraph.dict) : option Coloring.dict :=
     match peo with
     | nil => Some c
     | v :: peo =>
