@@ -164,37 +164,8 @@ Module Example1.
       Jump example_block_2
     )
   .
-
-  (* Definition fuel : nat := 20.
-
-  (* Get liveness information *)
-  Definition pi : programinfo := fst (analyze_program example_block_1 fuel).
-  Compute dict_list pi.
-
-  (* Get interference graph *)
-  Definition g : ig := get_ig pi.
-  Compute dict_list g.
-
-  (* Get perfect elimination ordering *)
-  Definition peo : list vreg := let peo := eliminate g in peo.
-  Compute peo.
-
-  (* Get coloring *)
-  Definition c := get_coloring peo g.
-
-  (* Color program *)
-  Compute
-    let p :=
-      match c with
-      | Some c' => color_program c' example_block_1
-      | None => @Block reg_preg_instance O nil nil Halt
-      end
-    in
-    visit_program p fuel
-  . *)
 End Example1.
 
-(*
 Module Example2.
   Definition example_block_2 : block :=
     Block 2 [
@@ -225,38 +196,4 @@ Module Example2.
       if r(0) < (Reg 1) then example_block_2 else example_block_3
     )
   .
-
-  Definition fuel : nat := 20.
-
-  (* Get liveness information *)
-  Definition pi : programinfo := fst (analyze_program example_block_1 fuel).
-  Compute dict_list pi.
-
-  (* Get interference graph *)
-  Definition g : ig := get_ig pi.
-  Compute dict_list g.
-
-  (* Get perfect elimination ordering *)
-  (* Definition peo : list vreg := let (g', peo) := eliminate g fuel in peo.
-  Compute peo.
-
-  (* Get coloring *)
-  Definition c := get_coloring peo g.
-  Compute
-    match c with
-    | Some c' => dict_list c'
-    | None => nil
-    end
-  .
-
-  (* Color program *)
-  Compute
-    let p :=
-      match c with
-      | Some c' => color_program c' example_block_1
-      | None => @Block reg_preg_instance O nil nil Halt
-      end
-    in
-    visit_program p fuel
-  . *)
-End Example2. *)
+End Example2.

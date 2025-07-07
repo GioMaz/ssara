@@ -22,9 +22,9 @@ let string_of_cond c =
   match c with
   | Jeq -> "jeq"
   | Jne -> "jne"
-  | Jlt -> "jlt"
+  | Jlt -> "jl"
   | Jle -> "jle"
-  | Jgt -> "jgt"
+  | Jgt -> "jg"
   | Jge -> "jge"
 ;;
 
@@ -39,21 +39,21 @@ let gen_insts is =
   let gen_inst i =
     Printf.printf "\t";
     (match i with
-    | IRPreg.Def (r, IRPreg.Val v)       -> (Printf.printf "mov   %s, %s"   (string_of_val v) (string_of_preg r))
-    | IRPreg.Def (r, IRPreg.Neg v)       -> (Printf.printf "neg   %s, %s"   (string_of_val v) (string_of_preg r))
-    | IRPreg.Def (r, IRPreg.Load v)      -> (Printf.printf "load  %s, %s"   (string_of_val v) (string_of_preg r))
-    | IRPreg.Def (r, IRPreg.Add (_, v))  -> (Printf.printf "add   %s, %s"   (string_of_val v) (string_of_preg r))
-    | IRPreg.Def (r, IRPreg.Sub (_, v))  -> (Printf.printf "sub   %s, %s"   (string_of_val v) (string_of_preg r))
-    | IRPreg.Def (r, IRPreg.Mul (_, v))  -> (Printf.printf "mul   %s, %s"   (string_of_val v) (string_of_preg r))
-    | IRPreg.Def (r, IRPreg.Div (_, v))  -> (Printf.printf "div   %s, %s"   (string_of_val v) (string_of_preg r))
-    | IRPreg.Store (_, _) -> ());
-    Printf.printf "\n"
+    | IRPreg.Def (r, IRPreg.Val v)      -> Printf.printf "mov  %s, %s" (string_of_val v) (string_of_preg r)
+    | IRPreg.Def (r, IRPreg.Neg v)      -> Printf.printf "neg  %s, %s" (string_of_val v) (string_of_preg r)
+    | IRPreg.Def (r, IRPreg.Load v)     -> Printf.printf "load %s, %s" (string_of_val v) (string_of_preg r)
+    | IRPreg.Def (r, IRPreg.Add (_, v)) -> Printf.printf "add  %s, %s" (string_of_val v) (string_of_preg r)
+    | IRPreg.Def (r, IRPreg.Sub (_, v)) -> Printf.printf "sub  %s, %s" (string_of_val v) (string_of_preg r)
+    | IRPreg.Def (r, IRPreg.Mul (_, v)) -> Printf.printf "mul  %s, %s" (string_of_val v) (string_of_preg r)
+    | IRPreg.Def (r, IRPreg.Div (_, v)) -> Printf.printf "div  %s, %s" (string_of_val v) (string_of_preg r)
+    | IRPreg.Store (v, r)               -> Printf.printf "mov  %s, %s" (string_of_val v) (string_of_preg r));
+    Printf.printf ";\n"
   in
   List.iter gen_inst is
 ;;
 
 let gen_condjump c r v b1 b2 =
-  Printf.printf "\tcmp %s %s\n" (string_of_preg r) (string_of_val v);
+  Printf.printf "\tcmp %s, %s\n" (string_of_preg r) (string_of_val v);
   Printf.printf "\t%s %d\n" (string_of_cond c) (IRPreg.get_lbl b1);
   Printf.printf "\tjmp %d\n" (IRPreg.get_lbl b2)
 ;;
