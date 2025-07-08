@@ -171,8 +171,8 @@ Module Example2.
     Block 2 [
       r(3) <- phi [(0, 1)]
     ] [
-      r(4) <- Ptr 0;
-      store r(4) r(3)
+      r(4) <- Ptr 0
+      (* store r(4) r(3) *)
     ] (
       Halt
     )
@@ -182,8 +182,8 @@ Module Example2.
     Block 3 [
       r(5) <- phi [(1, 1)]
     ] [
-      r(6) <- Ptr 0;
-      store r(6) r(5)
+      r(6) <- Ptr 0
+      (* store r(6) r(5) *)
     ] (
       Halt
     )

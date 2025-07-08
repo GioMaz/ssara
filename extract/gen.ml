@@ -3,13 +3,21 @@ open Ssara
 module LblSet = Set.Make(Int);;
 
 type opcode =
+  (* Arithmetic *)
   | MOV
   | NEG
   | ADD
   | SUB
   | MUL
   | DIV
-  | RET
+
+  (* Bitwise *)
+  | AND
+  | OR
+  | XOR
+  | NOT
+
+  (* Control *)
   | JMP
   | CMP
   | JL
@@ -18,6 +26,7 @@ type opcode =
   | JGE
   | JE
   | JNE
+  | SYSCALL
 ;;
 
 let string_of_opcode i =
@@ -28,7 +37,10 @@ let string_of_opcode i =
   | SUB -> "sub"
   | MUL -> "mul"
   | DIV -> "div"
-  | RET -> "ret"
+  | AND -> "and"
+  | OR  -> "or"
+  | XOR -> "xor"
+  | NOT -> "not"
   | JMP -> "jmp"
   | CMP -> "cmp"
   | JL  -> "jl"
@@ -37,6 +49,7 @@ let string_of_opcode i =
   | JGE -> "jge"
   | JE  -> "je"
   | JNE -> "jne"
+  | SYSCALL -> "syscall"
 ;;
 
 let opcode_of_cond c =
@@ -51,26 +64,26 @@ let opcode_of_cond c =
 
 let string_of_preg preg =
   match preg with
-  | RAX -> "%rax"
-  | RBX -> "%rbx"
-  | RCX -> "%rcx"
-  | RDX -> "%rdx"
-  | RSI -> "%rsi"
-  | RDI -> "%rdi"
-  | RSP -> "%rsp"
-  | RBP -> "%rbp"
+  | RAX -> "rax"
+  | RBX -> "rbx"
+  | RCX -> "rcx"
+  | RDX -> "rdx"
+  | RSI -> "rsi"
+  | RDI -> "rdi"
+  | RSP -> "rsp"
+  | RBP -> "rbp"
 ;;
 
 (* Emit an argument that represents the memory location pointed by preg *)
 let string_of_preg_deref preg =
-  Printf.sprintf "(%s)" (string_of_preg preg)
+  Printf.sprintf "[%s]" (string_of_preg preg)
 ;;
 
 let string_of_val v = 
   match v with
-  | IRPreg.Imm x -> Printf.sprintf "$%d" x
+  | IRPreg.Imm x -> Printf.sprintf "%d" x
   | IRPreg.Reg r -> Printf.sprintf "%s" (string_of_preg r)
-  | IRPreg.Ptr p -> Printf.sprintf "$%d" p
+  | IRPreg.Ptr p -> Printf.sprintf "%d" p
 ;;
 
 (*
@@ -81,9 +94,13 @@ let string_of_val v =
 *)
 let string_of_val_deref v =
   match v with
-  | IRPreg.Imm x -> Printf.sprintf "%d" x
+  | IRPreg.Imm x -> Printf.sprintf "[%d]" x
   | IRPreg.Reg r -> string_of_preg_deref r
-  | IRPreg.Ptr p -> Printf.sprintf "%d" p
+  | IRPreg.Ptr p -> Printf.sprintf "[%d]" p
+;;
+
+let label_of_int l =
+  Printf.sprintf "L%d" l
 ;;
 
 let gen_bininst opcode arg1 arg2 =
@@ -106,40 +123,52 @@ let gen_nullinst opcode =
   the operation into the target register.
 *)
 let gen_3ac_2ac_move r r' =
-  if r <> r' then gen_bininst MOV (string_of_preg r') (string_of_preg r)
+  if r <> r' then gen_bininst MOV (string_of_preg r) (string_of_preg r')
 ;;
 
 let gen_insts is =
   let gen_inst i =
     (match i with
-    | IRPreg.Def (r, IRPreg.Val v)        -> gen_bininst MOV (string_of_val v) (string_of_preg r)
-    | IRPreg.Def (r, IRPreg.Neg v)        -> gen_bininst NEG (string_of_val v) (string_of_preg r)
-    | IRPreg.Def (r, IRPreg.Load v)       -> gen_bininst MOV (string_of_val_deref v) (string_of_preg r)
-    | IRPreg.Store (r, r')                -> gen_bininst MOV (string_of_preg r') (string_of_preg_deref r)
-    | IRPreg.Def (r, IRPreg.Add (r', v))  -> gen_3ac_2ac_move r r'; gen_bininst ADD (string_of_val v) (string_of_preg r)
-    | IRPreg.Def (r, IRPreg.Sub (r', v))  -> gen_3ac_2ac_move r r'; gen_bininst SUB (string_of_val v) (string_of_preg r)
-    | IRPreg.Def (r, IRPreg.Mul (r', v))  -> gen_3ac_2ac_move r r'; gen_bininst MUL (string_of_val v) (string_of_preg r)
-    | IRPreg.Def (r, IRPreg.Div (r', v))  -> gen_3ac_2ac_move r r'; gen_bininst DIV (string_of_val v) (string_of_preg r));
+    | IRPreg.Def (r, IRPreg.Val v)        -> gen_bininst MOV (string_of_preg r) (string_of_val v)
+    | IRPreg.Def (r, IRPreg.Neg v)        -> gen_bininst NEG (string_of_preg r) (string_of_val v)
+    | IRPreg.Def (r, IRPreg.Load v)       -> gen_bininst MOV (string_of_preg r) (string_of_val_deref v)
+    | IRPreg.Store (r, r')                -> gen_bininst MOV (string_of_preg_deref r) (string_of_preg r')
+    | IRPreg.Def (r, IRPreg.Add (r', v))  -> gen_3ac_2ac_move r r'; gen_bininst ADD (string_of_preg r) (string_of_val v)
+    | IRPreg.Def (r, IRPreg.Sub (r', v))  -> gen_3ac_2ac_move r r'; gen_bininst SUB (string_of_preg r) (string_of_val v)
+    | IRPreg.Def (r, IRPreg.Mul (r', v))  -> gen_3ac_2ac_move r r'; gen_bininst MUL (string_of_preg r) (string_of_val v)
+    | IRPreg.Def (r, IRPreg.Div (r', v))  -> gen_3ac_2ac_move r r'; gen_bininst DIV (string_of_preg r) (string_of_val v));
   in
   List.iter gen_inst is
 ;;
 
-let gen_condjump c r v b1 b2 =
-  gen_bininst CMP                 (string_of_preg r) (string_of_val v);
-  gen_uninst  (opcode_of_cond c)  (string_of_int (IRPreg.get_lbl b1));
-  gen_uninst  JMP                 (string_of_int (IRPreg.get_lbl b2))
+let gen_jump b =
+  gen_uninst JMP (label_of_int (IRPreg.get_lbl b))
 ;;
 
-let gen_jump b =
-  gen_uninst JMP (string_of_int (IRPreg.get_lbl b))
+let gen_condjump c r v b1 b2 =
+  gen_bininst CMP                 (string_of_preg r) (string_of_val v);
+  gen_uninst  (opcode_of_cond c)  (label_of_int (IRPreg.get_lbl b1));
+  gen_jump                        b2
 ;;
 
 let gen_halt () =
-  gen_nullinst RET
+  gen_bininst   MOV (string_of_preg RAX) (string_of_int 60);
+  gen_bininst   XOR (string_of_preg RDI) (string_of_preg RDI);
+  gen_nullinst  SYSCALL
 ;;
 
 let gen_label l =
-  Printf.printf "%d:\n" l
+  Printf.printf "%s:\n" (label_of_int l)
+;;
+
+let gen_start program =
+  Printf.printf "global _start\n";
+  Printf.printf "_start:\n";
+  gen_jump program
+;;
+
+let gen_section s =
+  Printf.printf "section %s\n" s
 ;;
 
 let gen_irpreg_program program =
@@ -173,5 +202,7 @@ let gen_irpreg_program program =
       | IRPreg.Halt ->
         gen_halt ()
     ) in
+  gen_section ".text";
+  gen_start program;
   gen_irpreg_program_aux program
 ;;
