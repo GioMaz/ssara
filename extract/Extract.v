@@ -32,5 +32,6 @@ Extraction "ssara.ml"
   RegAlloc.color_program
   RegAlloc.Example1.example_block_1
   RegAlloc.Example2.example_block_1
+  RegAlloc.Example3.example_block_1
   Destruct.ssa_destruct
 .

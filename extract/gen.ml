@@ -8,8 +8,8 @@ type opcode =
   | NEG
   | ADD
   | SUB
-  | MUL
-  | DIV
+  | IMUL
+  | IDIV
 
   (* Bitwise *)
   | AND
@@ -35,8 +35,8 @@ let string_of_opcode i =
   | NEG -> "neg"
   | ADD -> "add"
   | SUB -> "sub"
-  | MUL -> "mul"
-  | DIV -> "div"
+  | IMUL -> "imul"
+  | IDIV -> "idiv"
   | AND -> "and"
   | OR  -> "or"
   | XOR -> "xor"
@@ -133,10 +133,10 @@ let gen_insts is =
     | IRPreg.Def (r, IRPreg.Neg v)        -> gen_bininst NEG (string_of_preg r) (string_of_val v)
     | IRPreg.Def (r, IRPreg.Load v)       -> gen_bininst MOV (string_of_preg r) (string_of_val_deref v)
     | IRPreg.Store (r, r')                -> gen_bininst MOV (string_of_preg_deref r) (string_of_preg r')
-    | IRPreg.Def (r, IRPreg.Add (r', v))  -> gen_3ac_2ac_move r r'; gen_bininst ADD (string_of_preg r) (string_of_val v)
-    | IRPreg.Def (r, IRPreg.Sub (r', v))  -> gen_3ac_2ac_move r r'; gen_bininst SUB (string_of_preg r) (string_of_val v)
-    | IRPreg.Def (r, IRPreg.Mul (r', v))  -> gen_3ac_2ac_move r r'; gen_bininst MUL (string_of_preg r) (string_of_val v)
-    | IRPreg.Def (r, IRPreg.Div (r', v))  -> gen_3ac_2ac_move r r'; gen_bininst DIV (string_of_preg r) (string_of_val v));
+    | IRPreg.Def (r, IRPreg.Add (r', v))  -> gen_3ac_2ac_move r r'; gen_bininst ADD   (string_of_preg r) (string_of_val v)
+    | IRPreg.Def (r, IRPreg.Sub (r', v))  -> gen_3ac_2ac_move r r'; gen_bininst SUB   (string_of_preg r) (string_of_val v)
+    | IRPreg.Def (r, IRPreg.Mul (r', v))  -> gen_3ac_2ac_move r r'; gen_bininst IMUL  (string_of_preg r) (string_of_val v)
+    | IRPreg.Def (r, IRPreg.Div (r', v))  -> gen_3ac_2ac_move r r'; gen_bininst IDIV  (string_of_preg r) (string_of_val v));
   in
   List.iter gen_inst is
 ;;

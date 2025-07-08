@@ -139,7 +139,7 @@ Module MakeIR (IR: IR_PARAMS).
   with jinst : Type :=
     | CondJump : cond -> reg -> val -> block -> block -> jinst
     | Jump : block -> jinst
-    | Halt
+    | Halt : jinst
   .
 
   Definition block_empty : block := Block O nil nil Halt.
@@ -200,7 +200,7 @@ Module MakeIR (IR: IR_PARAMS).
 
   Definition successors (b : block) : list block :=
     match get_jinst b with
-    | CondJump c r v b1 b2 => [b1; b2]
+    | CondJump _ _ _ b1 b2 => [b1; b2]
     | Jump b => [b]
     | Halt => []
     end

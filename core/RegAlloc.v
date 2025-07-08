@@ -199,3 +199,36 @@ Module Example2.
     )
   .
 End Example2.
+
+(* Example 3 *)
+Module Example3.
+  Definition example_block_3 : block :=
+    Block 3 [
+    ] [
+    ] (
+      Halt
+    )
+  .
+
+  CoFixpoint example_block_2 : block :=
+    Block 2 [
+      r(2) <- phi [(0, 1); (4, 2)];  (* Iterator *)
+      r(3) <- phi [(1, 1); (5, 2)]   (* Accumulator *)
+    ] [
+      r(4) <- r(2) - (Imm 1);
+      r(5) <- r(3) * (Reg 4)
+    ] (
+      if r(4) <= (Imm 1) then example_block_3 else example_block_2
+    )
+  .
+
+  Definition example_block_1 : block :=
+    Block 1 [
+    ] [
+      r(0) <- Imm 6;  (* Iterator *)
+      r(1) <- Reg 0   (* Accumulator *)
+    ] (
+      Jump example_block_2
+    )
+  .
+End Example3.
