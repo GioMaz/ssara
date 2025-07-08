@@ -13,6 +13,14 @@ Inductive preg : Type :=
   | RDI
   | RSP
   | RBP
+  | R8
+  | R9
+  | R10
+  | R11
+  | R12
+  | R13
+  | R14
+  | R15
 .
 
 Definition preg_eqb (p : preg) (p' : preg) : bool :=
@@ -24,7 +32,15 @@ Definition preg_eqb (p : preg) (p' : preg) : bool :=
   | RSI, RSI
   | RDI, RDI
   | RSP, RSP
-  | RBP, RBP => true
+  | RBP, RBP
+  | R8, R8
+  | R9, R9
+  | R10, R10
+  | R11, R11
+  | R12, R12
+  | R13, R13
+  | R14, R14
+  | R15, R15 => true
   | _, _ => false
   end
 .
@@ -48,7 +64,7 @@ End IRPregParams.
 Module IRPreg := MakeIR(IRPregParams).
 
 Definition preg_all : set preg :=
-  [RAX; RBX; RCX; RDX; RSI; RDI; RSP; RBP]
+  [RAX; RBX; RCX; RDX; RSI; RDI; RSP; RBP; R8; R9; R10; R11; R12; R13; R14; R15]
 .
 
 Lemma preg_all_in : forall p, In p preg_all.

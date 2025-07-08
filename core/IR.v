@@ -206,7 +206,7 @@ Module MakeIR (IR: IR_PARAMS).
     end
   .
 
-  (* Set of virtual registers *)
+  (* Set of registers *)
   Definition regs_union   := set_union  reg_eq_dec.
   Definition regs_diff    := set_diff   reg_eq_dec.
   Definition regs_add     := set_add    reg_eq_dec.
