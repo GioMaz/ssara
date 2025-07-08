@@ -147,7 +147,7 @@ let gen_irpreg_program program =
   let rec gen_irpreg_program_aux program =
     let IRPreg.Block(l, ps, is, j) = Lazy.force_val program in
 
-    if LblSet.mem l !visited then
+    if not (LblSet.mem l !visited) then (
       visited := LblSet.add l !visited;
 
       if not (List.is_empty ps) then
@@ -172,6 +172,6 @@ let gen_irpreg_program program =
 
       | IRPreg.Halt ->
         gen_halt ()
-  in
+    ) in
   gen_irpreg_program_aux program
 ;;
