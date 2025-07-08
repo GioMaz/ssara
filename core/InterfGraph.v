@@ -214,7 +214,8 @@ Module Example3.
     Block 2 [
       r(3) <- phi [(0, 1)]
     ] [
-      store (Ptr 0) r(3)
+      r(4) <- Ptr 0;
+      store r(4) r(3)
     ] (
       Halt
     )
@@ -222,9 +223,10 @@ Module Example3.
 
   Definition example_block_3 : block :=
     Block 3 [
-      r(4) <- phi [(1, 1)]
+      r(5) <- phi [(1, 1)]
     ] [
-      store (Ptr 0) r(4)
+      r(6) <- Ptr 0;
+      store r(6) r(5)
     ] (
       Halt
     )

@@ -197,7 +197,8 @@ Module Example2.
     Block 2 [
       r(RBP) <- phi [(RBP, 1)]
     ] [
-      store (Ptr 0) r(RBP)
+      r(RBX) <- Ptr 0;
+      store r(RBX) r(RBP)
     ] (
       Halt
     )
@@ -207,7 +208,8 @@ Module Example2.
     Block 3 [
       r(RBP) <- phi [(RSP, 1)]
     ] [
-      store (Ptr 0) r(RBP)
+      r(RBX) <- Ptr 0;
+      store r(RBX) r(RBP)
     ] (
       Halt
     )

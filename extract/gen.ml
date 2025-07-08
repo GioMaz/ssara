@@ -39,8 +39,14 @@ let string_of_opcode i =
   | JNE -> "jne"
 ;;
 
-let gen_label l =
-  Printf.printf "%d:\n" l
+let opcode_of_cond c =
+  match c with
+  | Jeq -> JE
+  | Jne -> JNE
+  | Jlt -> JL
+  | Jle -> JLE
+  | Jgt -> JG
+  | Jge -> JGE
 ;;
 
 let string_of_preg preg =
@@ -55,21 +61,29 @@ let string_of_preg preg =
   | RBP -> "%rbp"
 ;;
 
-let opcode_of_cond c =
-  match c with
-  | Jeq -> JE
-  | Jne -> JNE
-  | Jlt -> JL
-  | Jle -> JLE
-  | Jgt -> JG
-  | Jge -> JGE
+(* Emit an argument that represents the memory location pointed by preg *)
+let string_of_preg_deref preg =
+  Printf.sprintf "(%s)" (string_of_preg preg)
 ;;
 
 let string_of_val v = 
   match v with
   | IRPreg.Imm x -> Printf.sprintf "$%d" x
   | IRPreg.Reg r -> Printf.sprintf "%s" (string_of_preg r)
-  | IRPreg.Ptr p -> Printf.sprintf "(%d)" p
+  | IRPreg.Ptr p -> Printf.sprintf "$%d" p
+;;
+
+(*
+  Emit an argument that represents
+  - The memory location pointed by x if x is an immediate value
+  - The memory location pointed by the content of r if r is a register
+  - The memory location pointed by p if p is a pointer
+*)
+let string_of_val_deref v =
+  match v with
+  | IRPreg.Imm x -> Printf.sprintf "%d" x
+  | IRPreg.Reg r -> string_of_preg_deref r
+  | IRPreg.Ptr p -> Printf.sprintf "%d" p
 ;;
 
 let gen_bininst opcode arg1 arg2 =
@@ -98,10 +112,10 @@ let gen_3ac_2ac_move r r' =
 let gen_insts is =
   let gen_inst i =
     (match i with
-    | IRPreg.Def (r, IRPreg.Val v)        -> gen_bininst MOV  (string_of_val v) (string_of_preg r)
-    | IRPreg.Def (r, IRPreg.Neg v)        -> gen_bininst NEG  (string_of_val v) (string_of_preg r)
-    | IRPreg.Def (r, IRPreg.Load v)       -> gen_bininst MOV (string_of_val v) (string_of_preg r)
-    | IRPreg.Store (v, r)                 -> gen_bininst MOV  (string_of_val v) (string_of_preg r)
+    | IRPreg.Def (r, IRPreg.Val v)        -> gen_bininst MOV (string_of_val v) (string_of_preg r)
+    | IRPreg.Def (r, IRPreg.Neg v)        -> gen_bininst NEG (string_of_val v) (string_of_preg r)
+    | IRPreg.Def (r, IRPreg.Load v)       -> gen_bininst MOV (string_of_val_deref v) (string_of_preg r)
+    | IRPreg.Store (r, r')                -> gen_bininst MOV (string_of_preg r') (string_of_preg_deref r)
     | IRPreg.Def (r, IRPreg.Add (r', v))  -> gen_3ac_2ac_move r r'; gen_bininst ADD (string_of_val v) (string_of_preg r)
     | IRPreg.Def (r, IRPreg.Sub (r', v))  -> gen_3ac_2ac_move r r'; gen_bininst SUB (string_of_val v) (string_of_preg r)
     | IRPreg.Def (r, IRPreg.Mul (r', v))  -> gen_3ac_2ac_move r r'; gen_bininst MUL (string_of_val v) (string_of_preg r)
@@ -122,6 +136,10 @@ let gen_jump b =
 
 let gen_halt () =
   gen_nullinst RET
+;;
+
+let gen_label l =
+  Printf.printf "%d:\n" l
 ;;
 
 let gen_irpreg_program program =

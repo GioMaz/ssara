@@ -71,14 +71,14 @@ Definition eval_expr (m : vm) (e : expr) : cell :=
     match v with
     | Imm i => i
     | Reg r => get_reg m r
-    | Ptr p => get_cell m p
+    | Ptr p => Z.of_nat p
     end
 
   | Neg v =>
     match v with
     | Imm i => Z.opp i
     | Reg r => Z.opp (get_reg m r)
-    | Ptr p => Z.opp (get_cell m p)
+    | Ptr p => Z.opp (Z.of_nat p)
     end
 
   | Load v => 
@@ -99,12 +99,7 @@ Definition eval_expr (m : vm) (e : expr) : cell :=
 Definition run_inst (m : vm) (i : inst) : vm :=
   match i with
   | Def r e => set_reg m r (eval_expr m e)
-  | Store v r =>
-    match v with
-    | Imm i' => set_cell m (Z.to_nat i') (get_reg m r)
-    | Reg r' => set_cell m (Z.to_nat (get_reg m r')) (get_reg m r)
-    | Ptr p => set_cell m p (get_reg m r)
-    end
+  | Store r r' => set_cell m (Z.to_nat (get_reg m r)) (get_reg m r')
   end
 .
 

@@ -18,8 +18,9 @@ Module Example1.
       r(2) <- (Imm 34);
       r(3) <- r(2) * (Imm 2);
       r(4) <- r(3) + (Imm 1);
-      store (Ptr 5) r(4);
-      r(5) <- load (Ptr 5)
+      r(5) <- Ptr 5;
+      store r(5) r(4);
+      r(6) <- load r(5)
     ] (
       Halt
     )
@@ -52,7 +53,8 @@ Module Example3.
     Block 3 [
       r(2) <- phi [(0, 1); (1, 2)]
     ] [
-      store (Ptr 0) r(2)
+      r(3) <- Ptr 0;
+      store r(3) r(2)
     ] (
       Halt
     )
@@ -94,7 +96,8 @@ Module Example4.
   Definition example_block_3 : block :=
     Block 3 [
     ] [
-      store (Ptr 0) r(5)
+      r(6) <- Ptr 0;
+      store r(6) r(5)
     ] (
       Halt
     )
@@ -150,7 +153,7 @@ QuickChick set_reg_P.
 *)
 Definition store_P (i : nat) (c : cell) : bool :=
   let m := vm_empty in
-  let b := Block 0 nil [r(0) <- (Imm c); store (Ptr i) r(0)] Halt in
+  let b := Block 0 nil [r(0) <- (Imm c); r(1) <- (Ptr i); store r(1) r(0)] Halt in
   let (_, cells) := Vm.run m b 10 in
   match nth_error cells i with
   | Some c' => Z.eqb c c'

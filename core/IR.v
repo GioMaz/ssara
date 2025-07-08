@@ -94,7 +94,7 @@ Module MakeIR (IR: IR_PARAMS).
 
   Inductive inst : Type :=
     | Def (r : reg) (e : expr)
-    | Store (v : val) (r : reg)
+    | Store (r : reg) (r' : reg)
   .
 
   Definition inst_reg (i : inst) : list reg :=
@@ -123,7 +123,7 @@ Module MakeIR (IR: IR_PARAMS).
       | Mul r v => r :: reg_or_nil v
       | Div r v => r :: reg_or_nil v
       end
-    | Store v r => r :: reg_or_nil v
+    | Store r r' => r :: r' :: nil
     end
   .
 
@@ -216,8 +216,8 @@ Module MakeIR (IR: IR_PARAMS).
   Notation "r( x ) <- 'phi' y" :=
     (Phi x y) (at level 50).
 
-  Notation "'r(' x ) <- 'load' y" :=
-    (Def x (Load y)) (at level 50).
+  Notation "'r(' x ) <- 'load' 'r(' y )" :=
+    (Def x (Load (Reg y))) (at level 50).
   Notation "'r(' x ) <- y" :=
     (Def x (Val y)) (at level 50).
   Notation "'r(' x ) <- 'r(' y ) + z" :=
@@ -228,7 +228,7 @@ Module MakeIR (IR: IR_PARAMS).
     (Def x (Mul y z)) (at level 50).
   Notation "'r(' x ) <- 'r(' y ) / z" :=
     (Def x (Div y z)) (at level 50).
-  Notation "'store' x 'r(' y )" :=
+  Notation "'store' 'r(' x ) 'r(' y )" :=
     (Store x y) (at level 50).
   Notation "'if' 'r(' x ) = y 'then' b1 'else' b2" :=
     (CondJump Jlt x y b1 b2) (at level 50).
