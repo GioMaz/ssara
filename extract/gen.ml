@@ -201,7 +201,8 @@ let gen_irpreg_program program =
 
       | IRPreg.Halt ->
         gen_halt ()
-    ) in
+    )
+  in
   gen_section ".text";
   gen_start program;
   gen_irpreg_program_aux program
