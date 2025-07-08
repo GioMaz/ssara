@@ -86,7 +86,6 @@ Definition color_val (c : Coloring.dict) (v : IRVreg.val) : IRPreg.val :=
 Definition color_expr (c : Coloring.dict) (e : IRVreg.expr) : IRPreg.expr :=
   match e with
   | IRVreg.Val v => IRPreg.Val (color_val c v)
-  | IRVreg.Neg v => IRPreg.Neg (color_val c v)
   | IRVreg.Load v => IRPreg.Load (color_val c v)
   | IRVreg.Add v v' => IRPreg.Add (Coloring.get c v) (color_val c v')
   | IRVreg.Sub v v' => IRPreg.Sub (Coloring.get c v) (color_val c v')

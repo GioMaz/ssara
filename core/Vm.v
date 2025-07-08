@@ -74,13 +74,6 @@ Definition eval_expr (m : vm) (e : expr) : cell :=
     | Ptr p => Z.of_nat p
     end
 
-  | Neg v =>
-    match v with
-    | Imm i => Z.opp i
-    | Reg r => Z.opp (get_reg m r)
-    | Ptr p => Z.opp (Z.of_nat p)
-    end
-
   | Load v => 
     match v with
     | Imm i => get_cell m (Z.to_nat i)

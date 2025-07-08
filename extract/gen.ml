@@ -5,7 +5,6 @@ module LblSet = Set.Make(Int);;
 type opcode =
   (* Arithmetic *)
   | MOV
-  | NEG
   | ADD
   | SUB
   | IMUL
@@ -32,7 +31,6 @@ type opcode =
 let string_of_opcode i =
   match i with
   | MOV     -> "mov"
-  | NEG     -> "neg"
   | ADD     -> "add"
   | SUB     -> "sub"
   | IMUL    -> "imul"
@@ -138,7 +136,6 @@ let gen_insts is =
   let gen_inst i =
     (match i with
     | IRPreg.Def (r, IRPreg.Val v)        -> gen_bininst MOV (string_of_preg r) (string_of_val v)
-    | IRPreg.Def (r, IRPreg.Neg v)        -> gen_bininst NEG (string_of_preg r) (string_of_val v)
     | IRPreg.Def (r, IRPreg.Load v)       -> gen_bininst MOV (string_of_preg r) (string_of_val_deref v)
     | IRPreg.Store (r, r')                -> gen_bininst MOV (string_of_preg_deref r) (string_of_preg r')
     | IRPreg.Def (r, IRPreg.Add (r', v))  -> gen_3ac_2ac_move r r'; gen_bininst ADD   (string_of_preg r) (string_of_val v)
@@ -190,7 +187,7 @@ let gen_irpreg_program program =
       if not (List.is_empty ps) then
         failwith "Malformed program, should not contain phi instructions";
 
-      (* Generate labels *)
+      (* Generate label *)
       gen_label l;
 
       (* Generate instructions *)

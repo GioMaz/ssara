@@ -49,7 +49,6 @@ Module MakeIR (IR: IR_PARAMS).
   *)
   Inductive expr : Type :=
     | Val : val -> expr
-    | Neg : val -> expr
     | Load : val -> expr
     | Add : reg -> val -> expr
     | Sub : reg -> val -> expr
@@ -60,7 +59,6 @@ Module MakeIR (IR: IR_PARAMS).
   Definition eq_expr (e1 e2 : expr) : bool :=
     match e1, e2 with
     | Val x1, Val x2 => eq_val x1 x2
-    | Neg x1, Neg x2 => eq_val x1 x2
     | Load x1, Load x2 => eq_val x1 x2
     | Add x1 y1, Add x2 y2 => (reg_eqb x1 x2) && (eq_val y1 y2)
     | Sub x1 y1, Sub x2 y2 => (reg_eqb x1 x2) && (eq_val y1 y2)
@@ -116,7 +114,6 @@ Module MakeIR (IR: IR_PARAMS).
     | Def x y =>
       match y with
       | Val v => reg_or_nil v
-      | Neg v => reg_or_nil v
       | Load v => reg_or_nil v
       | Add r v => r :: reg_or_nil v
       | Sub r v => r :: reg_or_nil v
