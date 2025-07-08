@@ -143,37 +143,35 @@ let gen_label l =
 ;;
 
 let gen_irpreg_program program =
-  let rec gen_irpreg_program_aux program visited =
+  let visited = ref LblSet.empty in
+  let rec gen_irpreg_program_aux program =
     let IRPreg.Block(l, ps, is, j) = Lazy.force_val program in
 
-    if not (List.is_empty ps) then
-      failwith "Malformed program, should not contain phi instructions";
+    if LblSet.mem l !visited then
+      visited := LblSet.add l !visited;
 
-    (* Generate labels, instructions and jump instruction *)
-    gen_label l;
-    gen_insts is;
+      if not (List.is_empty ps) then
+        failwith "Malformed program, should not contain phi instructions";
 
-    match Lazy.force_val j with
-    | IRPreg.CondJump (c, r, v, b1, b2) ->
-      (* Generate code for conditional jump *)
-      let l1 = IRPreg.get_lbl b1 in
-      let l2 = IRPreg.get_lbl b2 in
-      gen_condjump c r v b1 b2;
-      if not (LblSet.mem l1 visited) then
-        gen_irpreg_program_aux b1 (LblSet.add l1 visited);
-      if not (LblSet.mem l2 visited) then
-        gen_irpreg_program_aux b2 (LblSet.add l2 visited);
+      (* Generate labels *)
+      gen_label l;
 
-    | IRPreg.Jump b ->
-      (* Generate code for unconditional jump *)
-      let l = IRPreg.get_lbl b in
-      gen_jump b;
-      if not (LblSet.mem l visited) then
-        gen_irpreg_program_aux b (LblSet.add l visited);
+      (* Generate instructions *)
+      gen_insts is;
 
-    | IRPreg.Halt ->
-      (* Generate code for program halt *)
-      gen_halt ()
+      (* Generate jump instruction *)
+      match Lazy.force_val j with
+      | IRPreg.CondJump (c, r, v, b1, b2) ->
+        gen_condjump c r v b1 b2;
+        gen_irpreg_program_aux b1;
+        gen_irpreg_program_aux b2;
+
+      | IRPreg.Jump b ->
+        gen_jump b;
+        gen_irpreg_program_aux b;
+
+      | IRPreg.Halt ->
+        gen_halt ()
   in
-  gen_irpreg_program_aux program LblSet.empty
+  gen_irpreg_program_aux program
 ;;
