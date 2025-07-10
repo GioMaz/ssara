@@ -3,8 +3,9 @@ open Ssara
 module LblSet = Set.Make(Int);;
 
 type opcode =
-  (* Arithmetic *)
   | MOV
+
+  (* Arithmetic *)
   | ADD
   | SUB
   | IMUL
@@ -109,16 +110,16 @@ let label_of_int l =
   Printf.sprintf "L%d" l
 ;;
 
-let gen_bininst opcode arg1 arg2 =
-  Printf.printf "\t%s\t%s,\t%s\t;\n" (string_of_opcode opcode) arg1 arg2
+let gen_bininst out opcode arg1 arg2 =
+  Printf.fprintf out "\t%s\t%s,\t%s\t;\n" (string_of_opcode opcode) arg1 arg2
 ;;
 
-let gen_uninst opcode arg =
-  Printf.printf "\t%s\t%s\t\t;\n" (string_of_opcode opcode) arg
+let gen_uninst out opcode arg =
+  Printf.fprintf out "\t%s\t%s\t\t;\n" (string_of_opcode opcode) arg
 ;;
 
-let gen_nullinst opcode =
-  Printf.printf "\t%s\t\t\t;\n" (string_of_opcode opcode)
+let gen_nullinst out opcode =
+  Printf.fprintf out "\t%s\t\t\t;\n" (string_of_opcode opcode)
 ;;
 
 (*
@@ -128,57 +129,57 @@ let gen_nullinst opcode =
   To do so we simply prepend an instruction that moves the first argument of
   the operation into the target register.
 *)
-let gen_3ac_2ac_move r r' =
-  if r <> r' then gen_bininst MOV (string_of_preg r) (string_of_preg r')
+let gen_3ac_2ac_move out r r' =
+  if r <> r' then gen_bininst out MOV (string_of_preg r) (string_of_preg r')
 ;;
 
-let gen_insts is =
+let gen_insts out is =
   let gen_inst i =
     (match i with
-    | IRPreg.Def (r, IRPreg.Val v)        -> gen_bininst MOV (string_of_preg r) (string_of_val v)
-    | IRPreg.Def (r, IRPreg.Load v)       -> gen_bininst MOV (string_of_preg r) (string_of_val_deref v)
-    | IRPreg.Store (r, r')                -> gen_bininst MOV (string_of_preg_deref r) (string_of_preg r')
-    | IRPreg.Def (r, IRPreg.Add (r', v))  -> gen_3ac_2ac_move r r'; gen_bininst ADD   (string_of_preg r) (string_of_val v)
-    | IRPreg.Def (r, IRPreg.Sub (r', v))  -> gen_3ac_2ac_move r r'; gen_bininst SUB   (string_of_preg r) (string_of_val v)
-    | IRPreg.Def (r, IRPreg.Mul (r', v))  -> gen_3ac_2ac_move r r'; gen_bininst IMUL  (string_of_preg r) (string_of_val v)
-    | IRPreg.Def (r, IRPreg.Div (r', v))  -> gen_3ac_2ac_move r r'; gen_bininst IDIV  (string_of_preg r) (string_of_val v));
+    | IRPreg.Def (r, IRPreg.Val v)        -> gen_bininst out MOV (string_of_preg r) (string_of_val v)
+    | IRPreg.Def (r, IRPreg.Load v)       -> gen_bininst out MOV (string_of_preg r) (string_of_val_deref v)
+    | IRPreg.Store (r, r')                -> gen_bininst out MOV (string_of_preg_deref r) (string_of_preg r')
+    | IRPreg.Def (r, IRPreg.Add (r', v))  -> gen_3ac_2ac_move out r r'; gen_bininst out ADD   (string_of_preg r) (string_of_val v)
+    | IRPreg.Def (r, IRPreg.Sub (r', v))  -> gen_3ac_2ac_move out r r'; gen_bininst out SUB   (string_of_preg r) (string_of_val v)
+    | IRPreg.Def (r, IRPreg.Mul (r', v))  -> gen_3ac_2ac_move out r r'; gen_bininst out IMUL  (string_of_preg r) (string_of_val v)
+    | IRPreg.Def (r, IRPreg.Div (r', v))  -> gen_3ac_2ac_move out r r'; gen_bininst out IDIV  (string_of_preg r) (string_of_val v));
   in
   List.iter gen_inst is
 ;;
 
-let gen_jump b =
-  gen_uninst JMP (label_of_int (IRPreg.get_lbl b))
+let gen_jump out b =
+  gen_uninst out JMP (label_of_int (IRPreg.get_lbl b))
 ;;
 
-let gen_condjump c r v b1 b2 =
-  gen_bininst CMP                 (string_of_preg r) (string_of_val v);
-  gen_uninst  (opcode_of_cond c)  (label_of_int (IRPreg.get_lbl b1));
-  gen_jump                        b2
+let gen_condjump out c r v b1 b2 =
+  gen_bininst out CMP                 (string_of_preg r) (string_of_val v);
+  gen_uninst  out (opcode_of_cond c)  (label_of_int (IRPreg.get_lbl b1));
+  gen_jump    out b2
 ;;
 
-let gen_halt () =
-  gen_bininst   MOV (string_of_preg RAX) (string_of_int 60);
-  gen_bininst   XOR (string_of_preg RDI) (string_of_preg RDI);
-  gen_nullinst  SYSCALL
+let gen_halt out () =
+  gen_bininst   out MOV (string_of_preg RAX) (string_of_int 60);
+  gen_bininst   out XOR (string_of_preg RDI) (string_of_preg RDI);
+  gen_nullinst  out SYSCALL
 ;;
 
-let gen_label l =
-  Printf.printf "%s:\n" (label_of_int l)
+let gen_label out l =
+  Printf.fprintf out "%s:\n" (label_of_int l)
 ;;
 
-let gen_start program =
-  Printf.printf "global _start\n";
-  Printf.printf "_start:\n";
-  gen_jump program
+let gen_start out program =
+  Printf.fprintf out "global _start\n";
+  Printf.fprintf out "_start:\n";
+  gen_jump out program
 ;;
 
-let gen_section s =
-  Printf.printf "section %s\n" s
+let gen_section out s =
+  Printf.fprintf out "section %s\n" s
 ;;
 
-let gen_irpreg_program program =
+let gen_irpreg_program out program =
   let visited = ref LblSet.empty in
-  let rec gen_irpreg_program_aux program =
+  let rec gen_irpreg_program_aux out program =
     let IRPreg.Block(l, ps, is, j) = Lazy.force_val program in
 
     if not (LblSet.mem l !visited) then (
@@ -188,27 +189,27 @@ let gen_irpreg_program program =
         failwith "Malformed program, should not contain phi instructions";
 
       (* Generate label *)
-      gen_label l;
+      gen_label out l;
 
       (* Generate instructions *)
-      gen_insts is;
+      gen_insts out is;
 
       (* Generate jump instruction *)
       match Lazy.force_val j with
       | IRPreg.CondJump (c, r, v, b1, b2) ->
-        gen_condjump c r v b1 b2;
-        gen_irpreg_program_aux b1;
-        gen_irpreg_program_aux b2;
+        gen_condjump out c r v b1 b2;
+        gen_irpreg_program_aux out b1;
+        gen_irpreg_program_aux out b2;
 
       | IRPreg.Jump b ->
-        gen_jump b;
-        gen_irpreg_program_aux b;
+        gen_jump out b;
+        gen_irpreg_program_aux out b;
 
       | IRPreg.Halt ->
-        gen_halt ()
+        gen_halt out ()
     )
   in
-  gen_section ".text";
-  gen_start program;
-  gen_irpreg_program_aux program
+  gen_section out ".text";
+  gen_start out program;
+  gen_irpreg_program_aux out program
 ;;

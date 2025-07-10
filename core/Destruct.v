@@ -126,13 +126,6 @@ Definition succ_to_insts (pred : lbl) (succ : block) : list inst :=
   moves_to_insts ms
 .
 
-Definition prepend_insts (b : block) (is : list inst) : block :=
-  match b with
-  | Block l ps is' j =>
-    Block l ps (is ++ is') j
-  end
-.
-
 Definition ssa_destruct (b : block) :=
   let cofix ssa_destruct_aux (pred : lbl) (b : block) : block :=
     match b with

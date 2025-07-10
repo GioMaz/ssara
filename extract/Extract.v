@@ -3,7 +3,7 @@ From Ssara.Core Require Import IR.
 From Ssara.Core Require Import LivenessInfo.
 From Ssara.Core Require Import InterfGraph.
 From Ssara.Core Require Import Peo.
-From Ssara.Core Require Import RegAlloc.
+From Ssara.Core Require Import Color.
 From Ssara.Core Require Import Destruct.
 
 Require Extraction.
@@ -28,10 +28,10 @@ Extraction "ssara.ml"
   LivenessInfo.analyze_program
   InterfGraph.get_ig
   Peo.eliminate
-  RegAlloc.get_coloring
-  RegAlloc.color_program
-  RegAlloc.Example1.example_block_1
-  RegAlloc.Example2.example_block_1
-  RegAlloc.Example3.example_block_1
+  Color.get_coloring
+  Color.color_program
+  Color.Example1.example_block_1
+  Color.Example2.example_block_1
+  Color.Example3.example_block_1
   Destruct.ssa_destruct
 .
