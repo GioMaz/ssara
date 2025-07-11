@@ -123,6 +123,7 @@ CoFixpoint color_program (c : Coloring.dict) (p : IRVreg.program) : IRPreg.progr
       (color_program c b2)
     | IRVreg.Jump b => IRPreg.Jump (color_program c b)
     | IRVreg.Halt => IRPreg.Halt
+    | IRVreg.Ret r => IRPreg.Ret (Coloring.get c r)
     end)
   end
 .

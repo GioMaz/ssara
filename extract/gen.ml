@@ -163,6 +163,12 @@ let gen_halt out () =
   gen_nullinst  out SYSCALL
 ;;
 
+let gen_ret out r =
+  gen_bininst   out MOV (string_of_preg RAX) (string_of_int 60);
+  gen_bininst   out MOV (string_of_preg RDI) (string_of_preg r);
+  gen_nullinst  out SYSCALL
+;;
+
 let gen_label out l =
   Printf.fprintf out "%s:\n" (label_of_int l)
 ;;
@@ -207,6 +213,9 @@ let gen_irpreg_program out program =
 
       | IRPreg.Halt ->
         gen_halt out ()
+
+      | IRPreg.Ret r ->
+        gen_ret out r
     )
   in
   gen_section out ".text";

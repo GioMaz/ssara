@@ -135,6 +135,7 @@ Definition ssa_destruct (b : block) :=
       | CondJump c r v b1 b2 => CondJump c r v (ssa_destruct_aux l b1) (ssa_destruct_aux l b2)
       | Jump b' => Jump (ssa_destruct_aux l b')
       | Halt => Halt
+      | Ret r => Ret r
       end
     end
   in

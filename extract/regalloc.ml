@@ -21,9 +21,9 @@ let command_fail cmd =
 ;;
 
 let run_native irpreg_program =
-  let asm_filename = "main.asm" in
-  let obj_filename = "main.o" in
-  let bin_filename = "main" in
+  let asm_filename = "/tmp/main.asm" in
+  let obj_filename = "/tmp/main.o" in
+  let bin_filename = "/tmp/main" in
 
   (* Generate asm file*)
   let out = Out_channel.open_text asm_filename in

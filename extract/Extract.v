@@ -18,9 +18,10 @@ Extract Inductive list => "list" [ "[]" "(::)" ].
 Extract Inductive option => "option" [ "Some" "None" ].
 Extract Inductive nat =>
   "int"
-  [ "0" "(fun x -> x + 1)" ]
-  "(fun zero succ n -> if n = 0 then zero () else succ (n - 1))"
-.
+  [ "0" "(fun x -> x + 1)" ]                                      (* A translation for each constructor *)
+  "(fun zero succ n -> if n = 0 then zero () else succ (n - 1))"  (* Pattern matching translation *)
+.                                                                 (* zero () is the branch | O => ... *)
+                                                                  (* succ (n-1) is the branch | S n' => ...  or S (n-1) => ... *)
 From Stdlib Require Import ExtrOcamlZInt.
 
 (* Extract *)

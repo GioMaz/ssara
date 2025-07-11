@@ -137,6 +137,7 @@ Module MakeIR (IR: IR_PARAMS).
     | CondJump : cond -> reg -> val -> block -> block -> jinst
     | Jump : block -> jinst
     | Halt : jinst
+    | Ret : reg -> jinst
   .
 
   Definition block_empty : block := Block O nil nil Halt.
@@ -146,6 +147,7 @@ Module MakeIR (IR: IR_PARAMS).
     | CondJump _ r v _ _ => r :: reg_or_nil v
     | Jump _ => nil
     | Halt => nil
+    | Ret r => r :: nil
     end
   .
 
@@ -167,6 +169,7 @@ Module MakeIR (IR: IR_PARAMS).
 
   (* The starting block is the first block of CFG *)
   Definition program : Type := block.
+  Definition program_empty : program := block_empty.
 
   Fixpoint visit_program (p : program) (fuel : nat) : block :=
     match p, fuel with
@@ -177,6 +180,7 @@ Module MakeIR (IR: IR_PARAMS).
       | CondJump c r v b1 b2 => CondJump c r v (visit_program b1 fuel') (visit_program b2 fuel')
       | Jump b => Jump (visit_program b fuel')
       | Halt => Halt
+      | Ret r => Ret r
       end
     end
   .
@@ -200,6 +204,7 @@ Module MakeIR (IR: IR_PARAMS).
     | CondJump _ _ _ b1 b2 => [b1; b2]
     | Jump b => [b]
     | Halt => []
+    | Ret _ => []
     end
   .
 
