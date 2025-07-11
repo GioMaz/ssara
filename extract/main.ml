@@ -4,7 +4,7 @@ open Ssara
 let fuel = 100;;
 
 let compare_vm_native irvreg_program =
-  let rv_vm = (get_reg (run vm_empty irvreg_program fuel) 0) in
+  let rv_vm = (Vm.get_reg (Vm.run Vm.vm_empty irvreg_program fuel) 0) in
   let rv_native = regalloc_and_run_native irvreg_program in
   Printf.printf "%s: vm_result: %d, native_result: %d\n"
     (if rv_vm = rv_native then "Success" else "Failure")

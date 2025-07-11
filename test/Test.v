@@ -1,4 +1,4 @@
-(* From Ssara.Core Require Import IR.
+From Ssara.Core Require Import IR.
 Require Import Ssara.Core.Vm.
 From Stdlib Require Import Lists.List.
 From Stdlib Require Import ZArith.
@@ -22,12 +22,12 @@ Module Example1.
       store r(5) r(4);
       r(6) <- load r(5)
     ] (
-      Halt
+      ret r(6)
     )
   .
 
   Example run_example :
-    let (_, cells) := Vm.run vm_empty example_block 10 in
+    let (_, cells) := Vm.run Vm.vm_empty example_block 10 in
     cells = [0%Z; 0%Z; 0%Z; 0%Z; 0%Z; 69%Z]
   .
   Proof. reflexivity. Qed.
@@ -42,7 +42,7 @@ Module Exmaple2.
     Block 1 nil nil (Jump example_block_1)
   .
 
-  Example run_example : Vm.run vm_empty example_block_1 1000 = vm_empty.
+  Example run_example : Vm.run Vm.vm_empty example_block_1 1000 = Vm.vm_empty.
   Proof. reflexivity. Qed.
 End Exmaple2.
 
@@ -56,7 +56,7 @@ Module Example3.
       r(3) <- Ptr 0;
       store r(3) r(2)
     ] (
-      Halt
+      ret r(3)
     )
   .
 
@@ -79,13 +79,13 @@ Module Example3.
   .
 
   Example run_example_1 :
-    let (_, cells) := Vm.run vm_empty example_block_1 10 in
+    let (_, cells) := Vm.run Vm.vm_empty example_block_1 10 in
     cells = [34%Z]
   .
   Proof. reflexivity. Qed.
 
   Example run_example_2 :
-    let (_, cells) := Vm.run vm_empty example_block_2 10 in
+    let (_, cells) := Vm.run Vm.vm_empty example_block_2 10 in
     cells = [35%Z]
   .
   Proof. reflexivity. Qed.
@@ -99,7 +99,7 @@ Module Example4.
       r(6) <- Ptr 0;
       store r(6) r(5)
     ] (
-      Halt
+      ret r(6)
     )
   .
 
@@ -126,20 +126,20 @@ Module Example4.
   .
 
   Compute
-    let (regs, cells) := Vm.run vm_empty example_block_1 100 in
+    let (regs, cells) := Vm.run Vm.vm_empty example_block_1 100 in
     (map regs [0; 1; 2; 3; 4; 5], cells)
   .
 End Example4.
 
-Definition set_reg_P (r : reg) (c : cell) : bool :=
-  let (regs, _) := (set_reg vm_empty r c) in
+Definition set_reg_P (r : reg) (c : Vm.cell) : bool :=
+  let (regs, _) := (Vm.set_reg Vm.vm_empty r c) in
   Z.eqb (regs r) c
 .
 
 QuickChick set_reg_P.
 
-Definition set_cell_P (i : nat) (c : cell) : bool :=
-  let (_, cells) := (set_cell vm_empty i c) in
+Definition set_cell_P (i : nat) (c : Vm.cell) : bool :=
+  let (_, cells) := (Vm.set_cell Vm.vm_empty i c) in
   match nth_error cells i with
   | Some c' => Z.eqb c c'
   | _ => false
@@ -151,9 +151,9 @@ QuickChick set_reg_P.
 (*
   Check whether after a store the ith cell actually contains the intended value
 *)
-Definition store_P (i : nat) (c : cell) : bool :=
-  let m := vm_empty in
-  let b := Block 0 nil [r(0) <- (Imm c); r(1) <- (Ptr i); store r(1) r(0)] Halt in
+Definition store_P (i : nat) (c : Vm.cell) : bool :=
+  let m := Vm.vm_empty in
+  let b := Block 0 nil [r(0) <- (Imm c); r(1) <- (Ptr i); store r(1) r(0)] (ret r(1)) in
   let (_, cells) := Vm.run m b 10 in
   match nth_error cells i with
   | Some c' => Z.eqb c c'
@@ -161,7 +161,7 @@ Definition store_P (i : nat) (c : cell) : bool :=
   end
 .
 
-QuickChick store_P. *)
+QuickChick store_P.
 
 (*
 TODO: Look into QuickChick generators and QuickChick conversion from predicates to fixpoints
