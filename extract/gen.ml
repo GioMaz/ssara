@@ -80,15 +80,15 @@ let string_of_reg reg =
   | R14     -> "r14"
   | R15     -> "r15"
 ;;
-
-(* Emit an argument that represents the memory location pointed by preg *)
-let string_of_reg_deref reg =
-  Printf.sprintf "[%s]" (string_of_reg reg)
-;;
-
 let string_of_imm = Printf.sprintf "%d";;
 let string_of_ptr = Printf.sprintf "%d";;
 
+(* Emit an argument that represents the memory location pointed by the reg/imm/ptr *)
+let string_of_reg_deref reg =
+  Printf.sprintf "[%s]" (string_of_reg reg)
+;;
+let string_of_imm_deref = Printf.sprintf "[%d]";;
+let string_of_ptr_deref = Printf.sprintf "[%d]";;
 
 let string_of_val v = 
   match v with
@@ -105,9 +105,9 @@ let string_of_val v =
 *)
 let string_of_val_deref v =
   match v with
-  | IRPreg.Imm x -> Printf.sprintf "[%d]" x
+  | IRPreg.Imm x -> string_of_imm_deref x
   | IRPreg.Reg r -> string_of_reg_deref r
-  | IRPreg.Ptr p -> Printf.sprintf "[%d]" p
+  | IRPreg.Ptr p -> string_of_ptr_deref p
 ;;
 
 let label_of_int l =
