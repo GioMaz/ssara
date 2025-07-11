@@ -134,7 +134,6 @@ Definition ssa_destruct (b : block) :=
       match j with
       | CondJump c r v b1 b2 => CondJump c r v (ssa_destruct_aux l b1) (ssa_destruct_aux l b2)
       | Jump b' => Jump (ssa_destruct_aux l b')
-      | Halt => Halt
       | Ret r => Ret r
       end
     end
@@ -194,7 +193,7 @@ Module Example2.
       r(RBX) <- Ptr 0;
       store r(RBX) r(RBP)
     ] (
-      Halt
+      ret r(RBX)
     )
   .
 
@@ -205,7 +204,7 @@ Module Example2.
       r(RBX) <- Ptr 0;
       store r(RBX) r(RBP)
     ] (
-      Halt
+      ret r(RBX)
     )
   .
 

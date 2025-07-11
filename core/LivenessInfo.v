@@ -213,7 +213,7 @@ Module Example1.
       r(4) <- (Ptr 0);
       store r(4) r(3)
     ] (
-      Halt
+      ret r(4)
     )
   .
 
@@ -224,7 +224,7 @@ Module Example1.
       r(6) <- (Ptr 0);
       store r(6) r(5)
     ] (
-      Halt
+      ret r(6)
     )
   .
 

@@ -26,13 +26,21 @@ From Stdlib Require Import ExtrOcamlZInt.
 
 (* Extract *)
 Extraction "ssara.ml"
+
+  (* Virtual machine*)
+  Vm.run
+  Vm.vm_empty
+
+  (* Regalloc pipeline *)
   LivenessInfo.analyze_program
   InterfGraph.get_ig
   Peo.eliminate
   Color.get_coloring
   Color.color_program
+  Destruct.ssa_destruct
+
+  (* Example programs *)
   Color.Example1.example_block_1
   Color.Example2.example_block_1
   Color.Example3.example_block_1
-  Destruct.ssa_destruct
 .

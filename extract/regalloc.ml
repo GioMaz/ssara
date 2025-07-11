@@ -27,13 +27,14 @@ let run_native irpreg_program =
 
   (* Generate asm file*)
   let out = Out_channel.open_text asm_filename in
+  gen_irpreg_program stdout irpreg_program;
   gen_irpreg_program out irpreg_program;
   Out_channel.close out;
 
   (* Define commands *)
   let cmd_asm = Printf.sprintf "nasm -f elf64 -o %s %s" obj_filename asm_filename in
   let cmd_obj = Printf.sprintf "ld -o %s %s" bin_filename obj_filename in
-  let cmd_bin = Printf.sprintf "./%s" bin_filename in
+  let cmd_bin = bin_filename in
 
   (* Assemble asm file *)
   let rv = Sys.command cmd_asm in

@@ -159,7 +159,6 @@ Fixpoint run (m : vm) (p : program) (fuel : nat) : vm :=
       else
         run (run_phis m p (get_phis b2)) b2 fuel'
     | Jump b1 => run (run_phis m p (get_phis b1)) b1 fuel'
-    | Halt => m
     | Ret r => set_reg m 0 (get_reg m r) (* Save the return value in the first register *)
     end
   end

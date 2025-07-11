@@ -136,17 +136,15 @@ Module MakeIR (IR: IR_PARAMS).
   with jinst : Type :=
     | CondJump : cond -> reg -> val -> block -> block -> jinst
     | Jump : block -> jinst
-    | Halt : jinst
     | Ret : reg -> jinst
   .
 
-  Definition block_empty : block := Block O nil nil Halt.
+  CoFixpoint block_empty : block := Block O nil nil (Jump block_empty).
 
   Definition jinst_args (j : jinst) : list reg :=
     match j with
     | CondJump _ r v _ _ => r :: reg_or_nil v
     | Jump _ => nil
-    | Halt => nil
     | Ret r => r :: nil
     end
   .
@@ -178,7 +176,6 @@ Module MakeIR (IR: IR_PARAMS).
       match j with
       | CondJump c r v b1 b2 => CondJump c r v (visit_program b1 fuel') (visit_program b2 fuel')
       | Jump b => Jump (visit_program b fuel')
-      | Halt => Halt
       | Ret r => Ret r
       end
     end
@@ -202,7 +199,6 @@ Module MakeIR (IR: IR_PARAMS).
     match get_jinst b with
     | CondJump _ _ _ b1 b2 => [b1; b2]
     | Jump b => [b]
-    | Halt => []
     | Ret _ => []
     end
   .
@@ -243,5 +239,7 @@ Module MakeIR (IR: IR_PARAMS).
     (CondJump Jgt x y b1 b2) (at level 50).
   Notation "'if' 'r(' x ) >= y 'then' b1 'else' b2" :=
     (CondJump Jge x y b1 b2) (at level 50).
+  Notation "'ret' 'r(' x )" :=
+    (Ret x) (at level 50).
 
 End MakeIR.

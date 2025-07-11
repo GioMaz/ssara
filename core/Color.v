@@ -122,7 +122,6 @@ CoFixpoint color_program (c : Coloring.dict) (p : IRVreg.program) : IRPreg.progr
       (color_program c b1)
       (color_program c b2)
     | IRVreg.Jump b => IRPreg.Jump (color_program c b)
-    | IRVreg.Halt => IRPreg.Halt
     | IRVreg.Ret r => IRPreg.Ret (Coloring.get c r)
     end)
   end
@@ -174,7 +173,7 @@ Module Example2.
       r(4) <- Ptr 0
       (* store r(4) r(3) *)
     ] (
-      Halt
+      ret r(4)
     )
   .
 
@@ -185,7 +184,7 @@ Module Example2.
       r(6) <- Ptr 0
       (* store r(6) r(5) *)
     ] (
-      Halt
+      ret r(6)
     )
   .
 
@@ -206,7 +205,7 @@ Module Example3.
     Block 3 [
     ] [
     ] (
-      Halt
+      ret r(5)
     )
   .
 
@@ -225,7 +224,7 @@ Module Example3.
   Definition example_block_1 : block :=
     Block 1 [
     ] [
-      r(0) <- Imm 6;  (* Iterator *)
+      r(0) <- Imm 5;  (* Iterator *)
       r(1) <- Reg 0   (* Accumulator *)
     ] (
       Jump example_block_2

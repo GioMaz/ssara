@@ -157,11 +157,11 @@ let gen_condjump out c r v b1 b2 =
   gen_jump    out b2
 ;;
 
-let gen_halt out =
+(*let gen_halt out =
   gen_bininst   out MOV (string_of_preg RAX) (string_of_int 60);
   gen_bininst   out XOR (string_of_preg RDI) (string_of_preg RDI);
   gen_nullinst  out SYSCALL
-;;
+;; *)
 
 let gen_ret out r =
   gen_bininst   out MOV (string_of_preg RAX) (string_of_int 60);
@@ -210,9 +210,6 @@ let gen_irpreg_program out program =
       | IRPreg.Jump b ->
         gen_jump out b;
         gen_irpreg_program_aux out b;
-
-      | IRPreg.Halt ->
-        gen_halt out
 
       | IRPreg.Ret r ->
         gen_ret out r
