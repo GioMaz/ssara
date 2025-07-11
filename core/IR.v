@@ -169,7 +169,6 @@ Module MakeIR (IR: IR_PARAMS).
 
   (* The starting block is the first block of CFG *)
   Definition program : Type := block.
-  Definition program_empty : program := block_empty.
 
   Fixpoint visit_program (p : program) (fuel : nat) : block :=
     match p, fuel with
