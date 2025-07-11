@@ -133,27 +133,26 @@ let gen_nullinst out opcode =
   TODO: prove this
 *)
 let gen_3ac_2ac out opcode r r' v =
-  match v with
+  if r = r' then
+    gen_bininst out opcode  (string_of_reg r) (string_of_val v)
+  else
+    match v with
 
-  (* r(0) <- r(1) + (Imm 100) *)
-  | IRPreg.Imm x ->
-    gen_bininst out MOV     (string_of_reg r) (string_of_reg r');
-    gen_bininst out opcode  (string_of_reg r) (string_of_int x)
+    (* r(0) <- r(1) + (Imm 100) *)
+    | IRPreg.Imm x ->
+      gen_bininst out MOV     (string_of_reg r) (string_of_reg r');
+      gen_bininst out opcode  (string_of_reg r) (string_of_int x)
 
-  (* r(0) <- r(1) + (Reg 2) *)
-  | IRPreg.Reg r'' ->
-    if r = r' then
-      gen_bininst out opcode  (string_of_reg r) (string_of_reg r'')
-    else (
+    (* r(0) <- r(1) + (Reg 2) *)
+    | IRPreg.Reg r'' ->
       gen_bininst out MOV     (string_of_reg tmp) (string_of_reg r');
       gen_bininst out opcode  (string_of_reg tmp) (string_of_reg r'');
       gen_bininst out MOV     (string_of_reg r) (string_of_reg tmp);
-    )
 
-  (* r(0) <- r(1) + (Ptr 100) *)
-  | IRPreg.Ptr p ->
-    gen_bininst out MOV     (string_of_reg r) (string_of_reg r');
-    gen_bininst out opcode  (string_of_reg r) (string_of_int p)
+    (* r(0) <- r(1) + (Ptr 100) *)
+    | IRPreg.Ptr p ->
+      gen_bininst out MOV     (string_of_reg r) (string_of_reg r');
+      gen_bininst out opcode  (string_of_reg r) (string_of_int p)
 ;;
 
 let gen_insts out is =

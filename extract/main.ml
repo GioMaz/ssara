@@ -12,9 +12,13 @@ let compare_vm_native irvreg_program =
 ;;
 
 let main () =
-  compare_vm_native Example1.example_block_1;
-  compare_vm_native Example2.example_block_1;
-  compare_vm_native Example3.example_block_1
+  List.iter
+    compare_vm_native
+    [
+      Example1.example_block_1;
+      Example2.example_block_1;
+      Example3.example_block_1;
+    ]
 ;;
 
 main ();;
