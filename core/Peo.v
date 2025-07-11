@@ -35,6 +35,20 @@ Qed.
 From Stdlib Require Import FunInd.
 From Stdlib Require Import Recdef.
 
+Function eliminate_fuel (g : InterfGraph.dict) (fuel : nat) : list reg :=
+  match fuel with
+  | O => nil
+  | S fuel' =>
+    match find_next g with
+    | Some next =>
+      let g := ig_remove_node g next in
+      let peo := eliminate_fuel g fuel' in
+      next :: peo
+    | None => nil
+    end
+  end
+.
+
 Function eliminate (g : InterfGraph.dict) {measure InterfGraph.size g} : list reg :=
   match find_next g with
   | Some next =>

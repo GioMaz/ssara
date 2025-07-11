@@ -61,8 +61,8 @@ let opcode_of_cond c =
   | Jge -> JGE
 ;;
 
-let string_of_preg preg =
-  match preg with
+let string_of_reg reg =
+  match reg with
   | RAX     -> "rax"
   | RBX     -> "rbx"
   | RCX     -> "rcx"
@@ -82,15 +82,19 @@ let string_of_preg preg =
 ;;
 
 (* Emit an argument that represents the memory location pointed by preg *)
-let string_of_preg_deref preg =
-  Printf.sprintf "[%s]" (string_of_preg preg)
+let string_of_reg_deref reg =
+  Printf.sprintf "[%s]" (string_of_reg reg)
 ;;
+
+let string_of_imm = Printf.sprintf "%d";;
+let string_of_ptr = Printf.sprintf "%d";;
+
 
 let string_of_val v = 
   match v with
-  | IRPreg.Imm x -> Printf.sprintf "%d" x
-  | IRPreg.Reg r -> Printf.sprintf "%s" (string_of_preg r)
-  | IRPreg.Ptr p -> Printf.sprintf "%d" p
+  | IRPreg.Imm x -> string_of_imm x
+  | IRPreg.Reg r -> string_of_reg r
+  | IRPreg.Ptr p -> string_of_imm p
 ;;
 
 (*
@@ -102,7 +106,7 @@ let string_of_val v =
 let string_of_val_deref v =
   match v with
   | IRPreg.Imm x -> Printf.sprintf "[%d]" x
-  | IRPreg.Reg r -> string_of_preg_deref r
+  | IRPreg.Reg r -> string_of_reg_deref r
   | IRPreg.Ptr p -> Printf.sprintf "[%d]" p
 ;;
 
@@ -126,23 +130,42 @@ let gen_nullinst out opcode =
   Since we are generating x86 assembly where the ALU instructions take only two
   arguments we have to convert our three address code instructions to fit into
   the x86 ones.
-  To do so we simply prepend an instruction that moves the first argument of
-  the operation into the target register.
+  TODO: prove this
 *)
-let gen_3ac_2ac_move out r r' =
-  if r <> r' then gen_bininst out MOV (string_of_preg r) (string_of_preg r')
+let gen_3ac_2ac out opcode r r' v =
+  match v with
+
+  (* r(0) <- r(1) + (Imm 100) *)
+  | IRPreg.Imm x ->
+    gen_bininst out MOV     (string_of_reg r) (string_of_reg r');
+    gen_bininst out opcode  (string_of_reg r) (string_of_int x)
+
+  (* r(0) <- r(1) + (Reg 2) *)
+  | IRPreg.Reg r'' ->
+    if r = r' then
+      gen_bininst out opcode  (string_of_reg r) (string_of_reg r'')
+    else (
+      gen_bininst out MOV     (string_of_reg tmp) (string_of_reg r');
+      gen_bininst out opcode  (string_of_reg tmp) (string_of_reg r'');
+      gen_bininst out MOV     (string_of_reg r) (string_of_reg tmp);
+    )
+
+  (* r(0) <- r(1) + (Ptr 100) *)
+  | IRPreg.Ptr p ->
+    gen_bininst out MOV     (string_of_reg r) (string_of_reg r');
+    gen_bininst out opcode  (string_of_reg r) (string_of_int p)
 ;;
 
 let gen_insts out is =
   let gen_inst i =
     (match i with
-    | IRPreg.Def (r, IRPreg.Val v)        -> gen_bininst out MOV (string_of_preg r) (string_of_val v)
-    | IRPreg.Def (r, IRPreg.Load v)       -> gen_bininst out MOV (string_of_preg r) (string_of_val_deref v)
-    | IRPreg.Store (r, r')                -> gen_bininst out MOV (string_of_preg_deref r) (string_of_preg r')
-    | IRPreg.Def (r, IRPreg.Add (r', v))  -> gen_3ac_2ac_move out r r'; gen_bininst out ADD   (string_of_preg r) (string_of_val v)
-    | IRPreg.Def (r, IRPreg.Sub (r', v))  -> gen_3ac_2ac_move out r r'; gen_bininst out SUB   (string_of_preg r) (string_of_val v)
-    | IRPreg.Def (r, IRPreg.Mul (r', v))  -> gen_3ac_2ac_move out r r'; gen_bininst out IMUL  (string_of_preg r) (string_of_val v)
-    | IRPreg.Def (r, IRPreg.Div (r', v))  -> gen_3ac_2ac_move out r r'; gen_bininst out IDIV  (string_of_preg r) (string_of_val v));
+    | IRPreg.Def (r, IRPreg.Val v)        -> gen_bininst out MOV (string_of_reg r) (string_of_val v)
+    | IRPreg.Def (r, IRPreg.Load v)       -> gen_bininst out MOV (string_of_reg r) (string_of_val_deref v)
+    | IRPreg.Store (r, r')                -> gen_bininst out MOV (string_of_reg_deref r) (string_of_reg r')
+    | IRPreg.Def (r, IRPreg.Add (r', v))  -> gen_3ac_2ac out ADD  r r' v
+    | IRPreg.Def (r, IRPreg.Sub (r', v))  -> gen_3ac_2ac out SUB  r r' v
+    | IRPreg.Def (r, IRPreg.Mul (r', v))  -> gen_3ac_2ac out IMUL r r' v
+    | IRPreg.Def (r, IRPreg.Div (r', v))  -> gen_3ac_2ac out IDIV r r' v)
   in
   List.iter gen_inst is
 ;;
@@ -152,20 +175,20 @@ let gen_jump out b =
 ;;
 
 let gen_condjump out c r v b1 b2 =
-  gen_bininst out CMP                 (string_of_preg r) (string_of_val v);
+  gen_bininst out CMP                 (string_of_reg r) (string_of_val v);
   gen_uninst  out (opcode_of_cond c)  (label_of_int (IRPreg.get_lbl b1));
   gen_jump    out b2
 ;;
 
-(*let gen_halt out =
-  gen_bininst   out MOV (string_of_preg RAX) (string_of_int 60);
-  gen_bininst   out XOR (string_of_preg RDI) (string_of_preg RDI);
+let gen_halt out =
+  gen_bininst   out MOV (string_of_reg RAX) (string_of_int 60);
+  gen_bininst   out XOR (string_of_reg RDI) (string_of_reg RDI);
   gen_nullinst  out SYSCALL
-;; *)
+;;
 
 let gen_ret out r =
-  gen_bininst   out MOV (string_of_preg RAX) (string_of_int 60);
-  gen_bininst   out MOV (string_of_preg RDI) (string_of_preg r);
+  gen_bininst   out MOV (string_of_reg RAX) (string_of_int 60);
+  gen_bininst   out MOV (string_of_reg RDI) (string_of_reg r);
   gen_nullinst  out SYSCALL
 ;;
 

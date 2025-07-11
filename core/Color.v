@@ -130,15 +130,16 @@ CoFixpoint color_program (c : Coloring.dict) (p : IRVreg.program) : IRPreg.progr
 Import IRVreg.
 
 Module Example1.
-  CoFixpoint example_block_2 : block :=
-    Block 2 [
-      r(3) <- phi [(1, 1); (5, 4)];
-      r(4) <- phi [(2, 1); (6, 4)]
+  Definition example_block_4 : block :=
+    Block 4 [
     ] [
+      r(7) <- r(5) + (Reg 6)
     ] (
-      Jump example_block_3
+      ret r(7)
     )
-  with example_block_3 : block :=
+  .
+
+  Definition example_block_3 : block :=
     Block 3 [
     ] [
       r(5) <- r(3) + (Imm 1);
@@ -146,11 +147,15 @@ Module Example1.
     ] (
       Jump example_block_4
     )
-  with example_block_4 : block :=
-    Block 4 [
+  .
+
+  Definition example_block_2 : block :=
+    Block 2 [
+      r(3) <- phi [(1, 1)];
+      r(4) <- phi [(2, 1)]
     ] [
     ] (
-      Jump example_block_2
+      Jump example_block_3
     )
   .
 
@@ -163,6 +168,35 @@ Module Example1.
       Jump example_block_2
     )
   .
+  Compute 0.
+
+  Definition ig :=
+    let (pi, _) := analyze_program example_block_1 10 in
+    InterfGraph.get_ig pi
+  .
+  Compute InterfGraph.list ig.
+
+  Definition peo := eliminate_fuel ig 10.
+  Compute peo.
+
+  Definition c := get_coloring peo ig.
+  Compute
+    match c with
+    | Some c => Coloring.list c
+    | None => nil
+    end
+  .
+
+  From Ssara.Core Require Import IRPregModule.
+  Import IRPreg.
+
+  Compute
+    match c with
+    | Some c => IRPreg.visit_program (color_program c example_block_1) 10
+    | None => IRPreg.block_empty
+    end
+  .
+
 End Example1.
 
 Module Example2.
