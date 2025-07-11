@@ -186,17 +186,6 @@ Module Example1.
     | None => nil
     end
   .
-
-  From Ssara.Core Require Import IRPregModule.
-  Import IRPreg.
-
-  Compute
-    match c with
-    | Some c => IRPreg.visit_program (color_program c example_block_1) 10
-    | None => IRPreg.block_empty
-    end
-  .
-
 End Example1.
 
 Module Example2.
