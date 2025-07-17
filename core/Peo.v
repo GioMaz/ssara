@@ -3,6 +3,7 @@ From Ssara.Core Require Import Dict.
 From Ssara.Core Require Import Utils.
 From Stdlib Require Import ZArith.
 From Stdlib Require Import Lists.List.
+Import ListNotations.
 From Stdlib Require Import Bool.
 
 From Ssara.Core Require Import IRVregModule.
@@ -35,7 +36,7 @@ Qed.
 From Stdlib Require Import FunInd.
 From Stdlib Require Import Recdef.
 
-Function eliminate_fuel (g : InterfGraph.dict) (fuel : nat) : list reg :=
+Fixpoint eliminate_fuel (g : InterfGraph.dict) (fuel : nat) : list reg :=
   match fuel with
   | O => nil
   | S fuel' =>
@@ -67,7 +68,30 @@ Qed.
 
 (*
   Proof of correctness of the algorithm that is, the result of the eliminate
-  function is actually a PEO.
+  function is actually a PEO. To prove that we should follow the following
+  steps:
+  1) At each step of the eliminate function we eliminate a simplicial node;
+  2) Each element of the PEO has all of its neighbors to the left of it;
+  3) At each step of the coloring function we insert a node where every neighbor
+  node is already inserted;
+  4) At each step of the coloring function the color we choose is not already
+  used by the node's neighbors;
+*)
+
+Fixpoint split_by (r : reg) (rs : list reg) : list reg :=
+  match rs with
+  | nil => nil
+  | x :: xs => if r =? x then xs else split_by r xs
+  end
+.
+
+(* 3 *)
+(* Lemma peo_neighbors :
+  forall (g : InterfGraph.dict) (r : reg),
+  let peo := eliminate g in regs_inter (split_by r peo)
+. *)
+
+(*
   We start by defining a lemma proving the correctness of a single iteration of
   the eliminate function, that is proving that `find_next` actually returns a
   simplicial node.
@@ -80,13 +104,53 @@ Proof.
   intros g r. unfold find_next. apply find_some.
 Qed.
 
-(* Now we define a predicate for the simplicial property *)
-Definition is_simplicial (g : InterfGraph.dict) (r : reg) : Prop :=
+(*
+  Now we define a predicate for the simplicial relation, we define a node being
+  simplicial if:
+  - It is the node of the singleton { r }
+  - It is built by a simplicial r to which we add a neighbor r' that has an edge
+    with every other neighbor of r
+*)
+Inductive is_simplicial (r : reg) : InterfGraph.dict -> Prop :=
+  | SimplicialSigleton : is_simplicial r (ig_insert_node InterfGraph.empty r)
+  | SimplicialNeighbor (g : InterfGraph.dict) :
+    is_simplicial r g -> forall r', r <> r' -> let nbors := InterfGraph.get g r in
+    is_simplicial r (ig_insert_edges g r' (r :: nbors))
+.
+Goal is_simplicial 10 (ig_insert_node InterfGraph.empty 10).
+Proof.
+  apply SimplicialSigleton.
+Qed.
+
+(*
+   0
+ / | \
+1--2--3
+ \---/
+ *)
+
+Definition example_ig_1 : InterfGraph.dict :=
+  (ig_insert_edges
+    (ig_insert_edges
+      (ig_insert_edges
+        (ig_insert_edges InterfGraph.empty 0 []) 1 [0]) 2 [0; 1]) 3 [0; 1; 2])
+.
+
+Goal is_simplicial 0 example_ig_1.
+  unfold ig_insert_clique.
+  apply SimplicialNeighbor.
+  apply SimplicialNeighbor.
+  apply SimplicialNeighbor.
+  apply SimplicialSigleton.
+  auto. auto. auto.
+Qed.
+
+(* Definition is_simplicial (g : InterfGraph.dict) (r : reg) : Prop :=
   let nbors := InterfGraph.get g r in
   forall (n n': reg),
     In n (InterfGraph.keys g) /\ In n' (InterfGraph.keys g) ->
     In n (InterfGraph.get g n') /\ In n' (InterfGraph.get g n)
-.
+. *)
 
 (*
   And the we prove that the `is_simplicialb` function satisfies the

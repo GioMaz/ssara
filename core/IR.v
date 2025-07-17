@@ -2,6 +2,7 @@ From Stdlib Require Import ZArith.
 From Stdlib Require Import Lists.List.
 From Stdlib Require Import ListSet.
 Import ListNotations.
+From Stdlib Require Import Sets.Ensembles.
 
 (* Register independent definitions *)
 Inductive cond : Type := Jeq | Jne | Jlt | Jle | Jgt | Jge.
@@ -204,7 +205,9 @@ Module MakeIR (IR: IR_PARAMS).
   .
 
   (* Set of registers *)
+  Definition RegSet := Ensemble.
   Definition regs_union   := set_union  reg_eq_dec.
+  Definition regs_inter   := set_inter  reg_eq_dec.
   Definition regs_diff    := set_diff   reg_eq_dec.
   Definition regs_add     := set_add    reg_eq_dec.
   Definition regs_remove  := set_remove reg_eq_dec.

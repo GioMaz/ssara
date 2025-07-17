@@ -20,8 +20,8 @@ Module InterfGraph := MakeDict InterfGraphParams.
 
 Definition ig_update_edge (f : reg -> set reg -> set reg) (g : InterfGraph.dict) (r : reg) (r' : reg) : InterfGraph.dict :=
   let regs  := InterfGraph.get g r in
-  let g    := InterfGraph.update g r (f r' regs) in
-  let regs := InterfGraph.get g r' in
+  let g     := InterfGraph.update g r (f r' regs) in
+  let regs  := InterfGraph.get g r' in
   InterfGraph.update g r' (f r regs)
 .
 Definition ig_remove_edge := ig_update_edge regs_remove.
@@ -67,7 +67,7 @@ Qed.
 
 Fixpoint ig_insert_edges (g : InterfGraph.dict) (r : reg) (regs : list reg) : InterfGraph.dict :=
   match regs with
-  | nil => g
+  | nil => ig_insert_node g r
   | r' :: tl =>
     if r =? r'
     then ig_insert_edges (ig_insert_node g r) r tl

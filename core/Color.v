@@ -32,7 +32,8 @@ Definition preg_compl (colors : list preg) : option preg :=
 .
 
 (*
-  By definition of PEO the `nbors` list contains all the neighbors of `v`
+  IMPORTANT: by definition of PEO the `nbors` list contains all the neighbors of `v`
+  TODO: prove this
 *)
 Definition color_vreg (v : IRVreg.reg) (c : Coloring.dict) (g : InterfGraph.dict) : option preg :=
   let nbors := InterfGraph.get g v in
@@ -254,3 +255,34 @@ Module Example3.
     )
   .
 End Example3.
+
+(* Example 4 *)
+Module Example4.
+  Definition example_block_3 : block :=
+    Block 3 [
+    ] [
+    ] (
+      ret r(3)
+    )
+  .
+
+  CoFixpoint example_block_2 : block :=
+    Block 2 [
+      r(2) <- phi [(0, 1); (3, 2)]
+    ] [
+      r(3) <- r(2) + (Imm 2)
+    ] (
+      if r(3) < (Reg 1) then example_block_2 else example_block_3
+    )
+  .
+
+  Definition example_block_1 : block :=
+    Block 1 [
+    ] [
+      r(0) <- Imm 0;
+      r(1) <- Imm 20
+    ] (
+      Jump example_block_2
+    )
+  .
+End Example4.

@@ -18,6 +18,7 @@ let main () =
       Example1.example_block_1;
       Example2.example_block_1;
       Example3.example_block_1;
+      Example4.example_block_1;
     ]
 ;;
 

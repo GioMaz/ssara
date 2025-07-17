@@ -147,7 +147,7 @@ let gen_3ac_2ac out opcode r r' v =
     | IRPreg.Reg r'' ->
       gen_bininst out MOV     (string_of_reg tmp) (string_of_reg r');
       gen_bininst out opcode  (string_of_reg tmp) (string_of_reg r'');
-      gen_bininst out MOV     (string_of_reg r) (string_of_reg tmp);
+      gen_bininst out MOV     (string_of_reg r)   (string_of_reg tmp);
 
     (* r(0) <- r(1) + (Ptr 100) *)
     | IRPreg.Ptr p ->
@@ -208,7 +208,7 @@ let gen_section out s =
 let gen_irpreg_program out program =
   let visited = ref LblSet.empty in
   let rec gen_irpreg_program_aux out program =
-    let IRPreg.Block(l, ps, is, j) = Lazy.force_val program in
+    let IRPreg.Block (l, ps, is, j) = Lazy.force_val program in
 
     if not (LblSet.mem l !visited) then (
       visited := LblSet.add l !visited;
