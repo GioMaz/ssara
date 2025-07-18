@@ -107,27 +107,33 @@ Qed.
 (*
   Now we define a predicate for the simplicial relation, we define a node being
   simplicial if:
-  - It is the node of the singleton { r }
-  - It is built by a simplicial r to which we add a neighbor r' that has an edge
-    with every other neighbor of r
+  - It has no neighbors
+  - It is built by a simplicial node r to which we add a neighbor r' that also
+    has an edge with every other neighbor of r
 *)
 Inductive is_simplicial (r : reg) : InterfGraph.dict -> Prop :=
-  | SimplicialSigleton : is_simplicial r (ig_insert_node InterfGraph.empty r)
-  | SimplicialNeighbor (g : InterfGraph.dict) :
-    is_simplicial r g -> forall r', r <> r' -> let nbors := InterfGraph.get g r in
+  | SimplicialIsolated (g : InterfGraph.dict):
+    InterfGraph.get g r = nil -> is_simplicial r g
+  | SimplicialAddNeighbor (g : InterfGraph.dict) :
+    is_simplicial r g -> forall r', let nbors := InterfGraph.get g r in
     is_simplicial r (ig_insert_edges g r' (r :: nbors))
 .
+
+(*
+  Graph:
+  0
+*)
 Goal is_simplicial 10 (ig_insert_node InterfGraph.empty 10).
-Proof.
-  apply SimplicialSigleton.
+  apply SimplicialIsolated. simpl. reflexivity.
 Qed.
 
 (*
-   0
- / | \
-1--2--3
- \---/
- *)
+  Graph:
+     0
+   / | \
+  1--2--3
+   \---/
+*)
 
 Definition example_ig_1 : InterfGraph.dict :=
   (ig_insert_edges
@@ -137,13 +143,38 @@ Definition example_ig_1 : InterfGraph.dict :=
 .
 
 Goal is_simplicial 0 example_ig_1.
-  unfold ig_insert_clique.
-  apply SimplicialNeighbor.
-  apply SimplicialNeighbor.
-  apply SimplicialNeighbor.
-  apply SimplicialSigleton.
-  auto. auto. auto.
+  unfold example_ig_1.
+  apply SimplicialAddNeighbor.
+  apply SimplicialAddNeighbor.
+  apply SimplicialAddNeighbor.
+  apply SimplicialIsolated.
+  simpl. reflexivity.
 Qed.
+
+(*
+  Graph:
+  0 1 2
+*)
+Definition example_ig_2 : InterfGraph.dict :=
+  (ig_insert_node (ig_insert_node (ig_insert_node InterfGraph.empty 2) 1) 0)
+.
+Goal is_simplicial 2 example_ig_2.
+  unfold example_ig_2.
+  apply SimplicialIsolated. simpl. reflexivity.
+Qed.
+
+From Stdlib Require Import ListSet.
+
+(* Lemma is_simplicialb_is_simplicial :
+  forall g r, is_simplicialb g r = true -> is_simplicial r g
+.
+Proof.
+  intros g r. unfold is_simplicialb. induction (InterfGraph.get g r) eqn:E.
+  - intros H. apply andb_prop in H. destruct H as [H _]. unfold regs_mem in H.
+    apply set_mem_correct1 in H.
+  -  *)
+
+Definition a := 2.
 
 (* Definition is_simplicial (g : InterfGraph.dict) (r : reg) : Prop :=
   let nbors := InterfGraph.get g r in
