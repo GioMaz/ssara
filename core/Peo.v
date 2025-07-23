@@ -15,11 +15,15 @@ Definition are_neighborsb (g : InterfGraph.dict) (r : reg) (regs : list reg) : b
   conjunction (fun r' => (r =? r') || regs_mem r' (InterfGraph.get g r)) regs
 .
 
+Definition is_cliqueb (g : InterfGraph.dict) (regs : list reg) : bool :=
+  conjunction (fun r => are_neighborsb g r regs) regs
+.
+
 (* Check whether the neighbors of r are a clique *)
 Definition is_simplicialb (g : InterfGraph.dict) (r : reg) : bool :=
   let nbors := InterfGraph.get g r in
   regs_mem r (InterfGraph.keys g) &&
-  conjunction (fun r' => are_neighborsb g r' nbors) nbors
+  is_cliqueb g nbors
 .
 
 Definition find_next (g : InterfGraph.dict) : option reg :=
@@ -71,38 +75,18 @@ Qed.
   function is actually a PEO. To prove that we should follow the following
   steps:
   1) At each step of the eliminate function we eliminate a simplicial node;
-  2) Each element of the PEO has all of its neighbors to the left of it;
+  2) At each step of the eliminate function all of the neighbors of the eliminated node are already eliminated;
   3) At each step of the coloring function we insert a node where every neighbor
   node is already inserted;
   4) At each step of the coloring function the color we choose is not already
   used by the node's neighbors;
 *)
 
-Fixpoint split_by (r : reg) (rs : list reg) : list reg :=
-  match rs with
-  | nil => nil
-  | x :: xs => if r =? x then xs else split_by r xs
-  end
-.
-
-(* 3 *)
-(* Lemma peo_neighbors :
-  forall (g : InterfGraph.dict) (r : reg),
-  let peo := eliminate g in regs_inter (split_by r peo)
-. *)
-
 (*
   We start by defining a lemma proving the correctness of a single iteration of
   the eliminate function, that is proving that `find_next` actually returns a
   simplicial node.
 *)
-Lemma find_next_simplicial :
-  forall (g : InterfGraph.dict) (r : reg),
-    find_next g = Some r -> is_simplicialb g r = true
-.
-Proof.
-  intros g r. unfold find_next. apply find_some.
-Qed.
 
 (*
   Now we define a predicate for the simplicial relation, we define a node being
@@ -111,20 +95,33 @@ Qed.
   - It is built by a simplicial node r to which we add a neighbor r' that also
     has an edge with every other neighbor of r
 *)
-Inductive is_simplicial (r : reg) : InterfGraph.dict -> Prop :=
+(* Inductive is_simplicial (r : reg) : InterfGraph.dict -> Prop :=
   | SimplicialIsolated (g : InterfGraph.dict):
     InterfGraph.get g r = nil -> is_simplicial r g
   | SimplicialAddNeighbor (g : InterfGraph.dict) :
     is_simplicial r g -> forall r', let nbors := InterfGraph.get g r in
     is_simplicial r (ig_insert_edges g r' (r :: nbors))
+. *)
+Inductive is_simplicial (r : reg) : InterfGraph.dict -> Prop :=
+  | SimplicialAddSingleton (g : InterfGraph.dict):
+    ~(In r (InterfGraph.keys g)) -> is_simplicial r (ig_insert_node g r)
+  | SimplicialAddNode (g : InterfGraph.dict):
+    is_simplicial r g -> forall r', r <> r' ->
+    is_simplicial r (ig_insert_node g r')
+  | SimplicialAddEdge (g : InterfGraph.dict) :
+    is_simplicial r g -> forall r' r'', r <> r' -> r <> r'' ->
+    is_simplicial r (ig_insert_edge g r' r'')
+  | SimplicialAddNeighbor (g : InterfGraph.dict) :
+    is_simplicial r g -> forall a, let nbors := InterfGraph.get g r in
+    is_simplicial r (ig_insert_edges g a (r :: nbors))
 .
 
-(*
+(* (*
   Graph:
   0
 *)
-Goal is_simplicial 10 (ig_insert_node InterfGraph.empty 10).
-  apply SimplicialIsolated. simpl. reflexivity.
+Goal is_simplicial 0 (ig_insert_node InterfGraph.empty 0).
+  apply SimplicialAddNode. apply SimplicialEmpty. reflexivity.
 Qed.
 
 (*
@@ -147,7 +144,8 @@ Goal is_simplicial 0 example_ig_1.
   apply SimplicialAddNeighbor.
   apply SimplicialAddNeighbor.
   apply SimplicialAddNeighbor.
-  apply SimplicialIsolated.
+  apply SimplicialAddNode.
+  apply SimplicialEmpty.
   simpl. reflexivity.
 Qed.
 
@@ -160,21 +158,135 @@ Definition example_ig_2 : InterfGraph.dict :=
 .
 Goal is_simplicial 2 example_ig_2.
   unfold example_ig_2.
-  apply SimplicialIsolated. simpl. reflexivity.
+  apply SimplicialAddNode.
+  apply SimplicialAddNode.
+  apply SimplicialAddNode.
+  apply SimplicialEmpty. reflexivity.
 Qed.
+*)
 
 From Stdlib Require Import ListSet.
 
-(* Lemma is_simplicialb_is_simplicial :
+Lemma invert_keys : forall g a E,
+  a :: E = InterfGraph.keys g ->
+  exists g', (
+    (ig_insert_node g' a = g) \/
+    (exists r', In r' (InterfGraph.keys g') /\ ig_insert_edge g' a r' = g)
+  ) /\ InterfGraph.keys g = a :: (InterfGraph.keys g') /\ ~(In a (InterfGraph.keys g'))
+.
+Proof.
+Admitted.
+
+From Stdlib Require Import Sorting.Permutation.
+
+(*
+  Given a predicate on a list of Xs state that every pair of lists of Xs such
+  that they are permutations also satisfy that predicate
+*)
+Definition perm_invariant {X : Type} (P : list X -> Prop) : Prop :=
+  forall xs ys, Permutation xs ys -> P xs <-> P ys
+.
+
+(*
+  Prove that `is_cliqueb` is permutation invariant, that is for every two lists
+  that are permutations `is_cliqueb xs = true` iff `is_cliqueb ys = true`
+*)
+Lemma is_cliqueb_perm_inveriant : forall g,
+  perm_invariant (fun regs => is_cliqueb g regs = true)
+.
+Proof.
+Admitted.
+
+Lemma ig_insert_node_singleton :
+  forall g r, ~(In r (InterfGraph.keys g)) -> InterfGraph.get (ig_insert_node g r) r = [].
+Proof.
+Admitted.
+
+Lemma ig_insert_edge_singleton :
+  forall g u v, ~(In v (InterfGraph.keys g)) -> InterfGraph.get (ig_insert_edge g u v) v = [u].
+Proof.
+Admitted.
+
+Lemma ig_insert_node_regs_mem :
+  forall g r, regs_mem r (InterfGraph.keys (ig_insert_node g r)) = true
+.
+Proof.
+Admitted.
+
+Lemma ig_insert_node_is_cliqueb :
+  forall g r a, ~(In a (InterfGraph.keys g)) -> r <> a ->
+  is_cliqueb (ig_insert_node g a) (InterfGraph.get g r) = true ->
+  is_cliqueb g (InterfGraph.get g r) = true
+.
+Proof.
+Admitted.
+
+Lemma ig_insert_node_permutation :
+  forall g r a, ~(In a (InterfGraph.keys g)) -> r <> a ->
+  Permutation (InterfGraph.get (ig_insert_node g a) r) (InterfGraph.get g r)
+.
+Proof.
+Admitted.
+
+Lemma ig_insert_edge_ig_insert_edges :
+  forall g u v, ig_insert_edges g u [v] = ig_insert_edge g v u
+.
+Proof.
+Admitted.
+
+Lemma ig_insert_node_edge_ig_insert_edge :
+  forall g u v, ~(In u (InterfGraph.keys g)) -> ig_insert_edge (ig_insert_node g u) u v = ig_insert_edge g u v
+.
+Proof.
+Admitted.
+
+Goal is_simplicial 0 (ig_insert_edge InterfGraph.empty 0 1).
+Proof.
+  rewrite <- ig_insert_node_edge_ig_insert_edge. rewrite <- ig_insert_edge_ig_insert_edges. apply SimplicialAddNeighbor.
+  apply SimplicialAddSingleton. cbn. tauto. cbn. tauto.
+Qed.
+
+Lemma is_simplicialb_is_simplicial :
   forall g r, is_simplicialb g r = true -> is_simplicial r g
 .
 Proof.
-  intros g r. unfold is_simplicialb. induction (InterfGraph.get g r) eqn:E.
-  - intros H. apply andb_prop in H. destruct H as [H _]. unfold regs_mem in H.
-    apply set_mem_correct1 in H.
-  -  *)
+  intros g. remember (InterfGraph.keys g) as E.  (* Induction on the size of the graph *)
+  revert g HeqE. induction E.
+  - intros g E. unfold is_simplicialb. rewrite <- E. discriminate.
+  - intros g H r. assert (H' := H). apply invert_keys in H. destruct H as [g' [[Hsing | [r' [Hin Hedge]]] [H2 H3]]].
+    + specialize (IHE g'). rewrite H2 in H'.
+      inversion H'. specialize (IHE H0 r). intros H.
+      unfold is_simplicialb in H. apply andb_prop in H as [Ha Hb]. rewrite <- Hsing.
+      rewrite H2 in Ha. cbn in Ha. destruct (reg_eq_dec r a) eqn:X.
+      * subst. now apply SimplicialAddSingleton.
+      * apply SimplicialAddNode; trivial. apply IHE. unfold is_simplicialb. apply andb_true_intro. split. apply Ha. rewrite <- Hsing in Hb.
+        pose proof (is_cliqueb_perm_inveriant (ig_insert_node g' a)). unfold perm_invariant in H.
 
-Definition a := 2.
+        (* ys is (InterfGraph.get g' r) since a is a singleton so it cannot be part of the neighborhood of r *)
+        specialize (H (InterfGraph.get (ig_insert_node g' a) r) (InterfGraph.get g' r)). apply H in Hb. clear H.
+        eapply ig_insert_node_is_cliqueb; eauto.
+        apply ig_insert_node_permutation; eauto.
+    + specialize (IHE g'). rewrite H2 in H'. inversion H'. specialize (IHE H0). intros H.
+      unfold is_simplicialb in H. apply andb_prop in H as [Ha Hb]. rewrite <- Hedge.
+      rewrite H2 in Ha. cbn in Ha. destruct (reg_eq_dec r a) eqn:X.
+      * subst. assert (H3' := H3). assert (H3'' := H3). rewrite <- ig_insert_node_edge_ig_insert_edge.
+        apply ig_insert_edge_singleton with (u := r') in H3. rewrite <- ig_insert_edge_ig_insert_edges.
+        apply ig_insert_node_singleton in H3'. rewrite <- H3'. eapply SimplicialAddNeighbor.
+        apply SimplicialAddSingleton. assumption. assumption.
+      *
+Admitted.
+
+Lemma find_next_simplicial :
+  forall (g : InterfGraph.dict) (r : reg),
+    find_next g = Some r -> is_simplicial r g
+.
+Proof.
+  intros g r. unfold find_next. intros H. apply is_simplicialb_is_simplicial.
+  apply find_some in H. destruct H as [H1 H2]. assumption.
+Qed.
+
+(* Lemma is_simplicial_peo_correct :
+  forall (g : InterfGraph.dict),  *)
 
 (* Definition is_simplicial (g : InterfGraph.dict) (r : reg) : Prop :=
   let nbors := InterfGraph.get g r in

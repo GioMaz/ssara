@@ -30,7 +30,7 @@ Module MakeDict (D : DICT_PARAMS).
     let (keys, m) := d in map m keys
   .
 
-  Definition list (d : dict) : list (key * value) :=
+  Definition listify (d : dict) : list (key * value) :=
     let (keys, m) := d in map (fun k => (k, m k)) keys
   .
 

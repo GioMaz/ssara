@@ -175,7 +175,7 @@ Module Example1.
     let (pi, _) := analyze_program example_block_1 10 in
     InterfGraph.get_ig pi
   .
-  Compute InterfGraph.list ig.
+  Compute InterfGraph.listify ig.
 
   Definition peo := eliminate_fuel ig 10.
   Compute peo.
@@ -183,7 +183,7 @@ Module Example1.
   Definition c := get_coloring peo ig.
   Compute
     match c with
-    | Some c => Coloring.list c
+    | Some c => Coloring.listify c
     | None => nil
     end
   .

@@ -51,18 +51,11 @@ Proof.
 Qed.
 
 Lemma ig_size_decrease :
-  forall (g : InterfGraph.dict) (n : reg), In n (InterfGraph.keys g) -> InterfGraph.size (ig_remove_node g n) < InterfGraph.size g
+  forall (g : InterfGraph.dict) (n : reg), In n (InterfGraph.keys g) ->
+  InterfGraph.size (ig_remove_node g n) < InterfGraph.size g
 .
 Proof.
-  intros g n H.
-  destruct g as [keys map].
-  induction keys as [|r rs IH].
-  - contradiction.
-  - destruct (r :: rs).
-    contradiction.
-    unfold ig_remove_node. unfold InterfGraph.size. unfold InterfGraph.keys. unfold fst.
-    unfold InterfGraph.keys in H. unfold fst in H.
-    apply regs_size_decrease. assumption.
+  intros g n H. unfold ig_remove_node. cbn. apply regs_size_decrease. assumption.
 Qed.
 
 Fixpoint ig_insert_edges (g : InterfGraph.dict) (r : reg) (regs : list reg) : InterfGraph.dict :=
@@ -94,15 +87,14 @@ Definition ig_insert_instinfos (g : InterfGraph.dict) (iis: list instinfo) : Int
 .
 
 Definition get_ig (pi : ProgramInfo.dict) : InterfGraph.dict :=
-  let (ls, nbors) := pi in
   fold_left
     (fun g l =>
-      match nbors l with
+      match ProgramInfo.get pi l with
       | Some (BlockInfo iis) => ig_insert_instinfos g iis
       | None => g
       end
     )
-    ls
+    (ProgramInfo.keys pi)
     InterfGraph.empty
 .
 
@@ -161,7 +153,7 @@ Module Example1.
   Compute
     let '(pi, _) := analyze_program example_block_1 fuel in
     let g := get_ig pi in
-    InterfGraph.list g
+    InterfGraph.listify g
   .
 End Example1.
 
@@ -205,7 +197,7 @@ Module Example2.
   Compute
     let '(pi, _) := analyze_program example_block_1 fuel in
     let g := get_ig pi in
-    InterfGraph.list g
+    InterfGraph.listify g
   .
 End Example2.
 
@@ -246,12 +238,12 @@ Module Example3.
 
   Compute
     let '(pi, regs) := (analyze_program example_block_1 10) in
-    ProgramInfo.list pi
+    ProgramInfo.listify pi
   .
 
   Compute
     let '(pi, _) := analyze_program example_block_1 fuel in
     let g := get_ig pi in
-    InterfGraph.list g
+    InterfGraph.listify g
   .
 End Example3.

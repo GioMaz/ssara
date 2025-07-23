@@ -57,15 +57,14 @@ Definition programinfo_insert (pi : ProgramInfo.dict) (l : lbl) (bi : blockinfo)
 .
 
 Definition programinfo_merge (pi : ProgramInfo.dict) (pi' : ProgramInfo.dict) : ProgramInfo.dict :=
-  let (ls, map) := pi in
   fold_left
     (fun pi_acc l =>
-      match map l with
+      match ProgramInfo.get pi l with
       | Some bi => programinfo_insert pi_acc l bi
       | None => pi_acc
       end
     )
-    ls
+    (ProgramInfo.keys pi)
     pi'
 .
 
@@ -240,7 +239,7 @@ Module Example1.
 
   Compute
     let '(pi, regs) := (analyze_program example_block_1 10) in
-    ProgramInfo.list pi
+    ProgramInfo.listify pi
   .
 End Example1.
 
@@ -276,7 +275,7 @@ Module Example2.
 
   Compute
     let (pi, _) := analyze_program example_block_1 10 in
-    ProgramInfo.list pi
+    ProgramInfo.listify pi
   .
 End Example2.
 
@@ -334,6 +333,6 @@ Module Example3.
 
   Compute
     let '(pi, _) := analyze_program example_block_1 fuel in
-    ProgramInfo.list pi
+    ProgramInfo.listify pi
   .
 End Example3.

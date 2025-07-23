@@ -1,4 +1,4 @@
-From Ssara.Core Require Import IR.
+(*From Ssara.Core Require Import IR.
 Require Import Ssara.Core.Vm.
 From Stdlib Require Import Lists.List.
 From Stdlib Require Import ZArith.
@@ -165,4 +165,5 @@ QuickChick store_P.
 
 (*
 TODO: Look into QuickChick generators and QuickChick conversion from predicates to fixpoints
+*)
 *)
