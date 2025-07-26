@@ -167,14 +167,16 @@ Qed.
 
 From Stdlib Require Import ListSet.
 
-Lemma invert_keys : forall g a E,
-  a :: E = InterfGraph.keys g ->
-  exists g', (
-    (ig_insert_node g' a = g) \/
-    (exists r', In r' (InterfGraph.keys g') /\ ig_insert_edge g' a r' = g)
-  ) /\ InterfGraph.keys g = a :: (InterfGraph.keys g') /\ ~(In a (InterfGraph.keys g'))
+Lemma invert_keys : forall g a V,
+  a :: V = InterfGraph.keys g -> exists g',
+    ((ig_insert_node g' a = g) \/ (exists r', ig_insert_edge g' a r' = g))
+    /\ InterfGraph.keys g = a :: (InterfGraph.keys g')
+    /\ ~(In a (InterfGraph.keys g'))
 .
 Proof.
+  intros g. remember (InterfGraph.keys g) as V'. induction V' as [|a' V'].
+  - discriminate.
+  - intros a V H. injection H as H. subst.
 Admitted.
 
 From Stdlib Require Import Sorting.Permutation.
@@ -250,29 +252,30 @@ Lemma is_simplicialb_is_simplicial :
   forall g r, is_simplicialb g r = true -> is_simplicial r g
 .
 Proof.
-  intros g. remember (InterfGraph.keys g) as E.  (* Induction on the size of the graph *)
-  revert g HeqE. induction E.
-  - intros g E. unfold is_simplicialb. rewrite <- E. discriminate.
-  - intros g H r. assert (H' := H). apply invert_keys in H. destruct H as [g' [[Hsing | [r' [Hin Hedge]]] [H2 H3]]].
-    + specialize (IHE g'). rewrite H2 in H'.
-      inversion H'. specialize (IHE H0 r). intros H.
+  intros g. remember (InterfGraph.keys g) as V. revert g HeqV. induction V. (* Induction on the size of the graph *)
+  - intros g V. unfold is_simplicialb. rewrite <- V. discriminate.
+  - intros g H r. assert (H' := H). apply invert_keys in H. destruct H as [g' [[Hsing | Hedge] [Hkeys Hin]]].
+    + specialize (IHV g'). rewrite Hkeys in H'.
+      injection H' as H'. specialize (IHV H' r). intros H.
       unfold is_simplicialb in H. apply andb_prop in H as [Ha Hb]. rewrite <- Hsing.
-      rewrite H2 in Ha. cbn in Ha. destruct (reg_eq_dec r a) eqn:X.
+      rewrite Hkeys in Ha. cbn in Ha. destruct (reg_eq_dec r a).
       * subst. now apply SimplicialAddSingleton.
-      * apply SimplicialAddNode; trivial. apply IHE. unfold is_simplicialb. apply andb_true_intro. split. apply Ha. rewrite <- Hsing in Hb.
+      * apply SimplicialAddNode; trivial. apply IHV. unfold is_simplicialb. apply andb_true_intro. split. apply Ha. rewrite <- Hsing in Hb.
         pose proof (is_cliqueb_perm_inveriant (ig_insert_node g' a)). unfold perm_invariant in H.
 
-        (* ys is (InterfGraph.get g' r) since a is a singleton so it cannot be part of the neighborhood of r *)
+        (* ys is (InterfGraph.get g' r) since a is a singleton and so it cannot be part of the neighborhood of r *)
         specialize (H (InterfGraph.get (ig_insert_node g' a) r) (InterfGraph.get g' r)). apply H in Hb. clear H.
         eapply ig_insert_node_is_cliqueb; eauto.
         apply ig_insert_node_permutation; eauto.
-    + specialize (IHE g'). rewrite H2 in H'. inversion H'. specialize (IHE H0). intros H.
-      unfold is_simplicialb in H. apply andb_prop in H as [Ha Hb]. rewrite <- Hedge.
-      rewrite H2 in Ha. cbn in Ha. destruct (reg_eq_dec r a) eqn:X.
-      * subst. assert (H3' := H3). assert (H3'' := H3). rewrite <- ig_insert_node_edge_ig_insert_edge.
-        apply ig_insert_edge_singleton with (u := r') in H3. rewrite <- ig_insert_edge_ig_insert_edges.
-        apply ig_insert_node_singleton in H3'. rewrite <- H3'. eapply SimplicialAddNeighbor.
-        apply SimplicialAddSingleton. assumption. assumption.
+    + specialize (IHV g'). rewrite Hkeys in H'. injection H' as H'. specialize (IHV H'). intros H.
+      unfold is_simplicialb in H. apply andb_prop in H as [Ha Hb]. assert (Hedge' := Hedge). destruct Hedge' as [r' Hedge'].
+      rewrite <- Hedge'. rewrite Hkeys in Ha. cbn in Ha. destruct (reg_eq_dec r a).
+      * subst. assert (Hin' := Hin). assert (Hin'' := Hin). rewrite <- ig_insert_node_edge_ig_insert_edge.
+        apply ig_insert_edge_singleton with (u := r') in Hin. rewrite <- ig_insert_edge_ig_insert_edges.
+        apply ig_insert_node_singleton in Hin'. rewrite <- Hin'. eapply SimplicialAddNeighbor.
+        now apply SimplicialAddSingleton. eauto.
+
+      (* Problem, what if r' = r, in that case r may not be simplicial anymore *)
       *
 Admitted.
 
@@ -285,50 +288,12 @@ Proof.
   apply find_some in H. destruct H as [H1 H2]. assumption.
 Qed.
 
-(* Lemma is_simplicial_peo_correct :
-  forall (g : InterfGraph.dict),  *)
-
-(* Definition is_simplicial (g : InterfGraph.dict) (r : reg) : Prop :=
-  let nbors := InterfGraph.get g r in
-  forall (n n': reg),
-    In n (InterfGraph.keys g) /\ In n' (InterfGraph.keys g) ->
-    In n (InterfGraph.get g n') /\ In n' (InterfGraph.get g n)
-. *)
-
-(*
-  And the we prove that the `is_simplicialb` function satisfies the
-  `is_simplicial` predicate.
-*)
-(*Lemma is_simplicialb_is_simplicial :
-  forall (g : InterfGraph.dict) (r : reg),
-    is_simplicialb g r = true -> is_simplicial g r
-.
-Proof.
-  intros g r. unfold is_simplicialb.*)
-
-(* Fixpoint split_by (rs : list reg) (r : reg) : list reg :=
-  match rs with
-  | nil => nil
-  | x :: xs => if r =? x then xs else split_by xs r
-  end
+(* Inductive is_peo : InterfGraph.dict -> list reg -> Prop :=
+  | PeoEmpty : is_peo InterfGraph.empty []
+  | PeoAddEdge : forall g' r rs,
+    is_peo g' rs ->
+    (exists g, InterfGraph.keys g = r :: (InterfGraph.keys g') /\ is_simplicial r g)
+    is_peo g (r :: rs)
 .
 
-Theorem eliminate_result_is_peo :
-  forall (g : InterfGraph.dict) (r : reg),
-    let peo := eliminate g in
-    let after := split_by (InterfGraph.keys g) r
-    In r peo -> after
-.
-
-Definition is_simplicial (g : InterfGraph.dict) (r : reg) : Prop :=
-  let nbors := InterfGraph.get g r in
-  forall (n n': reg),
-    In n nbors /\ In n' nbors
-.
-
-Lemma is_simplicialb_is_simplicial :
-  forall (g : InterfGraph.dict) (r : reg),
-    is_simplicialb g r = true -> is_simplicial g r
-.
-Proof.
-Admitted. *)
+Lemma eliminate_is_peo : *)
