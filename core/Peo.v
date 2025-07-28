@@ -76,10 +76,8 @@ Qed.
   steps:
   1) At each step of the eliminate function we eliminate a simplicial node;
   2) At each step of the eliminate function all of the neighbors of the eliminated node are already eliminated;
-  3) At each step of the coloring function we insert a node where every neighbor
-  node is already inserted;
-  4) At each step of the coloring function the color we choose is not already
-  used by the node's neighbors;
+  3) At each step of the coloring function we insert a node where every neighbor node is already inserted;
+  4) At each step of the coloring function the color we choose is not already used by the node's neighbors;
 *)
 
 (*
@@ -169,7 +167,7 @@ From Stdlib Require Import ListSet.
 
 Lemma invert_keys : forall g a V,
   a :: V = InterfGraph.keys g -> exists g',
-    ((ig_insert_node g' a = g) \/ (exists r', ig_insert_edge g' a r' = g))
+    ((ig_insert_node g' a = g) \/ (exists r', In r' (InterfGraph.keys g') /\ ig_insert_edge g' a r' = g))
     /\ InterfGraph.keys g = a :: (InterfGraph.keys g')
     /\ ~(In a (InterfGraph.keys g'))
 .
@@ -268,7 +266,7 @@ Proof.
         eapply ig_insert_node_is_cliqueb; eauto.
         apply ig_insert_node_permutation; eauto.
     + specialize (IHV g'). rewrite Hkeys in H'. injection H' as H'. specialize (IHV H'). intros H.
-      unfold is_simplicialb in H. apply andb_prop in H as [Ha Hb]. assert (Hedge' := Hedge). destruct Hedge' as [r' Hedge'].
+      unfold is_simplicialb in H. apply andb_prop in H as [Ha Hb]. assert (Hedge' := Hedge). destruct Hedge' as [r' [Hinr'  Hedge']].
       rewrite <- Hedge'. rewrite Hkeys in Ha. cbn in Ha. destruct (reg_eq_dec r a).
       * subst. assert (Hin' := Hin). assert (Hin'' := Hin). rewrite <- ig_insert_node_edge_ig_insert_edge.
         apply ig_insert_edge_singleton with (u := r') in Hin. rewrite <- ig_insert_edge_ig_insert_edges.
@@ -276,7 +274,6 @@ Proof.
         now apply SimplicialAddSingleton. eauto.
 
       (* Problem, what if r' = r, in that case r may not be simplicial anymore *)
-      *
 Admitted.
 
 Lemma find_next_simplicial :
