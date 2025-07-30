@@ -75,7 +75,7 @@ Qed.
   function is actually a PEO. To prove that we should follow the following
   steps:
   1) At each step of the eliminate function we eliminate a simplicial node;
-  2) At each step of the eliminate function all of the neighbors of the eliminated node are already eliminated;
+  2) At each step of the eliminate function the node we just eliminated has a neighbor set that is a clique, that means that we can color it in polynomial time
   3) At each step of the coloring function we insert a node where every neighbor node is already inserted;
   4) At each step of the coloring function the color we choose is not already used by the node's neighbors;
 *)
@@ -167,12 +167,12 @@ From Stdlib Require Import ListSet.
 
 Lemma invert_keys : forall g a V,
   a :: V = InterfGraph.keys g -> exists g',
-    ((ig_insert_node g' a = g) \/ (exists r', In r' (InterfGraph.keys g') /\ ig_insert_edge g' a r' = g))
+    ((ig_insert_node g' a = g) \/ (exists r', ig_insert_edge g' a r' = g))
     /\ InterfGraph.keys g = a :: (InterfGraph.keys g')
     /\ ~(In a (InterfGraph.keys g'))
 .
 Proof.
-  intros g. remember (InterfGraph.keys g) as V'. induction V' as [|a' V'].
+  intros g. remember (InterfGraph.keys g) as V'. induction V' as [| a' V'].
   - discriminate.
   - intros a V H. injection H as H. subst.
 Admitted.
@@ -229,7 +229,7 @@ Proof.
 Admitted.
 
 Lemma ig_insert_edge_ig_insert_edges :
-  forall g u v, ig_insert_edges g u [v] = ig_insert_edge g v u
+  forall g u v, ig_insert_edges g u [v] = ig_insert_edge g u v
 .
 Proof.
 Admitted.
@@ -240,17 +240,36 @@ Lemma ig_insert_node_edge_ig_insert_edge :
 Proof.
 Admitted.
 
-Goal is_simplicial 0 (ig_insert_edge InterfGraph.empty 0 1).
+Lemma ig_insert_edge_comm :
+  forall g u v, ig_insert_edge g u v = ig_insert_edge g v u
+.
+Proof.
+Admitted.
+
+(* Goal is_simplicial 0 (ig_insert_edge InterfGraph.empty 0 1).
 Proof.
   rewrite <- ig_insert_node_edge_ig_insert_edge. rewrite <- ig_insert_edge_ig_insert_edges. apply SimplicialAddNeighbor.
   apply SimplicialAddSingleton. cbn. tauto. cbn. tauto.
-Qed.
+Qed. *)
+
+Lemma invert_isolated : forall g r, InterfGraph.get g r = [] ->
+  exists g',
+    ~(In r (InterfGraph.keys g')) /\ (ig_insert_node g' r) = g
+.
+Proof.
+Admitted.
+
+Lemma ig_insert_edge_nbors :
+  forall g u v, InterfGraph.get (ig_insert_edge g u v) u = v :: (InterfGraph.get g u)
+.
+Proof.
+Admitted.
 
 Lemma is_simplicialb_is_simplicial :
   forall g r, is_simplicialb g r = true -> is_simplicial r g
 .
 Proof.
-  intros g. remember (InterfGraph.keys g) as V. revert g HeqV. induction V. (* Induction on the size of the graph *)
+  intros g. remember (InterfGraph.keys g) as V. revert g HeqV. induction V as [| a]. (* Induction on the size of the graph *)
   - intros g V. unfold is_simplicialb. rewrite <- V. discriminate.
   - intros g H r. assert (H' := H). apply invert_keys in H. destruct H as [g' [[Hsing | Hedge] [Hkeys Hin]]].
     + specialize (IHV g'). rewrite Hkeys in H'.
@@ -266,15 +285,63 @@ Proof.
         eapply ig_insert_node_is_cliqueb; eauto.
         apply ig_insert_node_permutation; eauto.
     + specialize (IHV g'). rewrite Hkeys in H'. injection H' as H'. specialize (IHV H'). intros H.
-      unfold is_simplicialb in H. apply andb_prop in H as [Ha Hb]. assert (Hedge' := Hedge). destruct Hedge' as [r' [Hinr'  Hedge']].
+      unfold is_simplicialb in H. apply andb_prop in H as [Ha Hb]. assert (Hedge' := Hedge). destruct Hedge' as [r' Hedge'].
       rewrite <- Hedge'. rewrite Hkeys in Ha. cbn in Ha. destruct (reg_eq_dec r a).
-      * subst. assert (Hin' := Hin). assert (Hin'' := Hin). rewrite <- ig_insert_node_edge_ig_insert_edge.
-        apply ig_insert_edge_singleton with (u := r') in Hin. rewrite <- ig_insert_edge_ig_insert_edges.
-        apply ig_insert_node_singleton in Hin'. rewrite <- Hin'. eapply SimplicialAddNeighbor.
-        now apply SimplicialAddSingleton. eauto.
 
-      (* Problem, what if r' = r, in that case r may not be simplicial anymore *)
+      (* First we take into consideration the case where a = r, we are adding a new isolated edge *)
+      * subst. assert (Hin' := Hin). assert (Hin'' := Hin). rewrite <- ig_insert_node_edge_ig_insert_edge.
+        apply ig_insert_edge_singleton with (u := r') in Hin. rewrite <- ig_insert_edge_comm.
+        rewrite <- ig_insert_edge_ig_insert_edges. apply ig_insert_node_singleton in Hin'. rewrite <- Hin'.
+        eapply SimplicialAddNeighbor. now apply SimplicialAddSingleton. eauto.
+
+(*
+  Then we take into consideration the case where a <> r, we are connecting the new node a to an already existing node r'
+  We analyze the following cases:
+
+  1) a ------- r = r'                    (r still simplicial)
+
+  2) a ------- r = r' --- nbors (clique) (r not simplicial anymore)
+
+  3) a         r --- nbors (clique)      (r still simplicial)
+      \-------------/
+
+  4) a         r --- nbors (clique)   r' (r still simplicial)
+      \------------------------------/
+
+*)
+
+      * destruct (reg_eq_dec r r').
+        -- destruct (InterfGraph.get g' r) as [| x xs] eqn:nbors.
+
+          (* 1 *)
+          ++ subst. rewrite <- ig_insert_edge_ig_insert_edges. rewrite <- nbors. apply SimplicialAddNeighbor.
+            apply invert_isolated in nbors. destruct nbors as [nborsIn [g'' nborsEq]]. rewrite <- nborsEq.
+            apply SimplicialAddSingleton. assumption.
+
+          (* 2 *)
+          ++ subst. rewrite ig_insert_edge_comm in Hb. rewrite ig_insert_edge_nbors in Hb. rewrite nbors in Hb.
+            apply ig_insert_edge_singleton with (u := r') in Hin. unfold is_cliqueb in Hb. cbn in Hb.
+            remember (are_neighborsb (ig_insert_edge g' r' a) a (a :: x :: xs)) as Contr. unfold are_neighborsb in HeqContr.
+            cbn in HeqContr. remember ((a =? x) || regs_mem x (InterfGraph.get (ig_insert_edge g' r' a) a)) as Contr'.
+            rewrite Hin in HeqContr'.
+            (* Prove that Contr' is false *)
+            (* Prove that Contr is false *)
+            (* Use the contradiction to derive the goal *)
+            admit.
+
+        -- destruct (In_dec reg_eq_dec r' (InterfGraph.get g' r)).
+          (* 3 *)
+          ++ apply in_split in i. admit.
+
+          (* 4 *)
+          ++ admit.
+
 Admitted.
+
+(* Lemma invert_edge : forall g' a r',
+  InterfGraph.keys (ig_insert_edge g' a r') = a :: InterfGraph.keys g' ->
+. *)
+
 
 Lemma find_next_simplicial :
   forall (g : InterfGraph.dict) (r : reg),
@@ -284,6 +351,18 @@ Proof.
   intros g r. unfold find_next. intros H. apply is_simplicialb_is_simplicial.
   apply find_some in H. destruct H as [H1 H2]. assumption.
 Qed.
+
+Inductive is_clique : InterfGraph.dict -> list reg -> Prop :=
+  | CliqueEmpty : forall g, is_clique g []
+  | CliqueAddNode : forall g r rs, is_clique g rs ->
+    is_clique (ig_insert_edges g r rs) (r :: rs)
+.
+
+Lemma is_simplicial_nbors_is_clique :
+  forall g r, is_simplicial r g -> is_clique g (InterfGraph.get g r)
+.
+Proof.
+Admitted.
 
 (* Inductive is_peo : InterfGraph.dict -> list reg -> Prop :=
   | PeoEmpty : is_peo InterfGraph.empty []
