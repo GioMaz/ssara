@@ -18,14 +18,18 @@ End InterfGraphParams.
 
 Module InterfGraph := MakeDict InterfGraphParams.
 
-Definition ig_update_edge (f : reg -> set reg -> set reg) (g : InterfGraph.dict) (r : reg) (r' : reg) : InterfGraph.dict :=
+Definition ig_update_edge (f : reg -> set reg -> set reg) (g : InterfGraph.dict) (r r' : reg) : InterfGraph.dict :=
   let regs  := InterfGraph.get g r in
   let g     := InterfGraph.update g r (f r' regs) in
   let regs  := InterfGraph.get g r' in
   InterfGraph.update g r' (f r regs)
 .
 Definition ig_remove_edge := ig_update_edge regs_remove.
-Definition ig_insert_edge := ig_update_edge regs_add.
+
+(* A register cannot interfere with himself *)
+Definition ig_insert_edge (g : InterfGraph.dict) (r r' : reg) :=
+  if r =? r' then g else ig_update_edge regs_add g r r'
+.
 
 Definition ig_insert_node (g : InterfGraph.dict) (r : reg) : InterfGraph.dict :=
   InterfGraph.update g r (InterfGraph.get g r)
