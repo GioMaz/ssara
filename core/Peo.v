@@ -305,6 +305,23 @@ Lemma invert_node :
 Proof.
 Admitted.
 
+Lemma ig_get_nodup_invariant :
+  forall g u, NoDup (InterfGraph.get g u)
+.
+Proof.
+Admitted.
+
+Lemma nodup_neq :
+  forall (A : Type) (x y : A) (ys: list A),
+    NoDup (x :: y :: ys) -> x <> y
+.
+Proof.
+  intros A x y ys H. inversion H as [| x' l HNIn HNDup HExx'].
+  unfold not in HNIn.
+  intros Heq. subst.
+  apply HNIn. left. reflexivity.
+Qed.
+
 Lemma is_simplicialb_is_simplicial :
   forall g r, is_simplicialb g r = true -> is_simplicial r g
 .
@@ -380,7 +397,7 @@ Proof.
                 but if `xs = []` we cannot derive the contradiction
               *)
               destruct xs as [| y ys].
-              *** admit.
+              *** subst. rewrite <- ig_insert_edge_ig_insert_edges. rewrite <- nbors. admit.
               *** remember (are_neighborsb (ig_insert_edge g' r' a) a (a :: x :: y :: ys)) as Contr.
                 assert
                   (fold_left (fun (b : bool) (x0 : reg) => b && are_neighborsb (ig_insert_edge g' r' a) x0 (a :: x :: y :: ys)) (y :: ys)
@@ -391,7 +408,10 @@ Proof.
                 pose proof in_elt as Iny. specialize (Iny reg y [x] ys). rewrite concat_to_cons in Iny. rewrite <- nbors in Iny. apply ig_get_in in Iny.
                 assert (a <> y) as NEay. intros Eay. rewrite <- Eay in Iny. contradiction. apply Nat.eqb_neq in NEay. rewrite NEay in HeqContr'.
                 cbn in HeqContr'. rewrite Hin in HeqContr'. cbn in HeqContr'. rewrite <- Exr' in HeqContr'.
-                admit.
+                pose proof (ig_get_nodup_invariant) as ND. specialize (ND g' r'). rewrite nbors in ND. apply nodup_neq in ND. apply Nat.eqb_neq in ND.
+                destruct (reg_eq_dec y x) as [Eyx | NEyx]. rewrite Eyx in ND. rewrite Nat.eqb_refl in ND. discriminate.
+                rewrite HeqContr' in HeqContr. rewrite andb_false_r in HeqContr. rewrite fold_left_false in HeqContr. rewrite andb_false_r in HeqContr.
+                rewrite HeqContr in Hb'. rewrite andb_false_l in Hb'. rewrite fold_left_false in Hb'. discriminate.
 
               (*
                 We prove by contradiction that if we add a neighbor `a` to an `r` such that `a` is not in the graph
