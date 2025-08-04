@@ -464,10 +464,9 @@ Proof.
               rewrite HeqContr in Hb'. cbn in Hb'. rewrite fold_left_false in Hb'. discriminate.
 
         (* 2 - 3 *)
-        -- subst. apply SimplicialAddEdge. rewrite ig_insert_edge_isolated_nbors in Hb by now assumption.
-          apply is_cliqueb_ig_insert_edge with (g := g') in Hb. unfold is_simplicialb in IHV. specialize (IHV r).
-          rewrite Ha in IHV. rewrite Hb in IHV. cbn in IHV. specialize (IHV eq_refl).
-          assumption. assumption. assumption. assumption. assumption. assumption.
+        -- subst. eapply SimplicialAddEdge; eauto. rewrite ig_insert_edge_isolated_nbors in Hb by now assumption.
+          apply is_cliqueb_ig_insert_edge in Hb; eauto. unfold is_simplicialb in IHV. specialize (IHV r).
+          rewrite Ha in IHV. rewrite Hb in IHV. cbn in IHV. specialize (IHV eq_refl). assumption.
 Qed.
 
 (* Lemma invert_edge : forall g' a r',
