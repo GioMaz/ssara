@@ -223,12 +223,6 @@ Lemma ig_insert_edge_singleton :
 Proof.
 Admitted.
 
-Lemma ig_insert_node_regs_mem :
-  forall g r, regs_mem r (InterfGraph.keys (ig_insert_node g r)) = true
-.
-Proof.
-Admitted.
-
 Lemma ig_insert_node_permutation :
   forall g r a, ~(In a (InterfGraph.keys g)) -> r <> a ->
   Permutation (InterfGraph.get (ig_insert_node g a) r) (InterfGraph.get g r)
@@ -254,12 +248,6 @@ Lemma ig_insert_edge_comm :
 Proof.
 Admitted.
 
-(* Goal is_simplicial 0 (ig_insert_edge InterfGraph.empty 0 1).
-Proof.
-  rewrite <- ig_insert_node_edge_ig_insert_edge. rewrite <- ig_insert_edge_ig_insert_edges. apply SimplicialAddNeighbor.
-  apply SimplicialAddSingleton. cbn. tauto. cbn. tauto.
-Qed. *)
-
 Lemma invert_isolated : forall g r, InterfGraph.get g r = [] ->
   exists g',
     ~(In r (InterfGraph.keys g')) /\ (ig_insert_node g' r) = g
@@ -276,18 +264,6 @@ Admitted.
 
 Lemma ig_insert_edge_nbors :
   forall g u v, InterfGraph.get (ig_insert_edge g u v) u = v :: (InterfGraph.get g u)
-.
-Proof.
-Admitted.
-
-Lemma ig_insert_node_again :
-  forall g u, In u (InterfGraph.keys g) -> ig_insert_node g u = g
-.
-Proof.
-Admitted.
-
-Lemma ig_insert_edge_again :
-  forall g u v, In v (InterfGraph.get g u) -> ig_insert_edge g u v = g
 .
 Proof.
 Admitted.
@@ -309,13 +285,6 @@ Qed.
 
 Lemma concat_to_cons :
   forall (X : Type) (x : X) (xs : list X), [x] ++ xs = x :: xs
-.
-Proof.
-Admitted.
-
-Lemma invert_node :
-  forall g u v, In v (InterfGraph.keys g) ->
-    u = v \/ In v (InterfGraph.get g u) \/ (u <> v /\ ~(In v (InterfGraph.get g u)))
 .
 Proof.
 Admitted.
@@ -468,10 +437,6 @@ Proof.
           apply is_cliqueb_ig_insert_edge in Hb; eauto. unfold is_simplicialb in IHV. specialize (IHV r).
           rewrite Ha in IHV. rewrite Hb in IHV. cbn in IHV. specialize (IHV eq_refl). assumption.
 Qed.
-
-(* Lemma invert_edge : forall g' a r',
-  InterfGraph.keys (ig_insert_edge g' a r') = a :: InterfGraph.keys g' ->
-. *)
 
 Lemma find_next_simplicial :
   forall (g : InterfGraph.dict) (r : reg),
