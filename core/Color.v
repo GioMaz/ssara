@@ -286,3 +286,87 @@ Module Example4.
     )
   .
 End Example4.
+
+(* Example 5 *)
+Module Example5.
+  Definition example_block_3 : block :=
+    Block 3 [
+    ] [
+    ] (
+      ret r(6)
+    )
+  .
+
+  CoFixpoint example_block_2 : block :=
+    Block 2 [
+      r(3) <- phi [(0, 1); (4, 2)];
+      r(4) <- phi [(1, 1); (6, 2)];
+      r(5) <- phi [(2, 1); (7, 2)]
+    ] [
+      r(6) <- r(4) + (Reg 3); (* New first block *)
+      r(7) <- r(5) - (Imm 1)  (* New iterator *)
+    ] (
+      if r(7) = (Imm 1) then example_block_3 else example_block_2
+    )
+  .
+
+  Definition example_block_1 : block :=
+    Block 1 [
+    ] [
+      r(0) <- Imm 0;  (* Second block *)
+      r(1) <- Imm 1;  (* First block *)
+      r(2) <- Imm 10  (* Iterator*)
+    ] (
+      Jump example_block_2
+    )
+  .
+
+Import IRPreg.
+
+  Definition pi := let (pi, _) := analyze_program example_block_1 100 in pi.
+  Definition ig := get_ig pi.
+  Definition peo := eliminate_fuel ig 100.
+  Definition coloring := get_coloring peo ig.
+  Definition irpreg_program :=
+    match coloring with
+    | Some coloring => Some (IRPreg.visit_program (color_program coloring example_block_1) 3)
+    | None => None
+    end
+  .
+  Compute irpreg_program.
+End Example5.
+
+(* Example 6 *)
+Module Example6.
+  Definition example_block_3 : block :=
+    Block 3 [
+    ] [
+    ] (
+      ret r(6)
+    )
+  .
+
+  CoFixpoint example_block_2 : block :=
+    Block 2 [
+      r(3) <- phi [(0, 1); (4, 2)];
+      r(4) <- phi [(1, 1); (6, 2)];
+      r(5) <- phi [(2, 1); (7, 2)]
+    ] [
+      r(6) <- r(4) + (Reg 3); (* New first block *)
+      r(7) <- r(5) - (Imm 1)  (* New iterator *)
+    ] (
+      if r(7) = (Imm 2) then example_block_3 else example_block_2
+    )
+  .
+
+  Definition example_block_1 : block :=
+    Block 1 [
+    ] [
+      r(0) <- Imm 0;  (* Second block *)
+      r(1) <- Imm 1;  (* First block *)
+      r(2) <- Imm 10  (* Iterator*)
+    ] (
+      Jump example_block_2
+    )
+  .
+End Example6.

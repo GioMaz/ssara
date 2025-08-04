@@ -25,11 +25,7 @@ Definition ig_update_edge (f : reg -> set reg -> set reg) (g : InterfGraph.dict)
   InterfGraph.update g r' (f r regs)
 .
 Definition ig_remove_edge := ig_update_edge regs_remove.
-
-(* A register cannot interfere with himself *)
-Definition ig_insert_edge (g : InterfGraph.dict) (r r' : reg) :=
-  if r =? r' then g else ig_update_edge regs_add g r r'
-.
+Definition ig_insert_edge := ig_update_edge regs_add.
 
 Definition ig_insert_node (g : InterfGraph.dict) (r : reg) : InterfGraph.dict :=
   InterfGraph.update g r (InterfGraph.get g r)

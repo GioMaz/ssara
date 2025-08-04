@@ -226,3 +226,45 @@ Module Example2.
     visit_program d fuel
   .
 End Example2.
+
+Module Example3.
+  Definition example_block_3 : block :=
+    Block 3 [
+    ] [
+    ] (
+      ret r(RBX)
+    )
+  .
+
+  CoFixpoint example_block_2 : block :=
+    Block 2 [
+      r(RBX) <- phi [(RBX, 1); (RDX, 2)]; (* (a = a) (a = rdx which is the previous b) *)
+      r(RDX) <- phi [(RCX, 1); (RBX, 2)]; (* (b = a) (b = rbx which is the previous b + the previous a) *)
+      r(RCX) <- phi [(RDX, 1); (RCX, 2)]  (* (i = i) (i = rcx) *)
+    ] [
+      r(RBX) <- r(RDX) + (Reg RBX); (* rbx = b + a *)
+      r(RCX) <- r(RCX) - (Imm 1)    (* rcx = i - 1 *)
+    ] (
+      if r(RCX) = (Imm 1) then example_block_3 else example_block_2
+    )
+  .
+
+  Definition example_block_1 : block :=
+    Block 1 [
+    ] [
+      r(RBX) <- (Imm 0);
+      r(RCX) <- (Imm 1);
+      r(RDX) <- (Imm 10)
+    ] (
+      Jump example_block_2
+    )
+  .
+
+  Definition fuel : nat := 20.
+
+  (* ssa_destruct phis *)
+  Compute
+    let d := ssa_destruct example_block_1 in
+    visit_program d fuel
+  .
+End Example3.

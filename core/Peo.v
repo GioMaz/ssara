@@ -259,6 +259,13 @@ Lemma invert_isolated : forall g r, InterfGraph.get g r = [] ->
 Proof.
 Admitted.
 
+Lemma invert_loop : forall g r, InterfGraph.get g r = [r] ->
+  exists g',
+    ~(In r (InterfGraph.keys g')) /\ (ig_insert_edge g' r r) = g
+.
+Proof.
+Admitted.
+
 Lemma ig_insert_edge_nbors :
   forall g u v, InterfGraph.get (ig_insert_edge g u v) u = v :: (InterfGraph.get g u)
 .
@@ -321,6 +328,12 @@ Proof.
   intros Heq. subst.
   apply HNIn. left. reflexivity.
 Qed.
+
+Lemma ig_insert_edges_double :
+  forall g u v, ig_insert_edges g u [v] = ig_insert_edges g u [v; v]
+.
+Proof.
+Admitted.
 
 Lemma is_simplicialb_is_simplicial :
   forall g r, is_simplicialb g r = true -> is_simplicial r g
@@ -394,11 +407,17 @@ Proof.
 
               (*
                 Now the contradiction in `Hb` should be that `a` is not connected to `xs`,
-                but if `xs = []` we cannot derive the contradiction
+                but if `xs = []` we cannot derive the contradiction, in that case in fact
+                we have a --- (r' = x) which is simplicial
               *)
               destruct xs as [| y ys].
-              *** subst. rewrite <- ig_insert_edge_ig_insert_edges. rewrite <- nbors. admit.
-              *** remember (are_neighborsb (ig_insert_edge g' r' a) a (a :: x :: y :: ys)) as Contr.
+              *** subst. cbn in Hb. rewrite <- ig_insert_edge_ig_insert_edges. rewrite ig_insert_edges_double. rewrite <- nbors.
+                apply SimplicialAddNeighbor. apply invert_loop in nbors. destruct nbors as [g'' [Hinr'g'' Hr'r']]. assert (Hinr'g''' := Hinr'g'').
+                rewrite <- Hr'r'. rewrite <- ig_insert_node_edge_ig_insert_edge by now assumption. rewrite <- ig_insert_edge_ig_insert_edges.
+                apply ig_insert_node_singleton in Hinr'g''. rewrite <- Hinr'g''. apply SimplicialAddNeighbor. apply SimplicialAddSingleton.
+                assumption.
+
+                *** remember (are_neighborsb (ig_insert_edge g' r' a) a (a :: x :: y :: ys)) as Contr.
                 assert
                   (fold_left (fun (b : bool) (x0 : reg) => b && are_neighborsb (ig_insert_edge g' r' a) x0 (a :: x :: y :: ys)) (y :: ys)
                     (Contr && are_neighborsb (ig_insert_edge g' r' a) x (a :: x :: y :: ys)) = true) as Hb'

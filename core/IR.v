@@ -231,7 +231,7 @@ Module MakeIR (IR: IR_PARAMS).
   Notation "'store' 'r(' x ) 'r(' y )" :=
     (Store x y) (at level 50).
   Notation "'if' 'r(' x ) = y 'then' b1 'else' b2" :=
-    (CondJump Jlt x y b1 b2) (at level 50).
+    (CondJump Jeq x y b1 b2) (at level 50).
   Notation "'if' 'r(' x ) <> y 'then' b1 'else' b2" :=
     (CondJump Jne x y b1 b2) (at level 50).
   Notation "'if' 'r(' x ) < y 'then' b1 'else' b2" :=
