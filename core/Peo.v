@@ -197,6 +197,22 @@ Lemma is_cliqueb_perm_inveriant : forall g,
 Proof.
 Admitted.
 
+Lemma is_cliqueb_ig_insert_node :
+  forall g r a, ~(In a (InterfGraph.keys g)) -> r <> a ->
+    is_cliqueb (ig_insert_node g a) (InterfGraph.get g r) = true ->
+    is_cliqueb g (InterfGraph.get g r) = true
+.
+Proof.
+Admitted.
+
+Lemma is_cliqueb_ig_insert_edge :
+  forall g r a b, ~(In a (InterfGraph.keys g)) -> r <> a -> r <> b ->
+    is_cliqueb (ig_insert_edge g a b) (InterfGraph.get g r) = true ->
+    is_cliqueb g (InterfGraph.get g r) = true
+.
+Proof.
+Admitted.
+
 Lemma ig_insert_node_singleton :
   forall g r, ~(In r (InterfGraph.keys g)) -> InterfGraph.get (ig_insert_node g r) r = [].
 Proof.
@@ -209,14 +225,6 @@ Admitted.
 
 Lemma ig_insert_node_regs_mem :
   forall g r, regs_mem r (InterfGraph.keys (ig_insert_node g r)) = true
-.
-Proof.
-Admitted.
-
-Lemma ig_insert_node_is_cliqueb :
-  forall g r a, ~(In a (InterfGraph.keys g)) -> r <> a ->
-  is_cliqueb (ig_insert_node g a) (InterfGraph.get g r) = true ->
-  is_cliqueb g (InterfGraph.get g r) = true
 .
 Proof.
 Admitted.
@@ -335,6 +343,12 @@ Lemma ig_insert_edges_double :
 Proof.
 Admitted.
 
+Lemma ig_insert_edge_isolated_nbors :
+  forall g a b c, a <> b -> a <> c -> InterfGraph.get (ig_insert_edge g b c) a = InterfGraph.get g a
+.
+Proof.
+Admitted.
+
 Lemma is_simplicialb_is_simplicial :
   forall g r, is_simplicialb g r = true -> is_simplicial r g
 .
@@ -352,9 +366,9 @@ Proof.
 
         (* `ys` is `(InterfGraph.get g' r)` since `a` is a singleton and so it cannot be part of the neighborhood of `r` *)
         specialize (H (InterfGraph.get (ig_insert_node g' a) r) (InterfGraph.get g' r)). apply H in Hb. clear H.
-        eapply ig_insert_node_is_cliqueb; eauto.
+        eapply is_cliqueb_ig_insert_node; eauto.
         apply ig_insert_node_permutation; eauto.
-    * specialize (IHV g'). rewrite Hkeys in H'. injection H' as H'. specialize (IHV H'). intros H.
+    * specialize (IHV g'). rewrite Hkeys in H'. injection H' as H'. specialize (IHV H'). intros H. assert (Hsimpb := H).
       unfold is_simplicialb in H.
       apply andb_prop in H as [Ha Hb]. assert (Hedge' := Hedge). destruct Hedge' as [r' Hedge'].
       rewrite <- Hedge'. rewrite Hkeys in Ha. cbn in Ha. destruct (reg_eq_dec r a) as [Era | NEra].
@@ -394,7 +408,7 @@ Proof.
 
           (* 1.1 *)
           ** subst. rewrite <- ig_insert_edge_ig_insert_edges. rewrite <- nbors. apply SimplicialAddNeighbor.
-            apply invert_isolated in nbors. destruct nbors as [g'' [nborsIn  nborsEq]]. rewrite <- nborsEq.
+            apply invert_isolated in nbors. destruct nbors as [g'' [nborsIn nborsEq]]. rewrite <- nborsEq.
             apply SimplicialAddSingleton. assumption.
 
           (* 1.2 *)
@@ -449,19 +463,16 @@ Proof.
               rewrite HeqContr' in HeqContr. rewrite andb_false_r in HeqContr. rewrite fold_left_false in HeqContr. rewrite andb_false_r in HeqContr.
               rewrite HeqContr in Hb'. cbn in Hb'. rewrite fold_left_false in Hb'. discriminate.
 
-        -- destruct (In_dec reg_eq_dec r' (InterfGraph.get g' r)).
-          (* 2 *)
-          ** apply in_split in i. admit.
-
-          (* 3 *)
-          ** admit.
-
-Admitted.
+        (* 2 - 3 *)
+        -- subst. apply SimplicialAddEdge. rewrite ig_insert_edge_isolated_nbors in Hb by now assumption.
+          apply is_cliqueb_ig_insert_edge with (g := g') in Hb. unfold is_simplicialb in IHV. specialize (IHV r).
+          rewrite Ha in IHV. rewrite Hb in IHV. cbn in IHV. specialize (IHV eq_refl).
+          assumption. assumption. assumption. assumption. assumption. assumption.
+Qed.
 
 (* Lemma invert_edge : forall g' a r',
   InterfGraph.keys (ig_insert_edge g' a r') = a :: InterfGraph.keys g' ->
 . *)
-
 
 Lemma find_next_simplicial :
   forall (g : InterfGraph.dict) (r : reg),
