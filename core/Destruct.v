@@ -6,8 +6,6 @@ Import ListNotations.
 From Ssara.Core Require Import IRPregModule.
 Import IRPreg.
 
-(* https://xavierleroy.org/publi/parallel-move.pdf *)
-
 (*
   The parallel move type is defined as a list of assignments of type src -> dst
 *)
@@ -88,13 +86,13 @@ Definition pmove (m : moves) (fuel : nat) : moves :=
   end
 .
 
-Fixpoint phi_to_move (pred : lbl) (r : reg) (rs : list phi_arg) : option (reg * reg) :=
+Fixpoint phi_to_move (pred : lbl) (dst : reg) (rs : list phi_arg) : option (reg * reg) :=
   match rs with
   | nil => None
-  | (r', l) :: tl =>
+  | (src, l) :: tl =>
     if l =? pred
-    then Some (r', r)
-    else phi_to_move pred r tl
+    then Some (src, dst)
+    else phi_to_move pred dst tl
   end
 .
 
@@ -121,20 +119,28 @@ Compute
   moves_to_insts ms
 .
 
-Definition succ_to_insts (pred : lbl) (succ : block) : list inst :=
+
+Definition succ_to_insts (pred : lbl) (succ : block) (fuel : nat) : list inst :=
   let ms := phis_to_moves pred (get_phis succ) in
+  let ms := pmove ms fuel in
   moves_to_insts ms
 .
 
-Definition ssa_destruct (b : block) :=
+Axiom new_lbl : lbl -> lbl.
+
+Definition ssa_destruct (fuel : nat) (b : block) :=
   let cofix ssa_destruct_aux (pred : lbl) (b : block) : block :=
     match b with
     | Block l ps is j =>
-      Block l nil ((succ_to_insts pred b) ++ is)
       match j with
-      | CondJump c r v b1 b2 => CondJump c r v (ssa_destruct_aux l b1) (ssa_destruct_aux l b2)
-      | Jump b' => Jump (ssa_destruct_aux l b')
-      | Ret r => Ret r
+      | CondJump c r v b1 b2 =>
+        Block l nil is (CondJump c r v
+          (Block (new_lbl (get_lbl b1)) nil (succ_to_insts l b1 fuel) (Jump (ssa_destruct_aux l b1)))
+          (Block (new_lbl (get_lbl b2)) nil (succ_to_insts l b2 fuel) (Jump (ssa_destruct_aux l b2))))
+      | Jump b' =>
+        Block l nil (is ++ (succ_to_insts l b' fuel)) (Jump (ssa_destruct_aux l b'))
+      | Ret r =>
+        Block l nil is (Ret r)
       end
     end
   in
@@ -180,7 +186,7 @@ Module Example1.
 
   (* ssa_destruct phis *)
   Compute
-    let d := ssa_destruct example_block_1 in
+    let d := ssa_destruct fuel example_block_1 in
     visit_program d fuel
   .
 End Example1.
@@ -222,7 +228,7 @@ Module Example2.
 
   (* ssa_destruct phis *)
   Compute
-    let d := ssa_destruct example_block_1 in
+    let d := ssa_destruct fuel example_block_1 in
     visit_program d fuel
   .
 End Example2.
@@ -264,7 +270,7 @@ Module Example3.
 
   (* ssa_destruct phis *)
   Compute
-    let d := ssa_destruct example_block_1 in
+    let d := ssa_destruct fuel example_block_1 in
     visit_program d fuel
   .
 End Example3.

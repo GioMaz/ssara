@@ -13,7 +13,7 @@ let regalloc irvreg_program =
     | None -> failwith "Not enough registers to complete allocation"
   in
   let irpreg_program = color_program coloring irvreg_program in (* SSA destruction *)
-  ssa_destruct irpreg_program
+  ssa_destruct fuel irpreg_program
 ;;
 
 let command_fail cmd =

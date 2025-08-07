@@ -321,8 +321,6 @@ Module Example5.
     )
   .
 
-Import IRPreg.
-
   Definition pi := let (pi, _) := analyze_program example_block_1 100 in pi.
   Definition ig := get_ig pi.
   Definition peo := eliminate_fuel ig 100.
