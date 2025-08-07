@@ -17,21 +17,20 @@ Module MakeDict (D : DICT_PARAMS).
   Definition dict : Type := set key * (key -> value).
   Definition empty : dict := (nil, fun _ => default).
 
-  Definition update (d : dict) (k : key) (v : value) : dict :=
-    let (keys, m) := d in
-    (set_add key_eq_dec k keys, fun k' => if key_eq_dec k k' then v else m k')
-  .
-
   Definition get (d : dict) (k : key) : value := (snd d) k.
 
   Definition keys (d : dict) : set key := fst d.
 
+  Definition update (d : dict) (k : key) (v : value) : dict :=
+    (set_add key_eq_dec k (keys d), fun k' => if key_eq_dec k k' then v else get d k')
+  .
+
   Definition values (d : dict) : set value :=
-    let (keys, m) := d in map m keys
+    map (get d) (keys d)
   .
 
   Definition listify (d : dict) : list (key * value) :=
-    let (keys, m) := d in map (fun k => (k, m k)) keys
+    map (fun k => (k, get d k)) (keys d)
   .
 
   Definition mem (d : dict) (k : key) : bool :=

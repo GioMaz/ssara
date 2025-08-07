@@ -198,17 +198,14 @@ Qed.
 
 From Stdlib Require Import ListSet.
 
-Lemma invert_keys : forall g a V,
-  a :: V = InterfGraph.keys g -> exists g',
-    ((ig_insert_node g' a = g) \/ (exists r', (In r' (InterfGraph.keys g')) /\ ig_insert_edge g' a r' = g))
+Lemma invert_keys : forall g a V',
+  a :: V' = InterfGraph.keys g -> exists g',
+    (ig_insert_node g' a = g \/ exists r', (In r' (InterfGraph.keys g')) /\ ig_insert_edge g' a r' = g)
     /\ InterfGraph.keys g = a :: (InterfGraph.keys g')
     /\ ~(In a (InterfGraph.keys g'))
     (* /\ (forall b, a <> b -> Permutation (InterfGraph.get g b) (InterfGraph.get g' b)) *)
 .
 Proof.
-  intros g. remember (InterfGraph.keys g) as V'. induction V' as [| a' V'].
-  - discriminate.
-  - intros a V H. injection H as H. subst.
 Admitted.
 
 Lemma nbors_is_cliqueb_ig_insert_node :
@@ -242,25 +239,31 @@ Definition well_formed (g : InterfGraph.dict) : Prop :=
   (forall r r', ~ In r (InterfGraph.keys g) -> ~ In r (InterfGraph.get g r')) /\
   (forall r r', In r' (InterfGraph.get g r) <-> In r (InterfGraph.get g r')) /\
   (NoDup (InterfGraph.keys g)) /\
-  (forall r, NoDup (InterfGraph.get g r))
+  (forall r, NoDup (InterfGraph.get g r)) /\
+  (forall r, ~ In r (InterfGraph.keys g) -> InterfGraph.get g r = [])
 .
 
 Lemma ig_insert_node_singleton :
-  forall g r, ~(In r (InterfGraph.keys g)) -> InterfGraph.get (ig_insert_node g r) r = [].
-Proof.
-Admitted.
-
-(* Lemma ig_insert_node_singleton :
   forall g r, well_formed g -> ~(In r (InterfGraph.keys g)) -> InterfGraph.get (ig_insert_node g r) r = [].
 Proof.
-  intros g. remember (InterfGraph.keys g) as V eqn:Veq. induction V.
-  - intros r [H0 [H1 [H2 H3]]] H. apply WellFormedNode with (r := r) in Hwf.
-  -
-Admitted. *)
+  intros g r [_ [_ [_ [_ WFnbors]]]]. remember (InterfGraph.keys g) as V eqn:EV. destruct V as [| a V'].
+  - intros  _. cbn.
+    destruct InterfGraph.key_eq_dec as [Err | NErr]; try contradiction; clear Err.
+    pose proof in_nil as Hinnil. specialize (Hinnil InterfGraph.key r).
+    specialize (WFnbors r Hinnil). assumption.
+  - intros NInraV'. assert (EV' := EV). apply invert_keys in EV. destruct EV as [g' [_ [Hkeys Hin]]].
+    assert (NInraV'' := NInraV'). cbn in NInraV'. apply Decidable.not_or in NInraV' as [NEra NInrV'].
+    cbn.
+    destruct InterfGraph.key_eq_dec as [Err | NErr]; try contradiction; clear Err.
+    rewrite Hkeys in EV'. injection EV' as EkeysV'. specialize (WFnbors r NInraV'').
+    assumption.
+Qed.
 
 Lemma ig_insert_edge_singleton :
-  forall g u v, ~(In v (InterfGraph.keys g)) -> InterfGraph.get (ig_insert_edge g u v) v = [u].
+  forall g u v, well_formed g -> ~(In v (InterfGraph.keys g)) -> InterfGraph.get (ig_insert_edge g u v) v = [u].
 Proof.
+  intros g. remember (InterfGraph.keys g) as V eqn:EV. destruct V as [| a V'].
+  - intros u v [_ [_ [_ [_ WFnbors]]]] _.
 Admitted.
 
 Lemma ig_insert_node_permutation :
@@ -380,6 +383,7 @@ Proof.
         apply ig_insert_edge_singleton with (u := r') in Hin. rewrite <- ig_insert_edge_comm.
         rewrite <- ig_insert_edge_ig_insert_edges. apply ig_insert_node_singleton in Hin'. rewrite <- Hin'.
         eapply SimplicialAddNeighbor. now apply SimplicialAddSingleton.
+        admit.
 
 (*
   Then we take into consideration the case where a <> r, we are connecting the new node a to an already existing node r'
@@ -431,7 +435,7 @@ Proof.
                 apply SimplicialAddNeighbor. apply invert_loop in nbors. destruct nbors as [g'' [Hinr'g'' Hr'r']]. assert (Hinr'g''' := Hinr'g'').
                 rewrite <- Hr'r'. rewrite <- ig_insert_node_edge_ig_insert_edge by now assumption. rewrite <- ig_insert_edge_ig_insert_edges.
                 apply ig_insert_node_singleton in Hinr'g''. rewrite <- Hinr'g''. apply SimplicialAddNeighbor. apply SimplicialAddSingleton.
-                assumption.
+                assumption. admit.
 
                 *** remember (are_neighborsb (ig_insert_edge g' r' a) a (a :: x :: y :: ys)) as Contr.
                 assert
