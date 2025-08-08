@@ -227,25 +227,6 @@ Lemma nbors_is_cliqueb_ig_insert_edge :
 Proof.
 Admitted.
 
-(*
-  TODO: add property of well formed graphs s.t. (V = {}, E = {{1,2}}) is not
-  well formed
-*)
-
-(* Inductive well_formed : InterfGraph.dict -> Prop :=
-  | WellFormedEmpty : well_formed InterfGraph.empty
-  | WellFormedNode : forall g r, well_formed g -> well_formed (ig_insert_node g r)
-  | WellFormedEdge : forall g r r', well_formed g -> well_formed (ig_insert_edge g r r')
-. *)
-
-Definition well_formed (g : InterfGraph.dict) : Prop :=
-  (forall r r', ~ In r (InterfGraph.keys g) -> ~ In r (InterfGraph.get g r')) /\
-  (forall r r', In r' (InterfGraph.get g r) <-> In r (InterfGraph.get g r')) /\
-  (NoDup (InterfGraph.keys g)) /\
-  (forall r, NoDup (InterfGraph.get g r)) /\
-  (forall r, ~ In r (InterfGraph.keys g) -> InterfGraph.get g r = [])
-.
-
 Lemma set_add_elim {A : Type} :
   forall Aeq_dec (a b : A) l,
     ~ set_In b (set_add Aeq_dec a l) -> ~ set_In b l /\ a <> b
@@ -273,6 +254,14 @@ Proof.
         specialize (IH Hnotin2) as [_ H]. assumption.
 Qed.
 
+Definition well_formed (g : InterfGraph.dict) : Prop :=
+  (forall r r', ~ In r (InterfGraph.keys g) -> ~ In r (InterfGraph.get g r')) /\
+  (forall r r', In r' (InterfGraph.get g r) -> In r (InterfGraph.get g r')) /\
+  (NoDup (InterfGraph.keys g)) /\
+  (forall r, NoDup (InterfGraph.get g r)) /\
+  (forall r, ~ In r (InterfGraph.keys g) -> InterfGraph.get g r = [])
+.
+
 Lemma ig_insert_node_not_in :
   forall g u v, well_formed g ->
     ~ In v (InterfGraph.keys (ig_insert_node g u)) ->
@@ -284,21 +273,57 @@ Proof.
   cbn in H. apply set_add_elim in H. assumption.
 Qed.
 
+Lemma ig_insert_node_get :
+  forall g u v,
+    InterfGraph.get g u = InterfGraph.get (ig_insert_node g v) u
+.
+Proof.
+  intros g u v. cbn.
+  destruct (InterfGraph.key_eq_dec) as [Euv | NEuv]. rewrite Euv. reflexivity.
+  reflexivity.
+Qed.
+
+Lemma ig_insert_node_in :
+  forall g u, In u (InterfGraph.keys (ig_insert_node g u))
+.
+Proof.
+  intros g u. cbn. apply set_add_intro2. reflexivity.
+Qed.
+
 Lemma ig_insert_node_wf :
   forall g u, well_formed g -> well_formed (ig_insert_node g u)
 .
 Proof.
   intros g u WFg. unfold well_formed. repeat split.
-  - intros r r' H. assert (WFg' := WFg).
-    destruct WFg' as [WFg1 [_ [_ [_ WFg2]]]].
+  - intros r r' H.
+    destruct (WFg) as [WFg1 [_ [_ [_ WFg2]]]].
     pose proof ig_insert_node_not_in as H1.
     specialize (H1 g u r WFg H) as [H1 H2].
     specialize (WFg1 r r' H1).
     cbn. destruct (InterfGraph.key_eq_dec u r') as [Eur' | NEur'].
     + rewrite Eur'. assumption.
     + assumption.
-  -
-Admitted.
+  - intros r r' H.
+    destruct (WFg) as [_ [WFg1 [_ [_ _]]]].
+    specialize (WFg1 r r').
+    rewrite <- ig_insert_node_get in H.
+    rewrite <- ig_insert_node_get.
+    apply WFg1. assumption.
+  - destruct (WFg) as [_ [_ [WFg1 [_ _]]]].
+    cbn. apply set_add_nodup. assumption.
+  - intros r.
+    destruct (WFg) as [_ [_ [_ [WFg1 _]]]].
+    specialize (WFg1 r).
+    rewrite <- ig_insert_node_get.
+    assumption.
+  - intros r H.
+    destruct (WFg) as [_ [_ [_ [_ WFg1]]]].
+    specialize (WFg1 r).
+    cbn. destruct InterfGraph.key_eq_dec as [Eur | NEur].
+    subst. pose proof (ig_insert_node_in g r) as Contr. contradiction.
+    cbn in H. apply ig_insert_node_not_in in H as [H _]; try assumption.
+    specialize (WFg1 H). assumption.
+Qed.
 
 Lemma ig_insert_node_singleton :
   forall g r,
@@ -309,15 +334,19 @@ Proof.
   intros g r [_ [_ [_ [_ WFnbors]]]].
   remember (InterfGraph.keys g) as V eqn:EV. destruct V as [| a V'].
   - intros  _. cbn.
-    destruct InterfGraph.key_eq_dec as [Err | NErr]; try contradiction; clear Err.
-    pose proof in_nil as Hinnil. specialize (Hinnil InterfGraph.key r).
+    destruct InterfGraph.key_eq_dec as [Err | NErr]; try contradiction;
+    clear Err.
+    pose proof in_nil as Hinnil.
+    specialize (Hinnil InterfGraph.key r).
     specialize (WFnbors r Hinnil). assumption.
   - intros NInraV'. assert (EV' := EV). apply invert_keys in EV.
     destruct EV as [g' [_ [Hkeys Hin]]].
-    assert (NInraV'' := NInraV'). cbn in NInraV'. apply Decidable.not_or in NInraV' as [NEra NInrV'].
-    cbn.
-    destruct InterfGraph.key_eq_dec as [Err | NErr]; try contradiction; clear Err.
-    rewrite Hkeys in EV'. injection EV' as EkeysV'. specialize (WFnbors r NInraV'').
+    assert (NInraV'' := NInraV'). cbn in NInraV'.
+    apply Decidable.not_or in NInraV' as [NEra NInrV']. cbn.
+    destruct InterfGraph.key_eq_dec as [Err | NErr]; try contradiction;
+    clear Err.
+    rewrite Hkeys in EV'. injection EV' as EkeysV'.
+    specialize (WFnbors r NInraV'').
     assumption.
 Qed.
 
