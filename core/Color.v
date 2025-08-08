@@ -134,7 +134,7 @@ Module Example1.
   Definition example_block_4 : block :=
     Block 4 [
     ] [
-      r(7) <- r(5) + (Reg 6)
+      r(7) <- r(5) + r(6)
     ] (
       ret r(7)
     )
@@ -143,8 +143,8 @@ Module Example1.
   Definition example_block_3 : block :=
     Block 3 [
     ] [
-      r(5) <- r(3) + (Imm 1);
-      r(6) <- r(4) + (Imm 1)
+      r(5) <- r(3) + i(1);
+      r(6) <- r(4) + i(1)
     ] (
       Jump example_block_4
     )
@@ -163,8 +163,8 @@ Module Example1.
   Definition example_block_1 : block :=
     Block 1 [
     ] [
-      r(1) <- (Imm 34);
-      r(2) <- (Imm 35)
+      r(1) <- i(34);
+      r(2) <- i(35)
     ] (
       Jump example_block_2
     )
@@ -194,8 +194,7 @@ Module Example2.
     Block 2 [
       r(3) <- phi [(0, 1)]
     ] [
-      r(4) <- Ptr 0
-      (* store r(4) r(3) *)
+      r(4) <- r(3)
     ] (
       ret r(4)
     )
@@ -205,8 +204,7 @@ Module Example2.
     Block 3 [
       r(5) <- phi [(1, 1)]
     ] [
-      r(6) <- Ptr 0
-      (* store r(6) r(5) *)
+      r(6) <- r(5)
     ] (
       ret r(6)
     )
@@ -215,10 +213,10 @@ Module Example2.
   Definition example_block_1 : block :=
     Block 1 [
     ] [
-      r(0) <- (Imm 34);
-      r(1) <- (Imm 35)
+      r(0) <- i(34);
+      r(1) <- i(35)
     ] (
-      if r(0) < (Reg 1) then example_block_2 else example_block_3
+      if r(0) < r(1) then example_block_2 else example_block_3
     )
   .
 End Example2.
@@ -235,21 +233,21 @@ Module Example3.
 
   CoFixpoint example_block_2 : block :=
     Block 2 [
-      r(2) <- phi [(0, 1); (4, 2)];  (* Iterator *)
-      r(3) <- phi [(1, 1); (5, 2)]   (* Accumulator *)
+      r(2) <- phi [(0, 1); (4, 2)];   (* Iterator *)
+      r(3) <- phi [(1, 1); (5, 2)]    (* Accumulator *)
     ] [
-      r(4) <- r(2) - (Imm 1);
-      r(5) <- r(3) * (Reg 4)
+      r(4) <- r(2) - i(1);
+      r(5) <- r(3) * r(4)
     ] (
-      if r(4) <= (Imm 1) then example_block_3 else example_block_2
+      if r(4) <= i(1) then example_block_3 else example_block_2
     )
   .
 
   Definition example_block_1 : block :=
     Block 1 [
     ] [
-      r(0) <- Imm 5;  (* Iterator *)
-      r(1) <- Reg 0   (* Accumulator *)
+      r(0) <- i(5);   (* Iterator *)
+      r(1) <- r(0)    (* Accumulator *)
     ] (
       Jump example_block_2
     )
@@ -270,17 +268,17 @@ Module Example4.
     Block 2 [
       r(2) <- phi [(0, 1); (3, 2)]
     ] [
-      r(3) <- r(2) + (Imm 2)
+      r(3) <- r(2) + i(2)
     ] (
-      if r(3) < (Reg 1) then example_block_2 else example_block_3
+      if r(3) < r(1) then example_block_2 else example_block_3
     )
   .
 
   Definition example_block_1 : block :=
     Block 1 [
     ] [
-      r(0) <- Imm 0;
-      r(1) <- Imm 20
+      r(0) <- i(0);
+      r(1) <- i(20)
     ] (
       Jump example_block_2
     )
@@ -303,19 +301,19 @@ Module Example5.
       r(4) <- phi [(1, 1); (6, 2)];
       r(5) <- phi [(2, 1); (7, 2)]
     ] [
-      r(6) <- r(4) + (Reg 3); (* New first block *)
-      r(7) <- r(5) - (Imm 1)  (* New iterator *)
+      r(6) <- r(4) + r(3);  (* New first block *)
+      r(7) <- r(5) - i(1)   (* New iterator *)
     ] (
-      if r(7) = (Imm 1) then example_block_3 else example_block_2
+      if r(7) = i(1) then example_block_3 else example_block_2
     )
   .
 
   Definition example_block_1 : block :=
     Block 1 [
     ] [
-      r(0) <- Imm 0;  (* Second block *)
-      r(1) <- Imm 1;  (* First block *)
-      r(2) <- Imm 10  (* Iterator*)
+      r(0) <- i(0);  (* Second block *)
+      r(1) <- i(1);  (* First block *)
+      r(2) <- i(12)  (* Iterator*)
     ] (
       Jump example_block_2
     )
@@ -333,38 +331,3 @@ Module Example5.
   .
   Compute irpreg_program.
 End Example5.
-
-(* Example 6 *)
-Module Example6.
-  Definition example_block_3 : block :=
-    Block 3 [
-    ] [
-    ] (
-      ret r(6)
-    )
-  .
-
-  CoFixpoint example_block_2 : block :=
-    Block 2 [
-      r(3) <- phi [(0, 1); (4, 2)];
-      r(4) <- phi [(1, 1); (6, 2)];
-      r(5) <- phi [(2, 1); (7, 2)]
-    ] [
-      r(6) <- r(4) + (Reg 3); (* New first block *)
-      r(7) <- r(5) - (Imm 1)  (* New iterator *)
-    ] (
-      if r(7) = (Imm 2) then example_block_3 else example_block_2
-    )
-  .
-
-  Definition example_block_1 : block :=
-    Block 1 [
-    ] [
-      r(0) <- Imm 0;  (* Second block *)
-      r(1) <- Imm 1;  (* First block *)
-      r(2) <- Imm 10  (* Iterator*)
-    ] (
-      Jump example_block_2
-    )
-  .
-End Example6.

@@ -218,30 +218,79 @@ Module MakeIR (IR: IR_PARAMS).
 
   Notation "'r(' x ) <- 'load' 'r(' y )" :=
     (Def x (Load (Reg y))) (at level 50).
-  Notation "'r(' x ) <- y" :=
-    (Def x (Val y)) (at level 50).
-  Notation "'r(' x ) <- 'r(' y ) + z" :=
-    (Def x (Add y z)) (at level 50).
-  Notation "'r(' x ) <- 'r(' y ) - z" :=
-    (Def x (Sub y z)) (at level 50).
-  Notation "'r(' x ) <- 'r(' y ) * z" :=
-    (Def x (Mul y z)) (at level 50).
-  Notation "'r(' x ) <- 'r(' y ) / z" :=
-    (Def x (Div y z)) (at level 50).
+  Notation "'r(' x ) <- 'load' 'i(' y )" :=
+    (Def x (Load (Imm y))) (at level 50).
+  Notation "'r(' x ) <- 'load' 'p(' y )" :=
+    (Def x (Load (Ptr y))) (at level 50).
+
+  Notation "'r(' x ) <- 'r(' y )" :=
+    (Def x (Val (Reg y))) (at level 50).
+  Notation "'r(' x ) <- 'i(' y )" :=
+    (Def x (Val (Imm y))) (at level 50).
+  Notation "'r(' x ) <- 'p(' y )" :=
+    (Def x (Val (Ptr y))) (at level 50).
+
+  Notation "'r(' x ) <- 'r(' y ) + 'r(' z )" :=
+    (Def x (Add y (Reg z))) (at level 50).
+  Notation "'r(' x ) <- 'r(' y ) + 'i(' z )" :=
+    (Def x (Add y (Imm z))) (at level 50).
+  Notation "'r(' x ) <- 'r(' y ) + 'p(' z )" :=
+    (Def x (Add y (Ptr z))) (at level 50).
+
+  Notation "'r(' x ) <- 'r(' y ) - 'r(' z )" :=
+    (Def x (Sub y (Reg z))) (at level 50).
+  Notation "'r(' x ) <- 'r(' y ) - 'i(' z )" :=
+    (Def x (Sub y (Imm z))) (at level 50).
+  Notation "'r(' x ) <- 'r(' y ) - 'p(' z )" :=
+    (Def x (Sub y (Ptr z))) (at level 50).
+
+  Notation "'r(' x ) <- 'r(' y ) * 'r(' z )" :=
+    (Def x (Mul y (Reg z))) (at level 50).
+  Notation "'r(' x ) <- 'r(' y ) * 'i(' z )" :=
+    (Def x (Mul y (Imm z))) (at level 50).
+  Notation "'r(' x ) <- 'r(' y ) * 'p(' z )" :=
+    (Def x (Mul y (Ptr z))) (at level 50).
+
+  Notation "'r(' x ) <- 'r(' y ) / 'r(' z )" :=
+    (Def x (Div y (Reg z))) (at level 50).
+  Notation "'r(' x ) <- 'r(' y ) / 'i(' z )" :=
+    (Def x (Div y (Imm z))) (at level 50).
+  Notation "'r(' x ) <- 'r(' y ) / 'p(' z )" :=
+    (Def x (Div y (Ptr z))) (at level 50).
+
   Notation "'store' 'r(' x ) 'r(' y )" :=
     (Store x y) (at level 50).
-  Notation "'if' 'r(' x ) = y 'then' b1 'else' b2" :=
-    (CondJump Jeq x y b1 b2) (at level 50).
-  Notation "'if' 'r(' x ) <> y 'then' b1 'else' b2" :=
-    (CondJump Jne x y b1 b2) (at level 50).
-  Notation "'if' 'r(' x ) < y 'then' b1 'else' b2" :=
-    (CondJump Jlt x y b1 b2) (at level 50).
-  Notation "'if' 'r(' x ) <= y 'then' b1 'else' b2" :=
-    (CondJump Jle x y b1 b2) (at level 50).
-  Notation "'if' 'r(' x ) > y 'then' b1 'else' b2" :=
-    (CondJump Jgt x y b1 b2) (at level 50).
-  Notation "'if' 'r(' x ) >= y 'then' b1 'else' b2" :=
-    (CondJump Jge x y b1 b2) (at level 50).
+
+  Notation "'if' 'r(' x ) = 'r(' y ) 'then' b1 'else' b2" :=
+    (CondJump Jeq x (Reg y) b1 b2) (at level 50).
+  Notation "'if' 'r(' x ) = 'i(' y ) 'then' b1 'else' b2" :=
+    (CondJump Jeq x (Imm y) b1 b2) (at level 50).
+
+  Notation "'if' 'r(' x ) <> 'r(' y ) 'then' b1 'else' b2" :=
+    (CondJump Jne x (Reg y) b1 b2) (at level 50).
+  Notation "'if' 'r(' x ) <> 'i(' y ) 'then' b1 'else' b2" :=
+    (CondJump Jne x (Imm y) b1 b2) (at level 50).
+
+  Notation "'if' 'r(' x ) < 'r(' y ) 'then' b1 'else' b2" :=
+    (CondJump Jlt x (Reg y) b1 b2) (at level 50).
+  Notation "'if' 'r(' x ) < 'i(' y ) 'then' b1 'else' b2" :=
+    (CondJump Jlt x (Imm y) b1 b2) (at level 50).
+
+  Notation "'if' 'r(' x ) <= 'r(' y ) 'then' b1 'else' b2" :=
+    (CondJump Jle x (Reg y) b1 b2) (at level 50).
+  Notation "'if' 'r(' x ) <= 'i(' y ) 'then' b1 'else' b2" :=
+    (CondJump Jle x (Imm y) b1 b2) (at level 50).
+
+  Notation "'if' 'r(' x ) > 'r(' y ) 'then' b1 'else' b2" :=
+    (CondJump Jgt x (Reg y) b1 b2) (at level 50).
+  Notation "'if' 'r(' x ) > 'i(' y ) 'then' b1 'else' b2" :=
+    (CondJump Jgt x (Imm y) b1 b2) (at level 50).
+
+  Notation "'if' 'r(' x ) >= 'r(' y ) 'then' b1 'else' b2" :=
+    (CondJump Jge x (Reg y) b1 b2) (at level 50).
+  Notation "'if' 'r(' x ) >= 'i(' y ) 'then' b1 'else' b2" :=
+    (CondJump Jge x (Imm y) b1 b2) (at level 50).
+
   Notation "'ret' 'r(' x )" :=
     (Ret x) (at level 50).
 

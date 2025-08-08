@@ -159,8 +159,8 @@ Module Example1.
   with example_block_3 : block :=
     Block 3 [
     ] [
-      r(RBP) <- r(RBP) + (Imm 1);
-      r(RSP) <- r(RSP) + (Imm 1)
+      r(RBP) <- r(RBP) + i(1);
+      r(RSP) <- r(RSP) + i(1)
     ] (
       Jump example_block_4
     )
@@ -175,8 +175,8 @@ Module Example1.
   Definition example_block_1 : block :=
     Block 1 [
     ] [
-      r(RBP) <- (Imm 34);
-      r(RSP) <- (Imm 35)
+      r(RBP) <- i(34);
+      r(RSP) <- i(35)
     ] (
       Jump example_block_2
     )
@@ -196,7 +196,7 @@ Module Example2.
     Block 2 [
       r(RBP) <- phi [(RBP, 1)]
     ] [
-      r(RBX) <- Ptr 0;
+      r(RBX) <- p(0);
       store r(RBX) r(RBP)
     ] (
       ret r(RBX)
@@ -207,7 +207,7 @@ Module Example2.
     Block 3 [
       r(RBP) <- phi [(RSP, 1)]
     ] [
-      r(RBX) <- Ptr 0;
+      r(RBX) <- p(0);
       store r(RBX) r(RBP)
     ] (
       ret r(RBX)
@@ -217,10 +217,10 @@ Module Example2.
   Definition example_block_1 : block :=
     Block 1 [
     ] [
-      r(RBP) <- (Imm 34);
-      r(RSP) <- (Imm 35)
+      r(RBP) <- i(34);
+      r(RSP) <- i(35)
     ] (
-      if r(RBP) < (Reg RSP) then example_block_2 else example_block_3
+      if r(RBP) < r(RSP) then example_block_2 else example_block_3
     )
   .
 
@@ -248,19 +248,19 @@ Module Example3.
       r(RDX) <- phi [(RCX, 1); (RBX, 2)]; (* (b = a) (b = rbx which is the previous b + the previous a) *)
       r(RCX) <- phi [(RDX, 1); (RCX, 2)]  (* (i = i) (i = rcx) *)
     ] [
-      r(RBX) <- r(RDX) + (Reg RBX); (* rbx = b + a *)
-      r(RCX) <- r(RCX) - (Imm 1)    (* rcx = i - 1 *)
+      r(RBX) <- r(RDX) + r(RBX);  (* rbx = b + a *)
+      r(RCX) <- r(RCX) - i(1)     (* rcx = i - 1 *)
     ] (
-      if r(RCX) = (Imm 1) then example_block_3 else example_block_2
+      if r(RCX) = i(1) then example_block_3 else example_block_2
     )
   .
 
   Definition example_block_1 : block :=
     Block 1 [
     ] [
-      r(RBX) <- (Imm 0);
-      r(RCX) <- (Imm 1);
-      r(RDX) <- (Imm 10)
+      r(RBX) <- i(0);
+      r(RCX) <- i(1);
+      r(RDX) <- i(10)
     ] (
       Jump example_block_2
     )
