@@ -102,7 +102,7 @@ Qed.
 . *)
 Inductive is_simplicial (r : reg) : InterfGraph.dict -> Prop :=
   | SimplicialAddSingleton (g : InterfGraph.dict):
-    ~(In r (InterfGraph.keys g)) -> is_simplicial r (ig_insert_node g r)
+    ~ In r (InterfGraph.keys g) -> is_simplicial r (ig_insert_node g r)
   | SimplicialAddNode (g : InterfGraph.dict):
     is_simplicial r g -> forall r', r <> r' ->
     is_simplicial r (ig_insert_node g r')
@@ -115,6 +115,11 @@ Inductive is_simplicial (r : reg) : InterfGraph.dict -> Prop :=
 .
 
 From Stdlib Require Import Sorting.Permutation.
+
+Definition ig_eq (g : InterfGraph.dict) (g' : InterfGraph.dict) : Prop :=
+  Permutation (InterfGraph.keys g) (InterfGraph.keys g') /\
+  forall r, Permutation (InterfGraph.get g r) (InterfGraph.get g' r)
+.
 
 (*
   Given a predicate on a list of Xs state that every pair of lists of Xs such
@@ -202,7 +207,7 @@ Lemma invert_keys : forall g a V',
   a :: V' = InterfGraph.keys g -> exists g',
     (ig_insert_node g' a = g \/ exists r', (In r' (InterfGraph.keys g')) /\ ig_insert_edge g' a r' = g)
     /\ InterfGraph.keys g = a :: (InterfGraph.keys g')
-    /\ ~(In a (InterfGraph.keys g'))
+    /\ ~ In a (InterfGraph.keys g')
     (* /\ (forall b, a <> b -> Permutation (InterfGraph.get g b) (InterfGraph.get g' b)) *)
 .
 Proof.
@@ -328,7 +333,7 @@ Qed.
 Lemma ig_insert_node_singleton :
   forall g r,
     well_formed g ->
-    ~(In r (InterfGraph.keys g)) ->
+    ~ In r (InterfGraph.keys g) ->
     InterfGraph.get (ig_insert_node g r) r = [].
 Proof.
   intros g r [_ [_ [_ [_ WFnbors]]]].
@@ -351,32 +356,99 @@ Proof.
 Qed.
 
 Lemma ig_insert_edge_singleton :
-  forall g u v, well_formed g -> ~(In v (InterfGraph.keys g)) -> InterfGraph.get (ig_insert_edge g u v) v = [u].
+  forall g u v,
+    well_formed g ->
+    ~ In v (InterfGraph.keys g) ->
+    InterfGraph.get (ig_insert_edge g u v) v = [u].
 Proof.
   intros g. remember (InterfGraph.keys g) as V eqn:EV. destruct V as [| a V'].
   - intros u v [_ [_ [_ [_ WFnbors]]]] _.
 Admitted.
 
 Lemma ig_insert_node_permutation :
-  forall g r a, ~(In a (InterfGraph.keys g)) -> r <> a ->
+  forall g r a, ~ In a (InterfGraph.keys g) -> r <> a ->
   Permutation (InterfGraph.get (ig_insert_node g a) r) (InterfGraph.get g r)
 .
 Proof.
 Admitted.
 
-Lemma ig_insert_node_double :
-  forall g u, ig_insert_node (ig_insert_node g u) u = ig_insert_node g u
+Lemma ig_insert_node_intro :
+  forall g u v,
+    In u (InterfGraph.keys g) ->
+    In u (InterfGraph.keys (ig_insert_node g v))
 .
 Proof.
-Admitted.
+  intros g u v H.
+  cbn. apply set_add_intro1. assumption.
+Qed.
 
-Lemma ig_insert_node_in :
-  forall g u, In u (InterfGraph.keys g) -> ig_insert_node g u = g
+Lemma map_unchanged :
+  forall {A B : Type} (f : A -> B) (a a' : A)
+    (Aeq_dec : forall x y : A, {x = y} + {x <> y}),
+    (fun x => if Aeq_dec a x then f a else f x) a' = f a'
 .
 Proof.
-  intros g u H. unfold ig_insert_node, InterfGraph.update.
-  apply set_add_intro1 with (Aeq_dec := InterfGraph.key_eq_dec) (b := u) in H.
-Admitted.
+  intros A B f a a' Aeq_dec.
+  cbn. destruct (Aeq_dec a a') as [Eaa' | NEaa'].
+  - rewrite Eaa'. reflexivity.
+  - reflexivity.
+Qed.
+
+From Stdlib Require Import Logic.FunctionalExtensionality.
+
+Lemma map_unchanged_eq :
+  forall {A B : Type} (f : A -> B) (a : A)
+    (Aeq_dec : forall x y : A, {x = y} + {x <> y}),
+    (fun x => if Aeq_dec a x then f a else f x) = f
+.
+Proof.
+  intros A B f a Aeq_dec.
+  apply functional_extensionality.
+  intros x.
+  apply map_unchanged.
+Qed.
+
+Lemma set_add_already_in :
+  forall {A : Type} (u : A) (s : set A)
+    (Aeq_dec : forall x y : A, {x = y} + {x <> y}),
+      In u s -> set_add Aeq_dec u s = s
+.
+Proof.
+  intros A u s Aeq_dec H.
+  induction s.
+  - contradiction.
+  - destruct (Aeq_dec u a) as [Eua | NEua].
+    * cbn. rewrite Eua. destruct Aeq_dec. reflexivity. contradiction.
+    * apply in_inv in H as [H1 | H2]. symmetry in H1. contradiction.
+      specialize (IHs H2).
+      cbn. destruct Aeq_dec. contradiction. f_equal. assumption.
+Qed.
+
+Lemma application_remove:
+  forall {A B : Type} (f : A -> B),
+    (fun x => f x) = f
+.
+Proof.
+  intros A B f. apply functional_extensionality.
+  intros x. reflexivity.
+Qed.
+
+Lemma ig_insert_node_already_in :
+  forall g u,
+    In u (InterfGraph.keys g) ->
+    ig_insert_node g u = g
+.
+Proof.
+  intros g u H. assert (H' := H).
+  apply ig_insert_node_intro with (v := u) in H'.
+  unfold ig_insert_node, InterfGraph.update.
+  rewrite map_unchanged_eq.
+  apply set_add_already_in with (Aeq_dec := InterfGraph.key_eq_dec) in H.
+  rewrite H.
+  unfold InterfGraph.keys, InterfGraph.get.
+  rewrite application_remove with (f := snd g).
+  rewrite surjective_pairing. reflexivity.
+Qed.
 
 Lemma ig_insert_edge_node_ig_insert_edge :
   forall g u v, ig_insert_node (ig_insert_edge g u v) u = ig_insert_edge g u v
@@ -389,7 +461,9 @@ Lemma ig_insert_edges_ig_insert_edge :
   forall g u v, u <> v -> ig_insert_edges g u [v] = ig_insert_edge g u v
 .
 Proof.
-  intros g u v H. unfold ig_insert_edges. assert (H' := H). apply Nat.eqb_neq in H'. rewrite H'. clear H'.
+  intros g u v H.
+  unfold ig_insert_edges.
+  assert (H' := H). apply Nat.eqb_neq in H'. rewrite H'. clear H'.
   rewrite ig_insert_edge_node_ig_insert_edge. reflexivity.
 Qed.
 
@@ -405,14 +479,14 @@ Axiom ig_insert_edge_comm :
 
 Lemma invert_isolated : forall g r, InterfGraph.get g r = [] ->
   exists g',
-    ~(In r (InterfGraph.keys g')) /\ (ig_insert_node g' r) = g
+    ~ In r (InterfGraph.keys g') /\ (ig_insert_node g' r) = g
 .
 Proof.
 Admitted.
 
 Lemma invert_loop : forall g r, InterfGraph.get g r = [r] ->
   exists g',
-    ~(In r (InterfGraph.keys g')) /\ (ig_insert_edge g' r r) = g
+    ~ In r (InterfGraph.keys g') /\ (ig_insert_edge g' r r) = g
 .
 Proof.
 Admitted.
@@ -446,7 +520,7 @@ Proof.
 Admitted.
 
 Lemma nodup_neq :
-  forall (A : Type) (x y : A) (ys: list A),
+  forall {A : Type} (x y : A) (ys: list A),
     NoDup (x :: y :: ys) -> x <> y
 .
 Proof.
