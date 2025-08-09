@@ -450,12 +450,35 @@ Proof.
   rewrite surjective_pairing. reflexivity.
 Qed.
 
+Lemma set_add_in :
+  forall {A : Type} (u : A) (s : set A)
+    (Aeq_dec : forall x y : A, {x = y} + {x <> y}),
+    In u (set_add Aeq_dec u s)
+.
+Proof.
+  intros A u s Aeq_dec. apply set_add_intro2. reflexivity.
+Qed.
+
+Lemma ig_insert_edge_in :
+  forall g u v,
+    In u (InterfGraph.keys (ig_insert_edge g u v))
+.
+Proof.
+  intros g u v. cbn.
+  remember (set_add InterfGraph.key_eq_dec u (InterfGraph.keys g)) as g' eqn:Eg'.
+  pose proof (set_add_in u (InterfGraph.keys g) InterfGraph.key_eq_dec) as H.
+  assert (In u g') by now rewrite Eg'; assumption.
+  apply set_add_intro1. assumption.
+Qed.
+
 Lemma ig_insert_edge_node_ig_insert_edge :
   forall g u v, ig_insert_node (ig_insert_edge g u v) u = ig_insert_edge g u v
 .
 Proof.
   intros g u v.
-Admitted.
+  pose proof (ig_insert_edge_in g u v).
+  apply ig_insert_node_already_in. assumption.
+Qed.
 
 Lemma ig_insert_edges_ig_insert_edge :
   forall g u v, u <> v -> ig_insert_edges g u [v] = ig_insert_edge g u v
