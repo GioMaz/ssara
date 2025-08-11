@@ -55,7 +55,7 @@ Fixpoint eliminate_fuel (g : InterfGraph.dict) (fuel : nat) : list reg :=
   end
 .
 
-Definition eliminate' (g : InterfGraph.dict) : option (reg * InterfGraph.dict):=
+Definition eliminate_step (g : InterfGraph.dict) : option (reg * InterfGraph.dict):=
   match find_next g with
   | Some next =>
     let g := ig_remove_node g next in
@@ -76,19 +76,19 @@ Definition eliminate' (g : InterfGraph.dict) : option (reg * InterfGraph.dict):=
 *)
 
 Function eliminate (g : InterfGraph.dict) {measure InterfGraph.size g} : list reg :=
-  match eliminate' g with
-  | Some (next, g) => next :: (eliminate g)
+  match eliminate_step g with
+  | Some (next, g') => next :: (eliminate g')
   | None => nil
   end
 .
 Proof.
-  intros g n r g' H H'.
-  destruct n. inversion H. subst. clear H.
-  unfold eliminate' in H'.
+  intros g result next g' Hp Helim.
+  unfold eliminate_step in Helim.
   destruct find_next eqn:E.
-  - inversion H'. subst. apply ig_size_decrease. apply find_next_in in E. assumption.
+  - inversion Helim. subst.
+    apply ig_size_decrease. apply find_next_in in E. assumption.
   - discriminate.
-Defined.
+Qed.
 
 (*
   Proof of correctness of the algorithm that is, the result of the eliminate
