@@ -732,10 +732,14 @@ Theorem eliminate_step_invariant :
     is_chordal g ->
     match eliminate_step g with
     | Some (_, g') => is_chordal g'
-    | None => False
+    | None => is_chordal g
     end
 .
 Proof.
+  intros g H1 H2.
+  unfold eliminate_step.
+  destruct (find_next g) eqn:Eoption; try assumption.
+  apply find_next_simplicial in Eoption.
 Admitted.
 
 Inductive is_clique : InterfGraph.dict -> list reg -> Prop :=
