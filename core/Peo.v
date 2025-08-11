@@ -66,7 +66,6 @@ Definition eliminate_step (g : InterfGraph.dict) : option (reg * InterfGraph.dic
 
 (*
   Precondition: g is chordal
-
   After:
   Correctness: after this function:
   - reg is simplicial for g
@@ -89,6 +88,7 @@ Proof.
     apply ig_size_decrease. apply find_next_in in E. assumption.
   - discriminate.
 Qed.
+
 
 (*
   Proof of correctness of the algorithm that is, the result of the eliminate
@@ -714,19 +714,35 @@ Lemma find_next_simplicial :
     find_next g = Some r -> is_simplicial r g
 .
 Proof.
-  intros g r. unfold find_next. intros H. apply is_simplicialb_is_simplicial.
+  intros g r. unfold find_next. intros H.
+  apply is_simplicialb_is_simplicial.
   apply find_some in H. destruct H as [H1 H2]. assumption.
 Qed.
+
+Inductive is_chordal : InterfGraph.dict -> Prop :=
+  | ChordalEmpty : is_chordal InterfGraph.empty
+  | ChordalAddEdge : forall g,
+    (exists r, is_simplicial r g /\ is_chordal (ig_remove_node g r)) ->
+    is_chordal g
+.
+
+Theorem eliminate_step_invariant :
+  forall g,
+    well_formed g ->
+    is_chordal g ->
+    match eliminate_step g with
+    | Some (_, g') => is_chordal g'
+    | None => False
+    end
+.
+Proof.
+Admitted.
 
 Inductive is_clique : InterfGraph.dict -> list reg -> Prop :=
   | CliqueEmpty : forall g, is_clique g []
   | CliqueAddNode : forall g r rs, is_clique g rs ->
     is_clique (ig_insert_edges g r rs) (r :: rs)
 .
-
-(* Inductive is_chordal : InterfGraph.dict -> Prop :=
-  | ChordalEmpty : is_chordal InterfGraph.empty
-  | ChordalSingleton : forall g, is_chordal  *)
 
 Lemma is_simplicial_nbors_is_clique :
   forall g r, is_simplicial r g -> is_clique g (InterfGraph.get g r)
