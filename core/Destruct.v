@@ -90,7 +90,7 @@ Fixpoint phi_to_move (pred : lbl) (dst : reg) (rs : list phi_arg) : option (reg 
   match rs with
   | nil => None
   | (src, l) :: tl =>
-    if l =? pred
+    if lbl_eqb l pred
     then Some (src, dst)
     else phi_to_move pred dst tl
   end
@@ -119,14 +119,11 @@ Compute
   moves_to_insts ms
 .
 
-
 Definition succ_to_insts (pred : lbl) (succ : block) (fuel : nat) : list inst :=
   let ms := phis_to_moves pred (get_phis succ) in
   let ms := pmove ms fuel in
   moves_to_insts ms
 .
-
-Axiom new_lbl : lbl -> lbl.
 
 Definition ssa_destruct (fuel : nat) (b : block) :=
   let cofix ssa_destruct_aux (pred : lbl) (b : block) : block :=
@@ -135,8 +132,8 @@ Definition ssa_destruct (fuel : nat) (b : block) :=
       match j with
       | CondJump c r v b1 b2 =>
         Block l nil is (CondJump c r v
-          (Block (new_lbl (get_lbl b1)) nil (succ_to_insts l b1 fuel) (Jump (ssa_destruct_aux l b1)))
-          (Block (new_lbl (get_lbl b2)) nil (succ_to_insts l b2 fuel) (Jump (ssa_destruct_aux l b2))))
+          (Block (Point1 (nat_of_lbl l)) nil (succ_to_insts l b1 fuel) (Jump (ssa_destruct_aux l b1)))
+          (Block (Point2 (nat_of_lbl l)) nil (succ_to_insts l b2 fuel) (Jump (ssa_destruct_aux l b2))))
       | Jump b' =>
         Block l nil (is ++ (succ_to_insts l b' fuel)) (Jump (ssa_destruct_aux l b'))
       | Ret r =>
@@ -149,15 +146,15 @@ Definition ssa_destruct (fuel : nat) (b : block) :=
 
 Module Example1.
   CoFixpoint example_block_2 : block :=
-    Block 2 [
-      r(RBP) <- phi [(RSP, 1); (RBP, 4)];
-      r(RSP) <- phi [(RSP, 1); (RSP, 4)]
+    Block (Normal 2) [
+      r(RBP) <- phi [(RSP, Normal 1); (RBP, Normal 4)];
+      r(RSP) <- phi [(RSP, Normal 1); (RSP, Normal 4)]
     ] [
     ] (
       Jump example_block_3
     )
   with example_block_3 : block :=
-    Block 3 [
+    Block (Normal 3) [
     ] [
       r(RBP) <- r(RBP) + i(1);
       r(RSP) <- r(RSP) + i(1)
@@ -165,7 +162,7 @@ Module Example1.
       Jump example_block_4
     )
   with example_block_4 : block :=
-    Block 4 [
+    Block (Normal 4) [
     ] [
     ] (
       Jump example_block_2
@@ -173,7 +170,7 @@ Module Example1.
   .
 
   Definition example_block_1 : block :=
-    Block 1 [
+    Block (Normal 1) [
     ] [
       r(RBP) <- i(34);
       r(RSP) <- i(35)
@@ -185,16 +182,16 @@ Module Example1.
   Definition fuel : nat := 20.
 
   (* ssa_destruct phis *)
-  Compute
+  (* Compute
     let d := ssa_destruct fuel example_block_1 in
     visit_program d fuel
-  .
+  . *)
 End Example1.
 
 Module Example2.
   Definition example_block_2 : block :=
-    Block 2 [
-      r(RBP) <- phi [(RBP, 1)]
+    Block (Normal 2) [
+      r(RBP) <- phi [(RBP, Normal 1)]
     ] [
       r(RBX) <- p(0);
       store r(RBX) r(RBP)
@@ -204,8 +201,8 @@ Module Example2.
   .
 
   Definition example_block_3 : block :=
-    Block 3 [
-      r(RBP) <- phi [(RSP, 1)]
+    Block (Normal 3) [
+      r(RBP) <- phi [(RSP, Normal 1)]
     ] [
       r(RBX) <- p(0);
       store r(RBX) r(RBP)
@@ -215,7 +212,7 @@ Module Example2.
   .
 
   Definition example_block_1 : block :=
-    Block 1 [
+    Block (Normal 1) [
     ] [
       r(RBP) <- i(34);
       r(RSP) <- i(35)
@@ -227,15 +224,15 @@ Module Example2.
   Definition fuel : nat := 20.
 
   (* ssa_destruct phis *)
-  Compute
+  (* Compute
     let d := ssa_destruct fuel example_block_1 in
     visit_program d fuel
-  .
+  . *)
 End Example2.
 
 Module Example3.
   Definition example_block_3 : block :=
-    Block 3 [
+    Block (Normal 3) [
     ] [
     ] (
       ret r(RBX)
@@ -243,10 +240,10 @@ Module Example3.
   .
 
   CoFixpoint example_block_2 : block :=
-    Block 2 [
-      r(RBX) <- phi [(RBX, 1); (RDX, 2)]; (* (a = a) (a = rdx which is the previous b) *)
-      r(RDX) <- phi [(RCX, 1); (RBX, 2)]; (* (b = a) (b = rbx which is the previous b + the previous a) *)
-      r(RCX) <- phi [(RDX, 1); (RCX, 2)]  (* (i = i) (i = rcx) *)
+    Block (Normal 2) [
+      r(RBX) <- phi [(RBX, Normal 1); (RDX, Normal 2)]; (* (a = a) (a = rdx which is the previous b) *)
+      r(RDX) <- phi [(RCX, Normal 1); (RBX, Normal 2)]; (* (b = a) (b = rbx which is the previous b + the previous a) *)
+      r(RCX) <- phi [(RDX, Normal 1); (RCX, Normal 2)]  (* (i = i) (i = rcx) *)
     ] [
       r(RBX) <- r(RDX) + r(RBX);  (* rbx = b + a *)
       r(RCX) <- r(RCX) - i(1)     (* rcx = i - 1 *)
@@ -256,7 +253,7 @@ Module Example3.
   .
 
   Definition example_block_1 : block :=
-    Block 1 [
+    Block (Normal 1) [
     ] [
       r(RBX) <- i(0);
       r(RCX) <- i(1);
@@ -269,8 +266,8 @@ Module Example3.
   Definition fuel : nat := 20.
 
   (* ssa_destruct phis *)
-  Compute
+  (* Compute
     let d := ssa_destruct fuel example_block_1 in
     visit_program d fuel
-  .
+  . *)
 End Example3.

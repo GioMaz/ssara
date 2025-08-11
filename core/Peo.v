@@ -31,7 +31,8 @@ Definition find_next (g : InterfGraph.dict) : option reg :=
 .
 
 Lemma find_next_in :
-  forall (g : InterfGraph.dict) (n : reg), find_next g = Some n -> In n (InterfGraph.keys g)
+  forall (g : InterfGraph.dict) (n : reg),
+    find_next g = Some n -> In n (InterfGraph.keys g)
 .
 Proof.
   intros g n. unfold find_next. apply find_some.
@@ -54,21 +55,40 @@ Fixpoint eliminate_fuel (g : InterfGraph.dict) (fuel : nat) : list reg :=
   end
 .
 
-Function eliminate (g : InterfGraph.dict) {measure InterfGraph.size g} : list reg :=
+Definition eliminate' (g : InterfGraph.dict) : option (reg * InterfGraph.dict):=
   match find_next g with
   | Some next =>
     let g := ig_remove_node g next in
-    let peo := eliminate g in
-    next :: peo
+    Some (next, g)
+  | None => None
+  end
+.
+
+(*
+  Precondition: g is chordal
+
+  After:
+  Correctness: after this function:
+  - reg is simplicial for g
+  - InterfGraph.dict is chordal
+  Or
+  InterfGraph.dict is empty
+*)
+
+Function eliminate (g : InterfGraph.dict) {measure InterfGraph.size g} : list reg :=
+  match eliminate' g with
+  | Some (next, g) => next :: (eliminate g)
   | None => nil
   end
 .
 Proof.
-  intros g n H.
-  apply find_next_in in H.
-  apply ig_size_decrease.
-  assumption.
-Qed.
+  intros g n r g' H H'.
+  destruct n. inversion H. subst. clear H.
+  unfold eliminate' in H'.
+  destruct find_next eqn:E.
+  - inversion H'. subst. apply ig_size_decrease. apply find_next_in in E. assumption.
+  - discriminate.
+Defined.
 
 (*
   Proof of correctness of the algorithm that is, the result of the eliminate
@@ -491,9 +511,11 @@ Proof.
 Qed.
 
 Lemma ig_insert_node_edge_ig_insert_edge :
-  forall g u v, ig_insert_edge (ig_insert_node g u) u v = ig_insert_edge g u v
+  forall g u v,
+    ig_insert_edge (ig_insert_node g u) u v = ig_insert_edge g u v
 .
 Proof.
+  intros g u v.
 Admitted.
 
 Axiom ig_insert_edge_comm :
@@ -701,6 +723,10 @@ Inductive is_clique : InterfGraph.dict -> list reg -> Prop :=
   | CliqueAddNode : forall g r rs, is_clique g rs ->
     is_clique (ig_insert_edges g r rs) (r :: rs)
 .
+
+(* Inductive is_chordal : InterfGraph.dict -> Prop :=
+  | ChordalEmpty : is_chordal InterfGraph.empty
+  | ChordalSingleton : forall g, is_chordal  *)
 
 Lemma is_simplicial_nbors_is_clique :
   forall g r, is_simplicial r g -> is_clique g (InterfGraph.get g r)

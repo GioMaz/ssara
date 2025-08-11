@@ -132,7 +132,7 @@ Import IRVreg.
 
 Module Example1.
   Definition example_block_4 : block :=
-    Block 4 [
+    Block (Normal 4) [
     ] [
       r(7) <- r(5) + r(6)
     ] (
@@ -141,7 +141,7 @@ Module Example1.
   .
 
   Definition example_block_3 : block :=
-    Block 3 [
+    Block (Normal 3) [
     ] [
       r(5) <- r(3) + i(1);
       r(6) <- r(4) + i(1)
@@ -151,9 +151,9 @@ Module Example1.
   .
 
   Definition example_block_2 : block :=
-    Block 2 [
-      r(3) <- phi [(1, 1)];
-      r(4) <- phi [(2, 1)]
+    Block (Normal 2) [
+      r(3) <- phi [(1, Normal 1)];
+      r(4) <- phi [(2, Normal 1)]
     ] [
     ] (
       Jump example_block_3
@@ -161,7 +161,7 @@ Module Example1.
   .
 
   Definition example_block_1 : block :=
-    Block 1 [
+    Block (Normal 1) [
     ] [
       r(1) <- i(34);
       r(2) <- i(35)
@@ -169,9 +169,8 @@ Module Example1.
       Jump example_block_2
     )
   .
-  Compute 0.
 
-  Definition ig :=
+  (* Definition ig :=
     let (pi, _) := analyze_program example_block_1 10 in
     InterfGraph.get_ig pi
   .
@@ -186,13 +185,13 @@ Module Example1.
     | Some c => Coloring.listify c
     | None => nil
     end
-  .
+  . *)
 End Example1.
 
 Module Example2.
   Definition example_block_2 : block :=
-    Block 2 [
-      r(3) <- phi [(0, 1)]
+    Block (Normal 2) [
+      r(3) <- phi [(0, Normal 1)]
     ] [
       r(4) <- r(3)
     ] (
@@ -201,8 +200,8 @@ Module Example2.
   .
 
   Definition example_block_3 : block :=
-    Block 3 [
-      r(5) <- phi [(1, 1)]
+    Block (Normal 3) [
+      r(5) <- phi [(1, Normal 1)]
     ] [
       r(6) <- r(5)
     ] (
@@ -211,7 +210,7 @@ Module Example2.
   .
 
   Definition example_block_1 : block :=
-    Block 1 [
+    Block (Normal 1) [
     ] [
       r(0) <- i(34);
       r(1) <- i(35)
@@ -224,7 +223,7 @@ End Example2.
 (* Example 3 *)
 Module Example3.
   Definition example_block_3 : block :=
-    Block 3 [
+    Block (Normal 3) [
     ] [
     ] (
       ret r(5)
@@ -232,9 +231,9 @@ Module Example3.
   .
 
   CoFixpoint example_block_2 : block :=
-    Block 2 [
-      r(2) <- phi [(0, 1); (4, 2)];   (* Iterator *)
-      r(3) <- phi [(1, 1); (5, 2)]    (* Accumulator *)
+    Block (Normal 2) [
+      r(2) <- phi [(0, Normal 1); (4, Normal 2)];   (* Iterator *)
+      r(3) <- phi [(1, Normal 1); (5, Normal 2)]    (* Accumulator *)
     ] [
       r(4) <- r(2) - i(1);
       r(5) <- r(3) * r(4)
@@ -244,7 +243,7 @@ Module Example3.
   .
 
   Definition example_block_1 : block :=
-    Block 1 [
+    Block (Normal 1) [
     ] [
       r(0) <- i(5);   (* Iterator *)
       r(1) <- r(0)    (* Accumulator *)
@@ -257,7 +256,7 @@ End Example3.
 (* Example 4 *)
 Module Example4.
   Definition example_block_3 : block :=
-    Block 3 [
+    Block (Normal 3) [
     ] [
     ] (
       ret r(3)
@@ -265,8 +264,8 @@ Module Example4.
   .
 
   CoFixpoint example_block_2 : block :=
-    Block 2 [
-      r(2) <- phi [(0, 1); (3, 2)]
+    Block (Normal 2) [
+      r(2) <- phi [(0, Normal 1); (3, Normal 2)]
     ] [
       r(3) <- r(2) + i(2)
     ] (
@@ -275,7 +274,7 @@ Module Example4.
   .
 
   Definition example_block_1 : block :=
-    Block 1 [
+    Block (Normal 1) [
     ] [
       r(0) <- i(0);
       r(1) <- i(20)
@@ -288,7 +287,7 @@ End Example4.
 (* Example 5 *)
 Module Example5.
   Definition example_block_3 : block :=
-    Block 3 [
+    Block (Normal 3) [
     ] [
     ] (
       ret r(6)
@@ -296,10 +295,10 @@ Module Example5.
   .
 
   CoFixpoint example_block_2 : block :=
-    Block 2 [
-      r(3) <- phi [(0, 1); (4, 2)];
-      r(4) <- phi [(1, 1); (6, 2)];
-      r(5) <- phi [(2, 1); (7, 2)]
+    Block (Normal 2) [
+      r(3) <- phi [(0, Normal 1); (4, Normal 2)];
+      r(4) <- phi [(1, Normal 1); (6, Normal 2)];
+      r(5) <- phi [(2, Normal 1); (7, Normal 2)]
     ] [
       r(6) <- r(4) + r(3);  (* New first block *)
       r(7) <- r(5) - i(1)   (* New iterator *)
@@ -309,7 +308,7 @@ Module Example5.
   .
 
   Definition example_block_1 : block :=
-    Block 1 [
+    Block (Normal 1) [
     ] [
       r(0) <- i(0);  (* Second block *)
       r(1) <- i(1);  (* First block *)
@@ -318,6 +317,9 @@ Module Example5.
       Jump example_block_2
     )
   .
+
+(* CoFixpoint double_lbl_1 : block := Block (Normal 0) [] [] (Jump double_lbl_2)
+  with double_lbl_2 : block := Block (Normal 0) [] [] (Jump double_lbl_1).
 
   Definition pi := let (pi, _) := analyze_program example_block_1 100 in pi.
   Definition ig := get_ig pi.
@@ -329,5 +331,5 @@ Module Example5.
     | None => None
     end
   .
-  Compute irpreg_program.
+  Compute irpreg_program. *)
 End Example5.

@@ -1,6 +1,20 @@
 open Ssara
 
-module LblSet = Set.Make(Int);;
+module Lbl = struct
+  type t = lbl
+  let compare a b =
+    match a, b with
+    | Normal x, Normal y -> compare x y
+    | Point1 x, Point1 y -> compare x y
+    | Point2 x, Point2 y -> compare x y
+    | Normal _, _        -> 1
+    | Point1 _, Normal _ -> -1
+    | Point1 _, Point2 _ -> 1
+    | Point2 _, Point1 _ -> -1
+    | Point2 _, Normal _ -> -1
+end
+
+module LblSet = Set.Make(Lbl);;
 
 type opcode =
   | MOV
@@ -110,8 +124,11 @@ let string_of_val_deref v =
   | IRPreg.Ptr p -> string_of_ptr_deref p
 ;;
 
-let label_of_int l =
-  Printf.sprintf "L%d" l
+let string_of_lbl l =
+  match l with
+  | Normal l -> Printf.sprintf "L%d" l
+  | Point1 l -> Printf.sprintf "L%d_1" l
+  | Point2 l -> Printf.sprintf "L%d_2" l
 ;;
 
 let gen_bininst out opcode arg1 arg2 =
@@ -170,12 +187,12 @@ let gen_insts out is =
 ;;
 
 let gen_jump out b =
-  gen_uninst out JMP (label_of_int (IRPreg.get_lbl b))
+  gen_uninst out JMP (string_of_lbl (IRPreg.get_lbl b))
 ;;
 
 let gen_condjump out c r v b1 b2 =
   gen_bininst out CMP                 (string_of_reg r) (string_of_val v);
-  gen_uninst  out (opcode_of_cond c)  (label_of_int (IRPreg.get_lbl b1));
+  gen_uninst  out (opcode_of_cond c)  (string_of_lbl (IRPreg.get_lbl b1));
   gen_jump    out b2
 ;;
 
@@ -192,7 +209,7 @@ let gen_ret out r =
 ;;
 
 let gen_label out l =
-  Printf.fprintf out "%s:\n" (label_of_int l)
+  Printf.fprintf out "%s:\n" (string_of_lbl l)
 ;;
 
 let gen_start out program =

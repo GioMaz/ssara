@@ -55,7 +55,7 @@ Lemma ig_size_decrease :
   InterfGraph.size (ig_remove_node g n) < InterfGraph.size g
 .
 Proof.
-  intros g n H. unfold ig_remove_node. cbn. apply regs_size_decrease. assumption.
+  intros g n H. cbn. apply regs_size_decrease. assumption.
 Qed.
 
 Fixpoint ig_insert_edges (g : InterfGraph.dict) (r : reg) (regs : list reg) : InterfGraph.dict :=
@@ -121,7 +121,7 @@ Definition get_ig (pi : ProgramInfo.dict) : InterfGraph.dict :=
 
 Module Example1.
   CoFixpoint example_block_3 : block :=
-    Block 3 [
+    Block (Normal 3) [
     ] [
       r(5) <- r(3) + i(1);
       r(6) <- r(4) + i(1)
@@ -129,9 +129,9 @@ Module Example1.
       Jump example_block_2
     )
   with example_block_2 : block :=
-    Block 2 [
-      r(3) <- phi [(1, 1); (5, 3)];
-      r(4) <- phi [(2, 1); (6, 3)]
+    Block (Normal 2) [
+      r(3) <- phi [(1, Normal 1); (5, Normal 3)];
+      r(4) <- phi [(2, Normal 1); (6, Normal 3)]
     ] [
     ] (
       Jump example_block_3
@@ -139,7 +139,7 @@ Module Example1.
   .
 
   Definition example_block_1 : block :=
-    Block 1 [
+    Block (Normal 1) [
     ] [
       r(1) <- i(34);
       r(2) <- i(35)
@@ -150,24 +150,24 @@ Module Example1.
 
   Definition fuel : nat := 4.
 
-  Compute
+  (* Compute
     let '(pi, _) := analyze_program example_block_1 fuel in
     let g := get_ig pi in
     InterfGraph.listify g
-  .
+  . *)
 End Example1.
 
 Module Example2.
   CoFixpoint example_block_2 : block :=
-    Block 2 [
-      r(3) <- phi [(1, 1); (5, 4)];
-      r(4) <- phi [(2, 1); (6, 4)]
+    Block (Normal 2) [
+      r(3) <- phi [(1, Normal 1); (5, Normal 4)];
+      r(4) <- phi [(2, Normal 1); (6, Normal 4)]
     ] [
     ] (
       Jump example_block_3
     )
   with example_block_3 : block :=
-    Block 3 [
+    Block (Normal 3) [
     ] [
       r(5) <- r(3) + i(1);
       r(6) <- r(4) + i(1)
@@ -175,7 +175,7 @@ Module Example2.
       Jump example_block_4
     )
   with example_block_4 : block :=
-    Block 4 [
+    Block (Normal 4) [
     ] [
     ] (
       Jump example_block_2
@@ -183,7 +183,7 @@ Module Example2.
   .
 
   Definition example_block_1 : block :=
-    Block 1 [
+    Block (Normal 1) [
     ] [
       r(1) <- i(34);
       r(2) <- i(35)
@@ -194,17 +194,17 @@ Module Example2.
 
   Definition fuel : nat := 4.
 
-  Compute
+  (* Compute
     let '(pi, _) := analyze_program example_block_1 fuel in
     let g := get_ig pi in
     InterfGraph.listify g
-  .
+  . *)
 End Example2.
 
 Module Example3.
   Definition example_block_2 : block :=
-    Block 2 [
-      r(3) <- phi [(0, 1)]
+    Block (Normal 2) [
+      r(3) <- phi [(0, Normal 1)]
     ] [
       r(4) <- p(0);
       store r(4) r(3)
@@ -214,8 +214,8 @@ Module Example3.
   .
 
   Definition example_block_3 : block :=
-    Block 3 [
-      r(5) <- phi [(1, 1)]
+    Block (Normal 3) [
+      r(5) <- phi [(1, Normal 1)]
     ] [
       r(6) <- p(0);
       store r(6) r(5)
@@ -225,7 +225,7 @@ Module Example3.
   .
 
   Definition example_block_1 : block :=
-    Block 1 [
+    Block (Normal 1) [
     ] [
       r(0) <- i(34);
       r(1) <- i(35)
@@ -236,7 +236,7 @@ Module Example3.
 
   Definition fuel : nat := 4.
 
-  Compute
+  (* Compute
     let '(pi, regs) := (analyze_program example_block_1 10) in
     ProgramInfo.listify pi
   .
@@ -245,5 +245,5 @@ Module Example3.
     let '(pi, _) := analyze_program example_block_1 fuel in
     let g := get_ig pi in
     InterfGraph.listify g
-  .
+  . *)
 End Example3.

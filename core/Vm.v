@@ -5,6 +5,7 @@ From Stdlib Require Import ZArith.
 From Ssara.Core Require Import IRVregModule.
 Import IRVreg.
 
+(* TODO: Prove some facts about the virtual machine primitives *)
 Module Vm.
   Definition cell : Type := Z.
 
@@ -130,17 +131,17 @@ Module Vm.
     match rs with
     | nil => m
     | (r', l) :: xs =>
-      if l =? get_lbl pred then
+      if lbl_eqb l (get_lbl pred) then
         set_reg m r (get_reg m r')
       else
         run_phi m pred r xs
     end
   .
 
-  Definition run_phis (m : vm) (pred : block) (ps : list phi) : vm :=
+  Definition run_phis (m : vm) (pred : block) (succ : block) : vm :=
     fold_left
       (fun m_acc '(Phi r rs) => run_phi m_acc pred r rs)
-      ps m
+      (get_phis succ) m
   .
 
   (*
@@ -156,10 +157,10 @@ Module Vm.
       match j with
       | CondJump c r v b1 b2 =>
         if eval_cond m c r v then
-          run (run_phis m p (get_phis b1)) b1 fuel'
+          run (run_phis m p b1) b1 fuel'
         else
-          run (run_phis m p (get_phis b2)) b2 fuel'
-      | Jump b1 => run (run_phis m p (get_phis b1)) b1 fuel'
+          run (run_phis m p b2) b2 fuel'
+      | Jump b1 => run (run_phis m p b1) b1 fuel'
       | Ret r => set_reg m 0 (get_reg m r) (* Save the return value in the first register *)
       end
     end

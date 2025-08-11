@@ -9,6 +9,7 @@ From Ssara.Core Require Import Destruct.
 Require Extraction.
 Extraction Language OCaml.
 Set Extraction Output Directory ".".
+Set Extraction AccessOpaque.
 
 (* Extract using OCaml built-in types *)
 Extract Inductive bool => "bool" [ "true" "false" ].
@@ -22,7 +23,6 @@ Extract Inductive nat =>
   "(fun zero succ n -> if n = 0 then zero () else succ (n - 1))"  (* Pattern matching translation *)
 .                                                                 (* zero () is the branch | O => ... *)
                                                                   (* succ (n-1) is the branch | S n' => ...  or S (n-1) => ... *)
-Extract Constant new_lbl => "Oracles.new_lbl".
 
 From Stdlib Require Import ExtrOcamlZInt.
 

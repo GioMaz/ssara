@@ -7,6 +7,44 @@ From Stdlib Require Import Sets.Ensembles.
 (* Register independent definitions *)
 Inductive cond : Type := Jeq | Jne | Jlt | Jle | Jgt | Jge.
 
+Inductive lbl : Type :=
+  | Normal : nat -> lbl
+  | Point1 : nat -> lbl
+  | Point2 : nat -> lbl
+.
+
+Definition nat_of_lbl (l : lbl) : nat :=
+  match l with
+  | Normal l => l
+  | Point1 l => l
+  | Point2 l => l
+  end
+.
+
+Definition lbl_eqb (l l': lbl) : bool :=
+  match l, l' with
+  | Normal l, Normal l' => l =? l'
+  | Point1 l, Point1 l' => l =? l'
+  | Point2 l, Point2 l' => l =? l'
+  | _, _ => false
+  end
+.
+
+Lemma lbl_eq_dec : forall l l' : lbl, {l = l'} + {l <> l'}.
+Proof.
+  intros l l'.
+  destruct l as [n | n | n], l' as [m | m | m]; try (right; discriminate).
+  - destruct (Nat.eq_dec n m) as [Enm | NEnm].
+    + left. f_equal. assumption.
+    + right. intros H. injection H as H. contradiction.
+  - destruct (Nat.eq_dec n m) as [Enm | NEnm].
+    + left. f_equal. assumption.
+    + right. intros H. injection H as H. contradiction.
+  - destruct (Nat.eq_dec n m) as [Enm | NEnm].
+    + left. f_equal. assumption.
+    + right. intros H. injection H as H. contradiction.
+Defined.
+
 (* Register dependent definitions *)
 Module Type IR_PARAMS.
   Parameter reg : Set.
@@ -20,7 +58,6 @@ Module MakeIR (IR: IR_PARAMS).
   Definition reg_eq_dec := IR.reg_eq_dec.
 
   Definition ptr := nat.
-  Definition lbl := nat.
 
   (*
     This represents a value that can either be an immediate number `x` or the
@@ -32,7 +69,7 @@ Module MakeIR (IR: IR_PARAMS).
     | Ptr (p : ptr)
   .
 
-  Definition eq_val (v1 v2 : val) : bool :=
+  Definition val_eqb (v1 v2 : val) : bool :=
     match v1, v2 with
     | Imm x1, Imm x2 => Z.eqb x1 x2
     | Reg x1, Reg x2 => reg_eqb x1 x2
@@ -57,14 +94,14 @@ Module MakeIR (IR: IR_PARAMS).
     | Div : reg -> val -> expr
   .
 
-  Definition eq_expr (e1 e2 : expr) : bool :=
+  Definition expr_eqb (e1 e2 : expr) : bool :=
     match e1, e2 with
-    | Val x1, Val x2 => eq_val x1 x2
-    | Load x1, Load x2 => eq_val x1 x2
-    | Add x1 y1, Add x2 y2 => (reg_eqb x1 x2) && (eq_val y1 y2)
-    | Sub x1 y1, Sub x2 y2 => (reg_eqb x1 x2) && (eq_val y1 y2)
-    | Mul x1 y1, Mul x2 y2 => (reg_eqb x1 x2) && (eq_val y1 y2)
-    | Div x1 y1, Div x2 y2 => (reg_eqb x1 x2) && (eq_val y1 y2)
+    | Val x1, Val x2 => val_eqb x1 x2
+    | Load x1, Load x2 => val_eqb x1 x2
+    | Add x1 y1, Add x2 y2 => (reg_eqb x1 x2) && (val_eqb y1 y2)
+    | Sub x1 y1, Sub x2 y2 => (reg_eqb x1 x2) && (val_eqb y1 y2)
+    | Mul x1 y1, Mul x2 y2 => (reg_eqb x1 x2) && (val_eqb y1 y2)
+    | Div x1 y1, Div x2 y2 => (reg_eqb x1 x2) && (val_eqb y1 y2)
     | _, _ => false
     end
   .
@@ -140,7 +177,7 @@ Module MakeIR (IR: IR_PARAMS).
     | Ret : reg -> jinst
   .
 
-  CoFixpoint block_empty : block := Block O nil nil (Jump block_empty).
+  CoFixpoint block_empty : block := Block (Normal O) nil nil (Jump block_empty).
 
   Definition jinst_args (j : jinst) : list reg :=
     match j with

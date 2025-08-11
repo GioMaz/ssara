@@ -6,5 +6,3 @@ let fuel_analyze = 50;;
 
 (* Required since we don't include the proof for the termination of the SSA destruction algorithm *)
 let fuel_destruct = 50;;
-
-let new_lbl lbl = lbl * 50;;
