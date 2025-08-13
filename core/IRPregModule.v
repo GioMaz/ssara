@@ -21,6 +21,7 @@ Inductive preg : Type :=
   | R13
   | R14
   | R15
+  | UNASSIGNED
 .
 
 Definition preg_eqb (p : preg) (p' : preg) : bool :=
@@ -41,6 +42,7 @@ Definition preg_eqb (p : preg) (p' : preg) : bool :=
   | R13, R13
   | R14, R14
   | R15, R15 => true
+  | UNASSIGNED, UNASSIGNED => true
   | _, _ => false
   end
 .
@@ -67,14 +69,17 @@ Definition preg_all : set preg :=
   [RAX; RBX; RCX; RDX; RSI; RDI; RSP; RBP; R8; R9; R10; R11; R12; R13; R14; R15]
 .
 
-Lemma preg_all_in : forall p, In p preg_all.
+Lemma preg_all_in :
+  forall p, p <> UNASSIGNED -> In p preg_all.
 Proof.
-  intros []; simpl; repeat (left; reflexivity) || right; try reflexivity.
+  intros []; simpl; intros H;
+  try congruence; repeat (left; reflexivity) || right; try reflexivity.
 Qed.
 
 Definition tmp : preg := RAX.
 Definition preg_all_minus_tmp := IRPreg.regs_diff preg_all [tmp].
-Lemma preg_all_minus_tmp_in : forall p, p <> tmp -> In p preg_all_minus_tmp.
+Lemma preg_all_minus_tmp_in :
+  forall p, p <> UNASSIGNED -> p <> tmp -> In p preg_all_minus_tmp.
 Proof.
   intros []; unfold tmp; intros H;
   try congruence; repeat (left; reflexivity) || right; try reflexivity.

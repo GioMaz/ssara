@@ -14,7 +14,7 @@ From Ssara.Core Require Import IRPregModule.
 Module ColoringParams <: DICT_PARAMS.
   Definition key := IRVreg.reg.
   Definition value := IRPreg.reg.
-  Definition default : value := tmp.
+  Definition default : value := UNASSIGNED.
   Definition key_eq_dec := Nat.eq_dec.
 End ColoringParams.
 Module Coloring := MakeDict ColoringParams.

@@ -8,6 +8,17 @@ Definition option_to_list {A : Type} (x : option A) : list A :=
   end
 .
 
+Fixpoint list_option_to_list {A : Type} (l : list (option A)) : list A :=
+  match l with
+  | nil => nil
+  | x :: xs =>
+    match x with
+    | Some x => x :: (list_option_to_list xs)
+    | None => list_option_to_list xs
+    end
+  end
+.
+
 Definition conjunction {A : Type} (f : A -> bool) (l : list A) : bool :=
   fold_left (fun b x => b && f x) l true
 .

@@ -58,15 +58,14 @@ Fixpoint eliminate_fuel (g : InterfGraph.dict) (fuel : nat) : list reg :=
 Definition eliminate_step (g : InterfGraph.dict) : option (reg * InterfGraph.dict):=
   match find_next g with
   | Some next =>
-    let g := ig_remove_node g next in
-    Some (next, g)
+    Some (next, ig_remove_node g next)
   | None => None
   end
 .
 
 (*
   Precondition: g is chordal
-  After:
+  Postcondition:
   Correctness: after this function:
   - reg is simplicial for g
   - InterfGraph.dict is chordal
@@ -88,7 +87,6 @@ Proof.
     apply ig_size_decrease. apply find_next_in in E. assumption.
   - discriminate.
 Qed.
-
 
 (*
   Proof of correctness of the algorithm that is, the result of the eliminate
@@ -228,6 +226,7 @@ Lemma invert_keys : forall g a V',
     (ig_insert_node g' a = g \/ exists r', (In r' (InterfGraph.keys g')) /\ ig_insert_edge g' a r' = g)
     /\ InterfGraph.keys g = a :: (InterfGraph.keys g')
     /\ ~ In a (InterfGraph.keys g')
+    /\ ig_remove_node g a = g'
     (* /\ (forall b, a <> b -> Permutation (InterfGraph.get g b) (InterfGraph.get g' b)) *)
 .
 Proof.
@@ -598,7 +597,7 @@ Proof.
       injection H' as H'. specialize (IHV H' r). intros H.
       unfold is_simplicialb in H. apply andb_prop in H as [Ha Hb]. rewrite <- Hsing.
       rewrite Hkeys in Ha. cbn in Ha. destruct (reg_eq_dec r a).
-      + subst. now apply SimplicialAddSingleton.
+      (* + subst. now apply SimplicialAddSingleton.
       + apply SimplicialAddNode; trivial. apply IHV. unfold is_simplicialb. apply andb_true_intro. split. apply Ha. rewrite <- Hsing in Hb.
         pose proof (is_cliqueb_perm_inveriant (ig_insert_node g' a)). unfold perm_invariant in H.
 
@@ -616,7 +615,7 @@ Proof.
         apply ig_insert_edge_singleton with (u := r') in Hin. rewrite <- ig_insert_edge_comm.
         rewrite <- ig_insert_edges_ig_insert_edge. apply ig_insert_node_singleton in Hin'. rewrite <- Hin'.
         eapply SimplicialAddNeighbor. now apply SimplicialAddSingleton.
-        admit. admit. admit.
+        admit. admit. admit. *)
 
 (*
   Then we take into consideration the case where a <> r, we are connecting the new node a to an already existing node r'
@@ -726,20 +725,39 @@ Inductive is_chordal : InterfGraph.dict -> Prop :=
     is_chordal g
 .
 
+Lemma ig_remove_node_not_in :
+  forall g r, ~ In r (InterfGraph.keys g) -> ig_remove_node g r = g
+.
+Proof.
+Admitted.
+
 Theorem eliminate_step_invariant :
   forall g,
     well_formed g ->
     is_chordal g ->
     match eliminate_step g with
     | Some (_, g') => is_chordal g'
-    | None => is_chordal g
+    | None => g = InterfGraph.empty
     end
 .
 Proof.
   intros g H1 H2.
+  induction H2.
+  - now cbn.
+  - 
+(* 
   unfold eliminate_step.
   destruct (find_next g) eqn:Eoption; try assumption.
   apply find_next_simplicial in Eoption.
+  remember (InterfGraph.keys g) as V eqn:EV. revert g EV H1 H2 Eoption.
+  induction V as [| a].
+  - intros g Hnil Hwf Hch Hsi.
+    assert (~ In r (InterfGraph.keys g)) as Hin. rewrite <- Hnil. auto.
+    apply ig_remove_node_not_in in Hin. rewrite Hin. assumption.
+  - intros g Hcons Hwf Hch Hsi.
+    apply invert_keys in Hcons.
+    destruct Hcons as [g' [[Hsing | Hedge] [Hkeys [Hin Hrem]]]].
+    * specialize (IHV g'). *)
 Admitted.
 
 Inductive is_clique : InterfGraph.dict -> list reg -> Prop :=
