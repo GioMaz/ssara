@@ -20,7 +20,6 @@ Module ColoringParams <: DICT_PARAMS.
 End ColoringParams.
 Module Coloring := MakeDict ColoringParams.
 
-
 (*
   The coloring is performed this way:
   - Get a perfect elimination order (ordering that eliminates simplicial nodes first)
@@ -37,7 +36,7 @@ Definition preg_compl (colors : list IRPreg.reg) : option IRPreg.reg :=
   IMPORTANT: by definition of PEO the `nbors` list contains all the neighbors of `v`
   TODO: prove this
 *)
-Definition get_color (v : IRVreg.reg) (c : Coloring.dict) (g : InterfGraph.dict) : option IRPreg.reg :=
+Definition get_color (v : IRVreg.reg) (g : InterfGraph.dict) (c : Coloring.dict) : option IRPreg.reg :=
   let nbors := InterfGraph.get g v in
   let used := IRPreg.regs_of_list (map (Coloring.get c) nbors) in (* UNASSIGNED; ...; UNASSIGNED; RBX; UNASSIGNED; ...; UNASSIGNED; *)
   preg_compl used
@@ -53,7 +52,7 @@ Definition get_coloring (peo : list IRVreg.reg) (g : InterfGraph.dict) : option 
     match peo with
     | nil => Some c
     | v :: peo =>
-      match get_color v c g with
+      match get_color v g c with
       | Some p =>
         let c := Coloring.update c v p in
         get_coloring_aux peo c
@@ -63,18 +62,6 @@ Definition get_coloring (peo : list IRVreg.reg) (g : InterfGraph.dict) : option 
   in
   get_coloring_aux (rev peo) Coloring.empty
 .
-
-Definition g :=
-  (ig_insert_edge
-  (ig_insert_edge
-  (ig_insert_edge
-  (ig_insert_edge
-  (ig_insert_edge
-  (ig_insert_edge
-  (ig_insert_edge
-  (ig_insert_edge
-  (ig_insert_edge InterfGraph.empty
-  1 2) 1 3) 1 4) 2 3) 4 3) 4 5) 3 5) 1 6) 4 6).
 
 (*
   Converting the intermediate representation into one using physical registers
