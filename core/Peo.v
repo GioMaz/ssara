@@ -41,20 +41,6 @@ Qed.
 From Stdlib Require Import FunInd.
 From Stdlib Require Import Recdef.
 
-Fixpoint eliminate_fuel (g : InterfGraph.dict) (fuel : nat) : list reg :=
-  match fuel with
-  | O => nil
-  | S fuel' =>
-    match find_next g with
-    | Some next =>
-      let g := ig_remove_node g next in
-      let peo := eliminate_fuel g fuel' in
-      next :: peo
-    | None => nil
-    end
-  end
-.
-
 Definition eliminate_step (g : InterfGraph.dict) : option (reg * InterfGraph.dict):=
   match find_next g with
   | Some next =>
@@ -87,6 +73,17 @@ Proof.
     apply ig_size_decrease. apply find_next_in in E. assumption.
   - discriminate.
 Qed.
+
+Fixpoint eliminate_fuel (g : InterfGraph.dict) (fuel : nat) : list reg :=
+  match fuel with
+  | O => nil
+  | S fuel' =>
+    match eliminate_step g with
+    | Some (next, g') => next :: (eliminate_fuel g' fuel')
+    | None => nil
+    end
+  end
+.
 
 (*
   Proof of correctness of the algorithm that is, the result of the eliminate

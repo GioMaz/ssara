@@ -4,6 +4,7 @@ From Ssara.Core Require Import Peo.
 From Ssara.Core Require Import Dict.
 From Stdlib Require Import ZArith.
 From Stdlib Require Import Lists.List.
+From Stdlib Require Import ListSet.
 Import ListNotations.
 From Ssara.Core Require Import IR.
 From Stdlib Require Import Bool.
@@ -19,12 +20,13 @@ Module ColoringParams <: DICT_PARAMS.
 End ColoringParams.
 Module Coloring := MakeDict ColoringParams.
 
+
 (*
   The coloring is performed this way:
   - Get a perfect elimination order (ordering that eliminates simplicial nodes first)
   - For each node in the peo reinsert it into the graph and color it differently wrt its neighbors
 *)
-Definition preg_compl (colors : list preg) : option preg :=
+Definition preg_compl (colors : list IRPreg.reg) : option IRPreg.reg :=
   match IRPreg.regs_diff preg_all_minus_tmp colors with
   | nil => None
   | c :: _ => Some c
@@ -35,9 +37,9 @@ Definition preg_compl (colors : list preg) : option preg :=
   IMPORTANT: by definition of PEO the `nbors` list contains all the neighbors of `v`
   TODO: prove this
 *)
-Definition color_vreg (v : IRVreg.reg) (c : Coloring.dict) (g : InterfGraph.dict) : option preg :=
+Definition get_color (v : IRVreg.reg) (c : Coloring.dict) (g : InterfGraph.dict) : option IRPreg.reg :=
   let nbors := InterfGraph.get g v in
-  let used := map (Coloring.get c) nbors in
+  let used := IRPreg.regs_of_list (map (Coloring.get c) nbors) in (* UNASSIGNED; ...; UNASSIGNED; RBX; UNASSIGNED; ...; UNASSIGNED; *)
   preg_compl used
 .
 
@@ -47,20 +49,32 @@ Definition color_vreg (v : IRVreg.reg) (c : Coloring.dict) (g : InterfGraph.dict
   before the coloring.
 *)
 Definition get_coloring (peo : list IRVreg.reg) (g : InterfGraph.dict) : option Coloring.dict :=
-  let fix get_coloring_aux (peo : list IRVreg.reg) (c : Coloring.dict ) (g : InterfGraph.dict) : option Coloring.dict :=
+  let fix get_coloring_aux (peo : list IRVreg.reg) (c : Coloring.dict) : option Coloring.dict :=
     match peo with
     | nil => Some c
     | v :: peo =>
-      match color_vreg v c g with
+      match get_color v c g with
       | Some p =>
         let c := Coloring.update c v p in
-        get_coloring_aux peo c g
+        get_coloring_aux peo c
       | None => None
       end
     end
   in
-  get_coloring_aux peo Coloring.empty g
+  get_coloring_aux (rev peo) Coloring.empty
 .
+
+Definition g :=
+  (ig_insert_edge
+  (ig_insert_edge
+  (ig_insert_edge
+  (ig_insert_edge
+  (ig_insert_edge
+  (ig_insert_edge
+  (ig_insert_edge
+  (ig_insert_edge
+  (ig_insert_edge InterfGraph.empty
+  1 2) 1 3) 1 4) 2 3) 4 3) 4 5) 3 5) 1 6) 4 6).
 
 (*
   Converting the intermediate representation into one using physical registers
@@ -333,3 +347,31 @@ Module Example5.
   .
   Compute irpreg_program. *)
 End Example5.
+
+Module Example6.
+  Definition example_ig :=
+    (ig_insert_edge
+    (ig_insert_edge
+    (ig_insert_edge
+    (ig_insert_edge
+    (ig_insert_edge
+    (ig_insert_edge
+    (ig_insert_edge
+    (ig_insert_edge
+    (ig_insert_edge
+    (ig_insert_edge
+    (ig_insert_edge
+    (ig_insert_edge
+    (ig_insert_edge InterfGraph.empty
+    1 2) 1 3) 7 2) 7 5) 8 5) 8 6) 2 3) 2 5) 6 4) 6 5) 3 4) 3 5) 4 5)
+  .
+  Definition peo := eliminate_fuel example_ig 100.
+  Compute peo.
+  Definition c := get_coloring peo example_ig.
+  Compute
+    match c with
+    | Some c => Coloring.listify c
+    | None => nil
+    end
+  .
+End Example6.

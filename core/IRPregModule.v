@@ -41,7 +41,7 @@ Definition preg_eqb (p : preg) (p' : preg) : bool :=
   | R12, R12
   | R13, R13
   | R14, R14
-  | R15, R15 => true
+  | R15, R15
   | UNASSIGNED, UNASSIGNED => true
   | _, _ => false
   end
