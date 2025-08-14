@@ -533,19 +533,38 @@ Axiom ig_insert_edge_comm :
   forall g u v, ig_insert_edge g u v = ig_insert_edge g v u
 .
 
-Lemma invert_isolated : forall g r, InterfGraph.get g r = [] ->
-  exists g',
-    ~ In r (InterfGraph.keys g') /\ (ig_insert_node g' r) = g
+Lemma ig_remove_node_in :
+  forall g u,
+    well_formed g -> ~ In u(InterfGraph.keys (ig_remove_node g u))
+.
+Proof.
+  intros g u WF.
+  destruct WF as [_ [_ [WF _]]]. unfold not. intros H.
+  apply set_remove_2 with (Aeq_dec := reg_eq_dec) (a := u) (b := u) in WF.
+  contradiction. assumption.
+Qed.
+
+Lemma ig_remove_node_ig_insert_node_not_in :
+  forall g u,
+    ig_insert_node (ig_remove_node g u) u = g
 .
 Proof.
 Admitted.
 
-Lemma invert_loop : forall g r, InterfGraph.get g r = [r] ->
-  exists g',
-    ~ In r (InterfGraph.keys g') /\ (ig_insert_edge g' r r) = g
+Lemma invert_isolated :
+  forall g r,
+    well_formed g ->
+    InterfGraph.get g r = [] ->
+    exists g', ~ In r (InterfGraph.keys g') /\ (ig_insert_node g' r) = g
 .
 Proof.
-Admitted.
+  intros g r WF H.
+  remember (ig_remove_node g r) as g'.
+  exists g'. split.
+  rewrite Heqg'. apply ig_remove_node_in. assumption.
+  rewrite Heqg'. rewrite ig_remove_node_ig_insert_node_not_in.
+  reflexivity.
+Qed.
 
 (* TODO: this depends on the implementation *)
 Lemma ig_insert_edge_nbors :
@@ -699,6 +718,7 @@ Proof.
             apply invert_isolated in nbors.
             destruct nbors as [g'' [nborsIn nborsEq]].
             rewrite <- nborsEq. apply SimplicialAddSingleton. assumption.
+            rewrite Heqg'. apply ig_remove_node_wf. assumption.
 
           (*
             Case 1.2: (r is not simplicial anymore)
