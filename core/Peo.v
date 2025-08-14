@@ -227,9 +227,6 @@ Lemma invert_keys : forall g a V',
     (* /\ (forall b, a <> b -> Permutation (InterfGraph.get g b) (InterfGraph.get g' b)) *)
 .
 Proof.
-  intros g a V' Hkeys. destruct (InterfGraph.keys g) as [| x xs] eqn:Ekeys.
-  - discriminate.
-  - injection Hkeys as Eax EV'xs. subst.
 Admitted.
 
 Lemma nbors_is_cliqueb_ig_insert_node :
@@ -661,8 +658,11 @@ Proof.
         rewrite <- Hsing in Hb.
         pose proof (is_cliqueb_perm_inveriant (ig_insert_node g' a)).
         unfold perm_invariant in H.
-        (* `ys` is `(InterfGraph.get g' r)` since `a` is a singleton so it *)
-        (* cannot be part of the neighborhood of `r` *)
+
+        (*
+          `ys` is `(InterfGraph.get g' r)` since `a` is a singleton so it
+          cannot be part of the neighborhood of `r`
+        *)
         specialize (H (InterfGraph.get (ig_insert_node g' a) r) (InterfGraph.get g' r)).
         apply H in Hb. clear H.
         eapply nbors_is_cliqueb_ig_insert_node; eauto.
@@ -706,7 +706,6 @@ Proof.
           a --- (r = r') --- nbors (clique)
         *)
         -- destruct (InterfGraph.get g' r) as [| x xs] eqn:nbors.
-
           (*
             Case 1.1: (r still simplicial)
             a --- (r = r')
@@ -892,6 +891,16 @@ Lemma ig_remove_node_not_in :
 Proof.
 Admitted.
 
+Lemma is_simplicial_interchangable :
+  forall g u v,
+    is_simplicial u g ->
+    is_simplicial v g ->
+    is_chordal (ig_remove_node g u) ->
+    is_chordal (ig_remove_node g v)
+.
+Proof.
+Admitted.
+
 Theorem eliminate_step_invariant :
   forall g,
     well_formed g ->
@@ -902,23 +911,27 @@ Theorem eliminate_step_invariant :
     end
 .
 Proof.
-  intros g H1 H2.
-  induction H2.
+  intros g WF Hch.
+  induction Hch.
   - now cbn.
-  - 
-(* 
-  unfold eliminate_step.
-  destruct (find_next g) eqn:Eoption; try assumption.
-  apply find_next_simplicial in Eoption.
-  remember (InterfGraph.keys g) as V eqn:EV. revert g EV H1 H2 Eoption.
-  induction V as [| a].
-  - intros g Hnil Hwf Hch Hsi.
-    assert (~ In r (InterfGraph.keys g)) as Hin. rewrite <- Hnil. auto.
-    apply ig_remove_node_not_in in Hin. rewrite Hin. assumption.
-  - intros g Hcons Hwf Hch Hsi.
-    apply invert_keys in Hcons.
-    destruct Hcons as [g' [[Hsing | Hedge] [Hkeys [Hin Hrem]]]].
-    * specialize (IHV g'). *)
+  - unfold eliminate_step.
+    destruct (find_next g) eqn:Efn.
+    + destruct H as [r' [H1 H2]].
+      destruct (reg_eq_dec r r'). subst. assumption.
+      apply find_next_simplicial in Efn; try assumption.
+      (*
+        Now the problem is the following, we know that:
+        - r is simplicial
+        - r' is simplicial
+        and finally:
+        - G \ { r' } is chordal
+        is it true that if I remove r instead of r' the graph still chordal?
+      *)
+      apply is_simplicial_interchangable with (u := r') (v := r);
+      try assumption.
+    + destruct H as [r [H1 H2]].
+      unfold find_next in Efn.
+      unfold find in Efn.
 Admitted.
 
 Inductive is_clique : InterfGraph.dict -> list reg -> Prop :=
