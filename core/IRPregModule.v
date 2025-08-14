@@ -76,10 +76,28 @@ Proof.
   try congruence; repeat (left; reflexivity) || right; try reflexivity.
 Qed.
 
+(* Temporary register to perform swaps *)
 Definition tmp : preg := RAX.
+
 Definition preg_all_minus_tmp := IRPreg.regs_diff preg_all [tmp].
 Lemma preg_all_minus_tmp_in :
-  forall p, p <> UNASSIGNED -> p <> tmp -> In p preg_all_minus_tmp.
+  forall p,
+    p <> UNASSIGNED ->
+    p <> tmp ->
+    In p preg_all_minus_tmp.
+Proof.
+  intros []; unfold tmp; intros H;
+  try congruence; repeat (left; reflexivity) || right; try reflexivity.
+Qed.
+
+Definition preg_all_minus_tmp_minus_stack := IRPreg.regs_diff preg_all [tmp; RSP; RBP].
+Lemma preg_all_minus_tmp_minus_stack_in :
+  forall p,
+    p <> UNASSIGNED ->
+    p <> tmp ->
+    p <> RSP ->
+    p <> RBP ->
+    In p preg_all_minus_tmp_minus_stack.
 Proof.
   intros []; unfold tmp; intros H;
   try congruence; repeat (left; reflexivity) || right; try reflexivity.

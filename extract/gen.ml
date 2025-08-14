@@ -128,8 +128,8 @@ let string_of_val_deref v =
 let string_of_lbl l =
   match l with
   | Normal l -> Printf.sprintf "L%d" l
-  | Point1 l -> Printf.sprintf "L%d_1" l
-  | Point2 l -> Printf.sprintf "L%d_2" l
+  | Point1 l -> Printf.sprintf "L%d.1" l
+  | Point2 l -> Printf.sprintf "L%d.2" l
 ;;
 
 let gen_bininst out opcode arg1 arg2 =

@@ -26,7 +26,7 @@ Module Coloring := MakeDict ColoringParams.
   - For each node in the peo reinsert it into the graph and color it differently wrt its neighbors
 *)
 Definition preg_compl (colors : list IRPreg.reg) : option IRPreg.reg :=
-  match IRPreg.regs_diff preg_all_minus_tmp colors with
+  match IRPreg.regs_diff preg_all_minus_tmp_minus_stack colors with
   | nil => None
   | c :: _ => Some c
   end
