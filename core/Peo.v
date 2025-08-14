@@ -280,7 +280,8 @@ Definition well_formed (g : InterfGraph.dict) : Prop :=
   (forall r r', In r' (InterfGraph.get g r) -> In r (InterfGraph.get g r')) /\
   (NoDup (InterfGraph.keys g)) /\
   (forall r, NoDup (InterfGraph.get g r)) /\
-  (forall r, ~ In r (InterfGraph.keys g) -> InterfGraph.get g r = [])
+  (forall r, ~ In r (InterfGraph.keys g) -> InterfGraph.get g r = []) /\
+  (forall r, ~ In r (InterfGraph.get g r))
 .
 
 Lemma ig_insert_node_not_in :
@@ -325,12 +326,12 @@ Proof.
     + rewrite Eur'. assumption.
     + assumption.
   - intros r r' H.
-    destruct (WFg) as [_ [WFg1 [_ [_ _]]]].
+    destruct (WFg) as [_ [WFg1 _]].
     specialize (WFg1 r r').
     rewrite <- ig_insert_node_get in H.
     rewrite <- ig_insert_node_get.
     apply WFg1. assumption.
-  - destruct (WFg) as [_ [_ [WFg1 [_ _]]]].
+  - destruct (WFg) as [_ [_ [WFg1 _]]].
     cbn. apply set_add_nodup. assumption.
   - intros r.
     destruct (WFg) as [_ [_ [_ [WFg1 _]]]].
@@ -338,13 +339,25 @@ Proof.
     rewrite <- ig_insert_node_get.
     assumption.
   - intros r H.
-    destruct (WFg) as [_ [_ [_ [_ WFg1]]]].
+    destruct (WFg) as [_ [_ [_ [_ [WFg1 _]]]]].
     specialize (WFg1 r).
     cbn. destruct InterfGraph.key_eq_dec as [Eur | NEur].
     subst. pose proof (ig_insert_node_in g r) as Contr. contradiction.
     cbn in H. apply ig_insert_node_not_in in H as [H _]; try assumption.
     specialize (WFg1 H). assumption.
+  - intros r.
+    destruct (WFg) as [_ [_ [_ [_ [_ WFg1]]]]].
+    specialize (WFg1 r).
+    cbn. destruct InterfGraph.key_eq_dec as [Eur | Neur].
+    rewrite Eur. assumption.
+    assumption.
 Qed.
+
+Lemma ig_remove_node_wf :
+  forall g u, well_formed g -> well_formed (ig_remove_node g u)
+.
+Proof.
+Admitted.
 
 Lemma ig_insert_node_singleton :
   forall g r,
@@ -352,7 +365,7 @@ Lemma ig_insert_node_singleton :
     ~ In r (InterfGraph.keys g) ->
     InterfGraph.get (ig_insert_node g r) r = [].
 Proof.
-  intros g r [_ [_ [_ [_ WFnbors]]]].
+  intros g r [_ [_ [_ [_ [WFnbors _]]]]].
   remember (InterfGraph.keys g) as V eqn:EV. destruct V as [| a V'].
   - intros  _. cbn.
     destruct InterfGraph.key_eq_dec as [Err | NErr]; try contradiction;
@@ -371,7 +384,7 @@ Proof.
     assumption.
 Qed.
 
-Lemma ig_insert_edge_singleton :
+Lemma ig_insert_edge_not_in :
   forall g u v,
     well_formed g ->
     ~ In v (InterfGraph.keys g) ->
@@ -477,23 +490,25 @@ Qed.
 
 Lemma ig_insert_edge_in :
   forall g u v,
-    In u (InterfGraph.keys (ig_insert_edge g u v))
+    u <> v -> In u (InterfGraph.keys (ig_insert_edge g u v))
 .
 Proof.
-  intros g u v. cbn.
+  intros g u v H. cbn.
   remember (set_add InterfGraph.key_eq_dec u (InterfGraph.keys g)) as g' eqn:Eg'.
-  pose proof (set_add_in u (InterfGraph.keys g) InterfGraph.key_eq_dec) as H.
-  assert (In u g') by now rewrite Eg'; assumption.
+  pose proof (set_add_in u (InterfGraph.keys g) InterfGraph.key_eq_dec) as H'.
+  unfold InterfGraph.keys, ig_insert_edge, ig_update_edge.
+  destruct (reg_eq_dec u v). contradiction.
   apply set_add_intro1. assumption.
 Qed.
 
 Lemma ig_insert_edge_node_ig_insert_edge :
-  forall g u v, ig_insert_node (ig_insert_edge g u v) u = ig_insert_edge g u v
+  forall g u v, u <> v -> ig_insert_node (ig_insert_edge g u v) u = ig_insert_edge g u v
 .
 Proof.
-  intros g u v.
-  pose proof (ig_insert_edge_in g u v).
-  apply ig_insert_node_already_in. assumption.
+  intros g u v H.
+  apply ig_insert_node_already_in.
+  apply ig_insert_edge_in.
+  assumption.
 Qed.
 
 Lemma ig_insert_edges_ig_insert_edge :
@@ -502,8 +517,8 @@ Lemma ig_insert_edges_ig_insert_edge :
 Proof.
   intros g u v H.
   unfold ig_insert_edges.
-  assert (H' := H). apply Nat.eqb_neq in H'. rewrite H'. clear H'.
-  rewrite ig_insert_edge_node_ig_insert_edge. reflexivity.
+  apply ig_insert_edge_node_ig_insert_edge.
+  assumption.
 Qed.
 
 Lemma ig_insert_node_edge_ig_insert_edge :
@@ -583,36 +598,81 @@ Lemma ig_insert_edge_isolated_nbors :
 Proof.
 Admitted.
 
-Lemma is_simplicialb_is_simplicial :
-  forall g r, is_simplicialb g r = true -> is_simplicial r g
+Lemma ig_not_in_nbors :
+  forall g u, ~ In u (InterfGraph.keys g) -> InterfGraph.get g u = []
 .
 Proof.
-  intros g. remember (InterfGraph.keys g) as V eqn:EV. revert g EV. induction V as [| a]. (* Induction on the size of the graph *)
-  - intros g V. unfold is_simplicialb. rewrite <- V. discriminate.
-  - intros g H r. assert (H' := H). apply invert_keys in H. destruct H as [g' [[Hsing | Hedge] [Hkeys Hin]]].
-    * specialize (IHV g'). rewrite Hkeys in H'.
-      injection H' as H'. specialize (IHV H' r). intros H.
-      unfold is_simplicialb in H. apply andb_prop in H as [Ha Hb]. rewrite <- Hsing.
-      rewrite Hkeys in Ha. cbn in Ha. destruct (reg_eq_dec r a).
-      (* + subst. now apply SimplicialAddSingleton.
-      + apply SimplicialAddNode; trivial. apply IHV. unfold is_simplicialb. apply andb_true_intro. split. apply Ha. rewrite <- Hsing in Hb.
-        pose proof (is_cliqueb_perm_inveriant (ig_insert_node g' a)). unfold perm_invariant in H.
+Admitted.
 
-        (* `ys` is `(InterfGraph.get g' r)` since `a` is a singleton and so it cannot be part of the neighborhood of `r` *)
-        specialize (H (InterfGraph.get (ig_insert_node g' a) r) (InterfGraph.get g' r)). apply H in Hb. clear H.
+Lemma in_not_in_neq :
+  forall {A : Type} (l : list A) (a b : A), In a l -> ~ In b l -> a <> b
+.
+Proof.
+  intros A l a b H1 H2 Heq.
+  rewrite <- Heq in H2.
+  contradiction.
+Qed.
+
+Lemma is_simplicialb_is_simplicial :
+  forall g r,
+    well_formed g ->
+    is_simplicialb g r = true ->
+    is_simplicial r g
+.
+Proof.
+  intros g.
+  remember (InterfGraph.keys g) as V eqn:EV. revert g EV.
+  induction V as [| a]. (* Induction on the size of the graph *)
+  - intros g V. unfold is_simplicialb. rewrite <- V. discriminate.
+  - intros g H r WF.
+    assert (H' := H).
+    apply invert_keys in H. destruct H as [g' [[Hsing | Hedge] [Hkeys [Hin Hrem]]]].
+    * specialize (IHV g'). rewrite Hkeys in H'.
+      injection H' as H'. specialize (IHV H' r).
+      intros H.
+      unfold is_simplicialb in H. apply andb_prop in H as [Ha Hb].
+      rewrite <- Hsing.
+      rewrite Hkeys in Ha. cbn in Ha. destruct (reg_eq_dec r a).
+      + subst. now apply SimplicialAddSingleton.
+      + apply SimplicialAddNode; try assumption.
+        apply IHV.
+        rewrite <- Hrem. now apply ig_remove_node_wf.
+        unfold is_simplicialb. apply andb_true_intro. split.
+        apply Ha.
+        rewrite <- Hsing in Hb.
+        pose proof (is_cliqueb_perm_inveriant (ig_insert_node g' a)).
+        unfold perm_invariant in H.
+        (* `ys` is `(InterfGraph.get g' r)` since `a` is a singleton so it *)
+        (* cannot be part of the neighborhood of `r` *)
+        specialize (H (InterfGraph.get (ig_insert_node g' a) r) (InterfGraph.get g' r)).
+        apply H in Hb. clear H.
         eapply nbors_is_cliqueb_ig_insert_node; eauto.
         apply ig_insert_node_permutation; eauto.
-    * specialize (IHV g'). rewrite Hkeys in H'. injection H' as H'. specialize (IHV H'). intros H. assert (Hsimpb := H).
-      unfold is_simplicialb in H.
-      apply andb_prop in H as [Ha Hb]. assert (Hedge' := Hedge). destruct Hedge' as [r' [Hinedge' Hedge']].
-      rewrite <- Hedge'. rewrite Hkeys in Ha. cbn in Ha. destruct (reg_eq_dec r a) as [Era | NEra].
+
+    * specialize (IHV g'). rewrite Hkeys in H'.
+      injection H' as H'. specialize (IHV H').
+      intros H.
+      assert (Hsimpb := H).
+      unfold is_simplicialb in H. apply andb_prop in H as [Ha Hb].
+      assert (Hedge' := Hedge). destruct Hedge' as [r' [Hinedge' Hedge']].
+      rewrite <- Hedge'.
+      rewrite Hkeys in Ha. cbn in Ha.
+      destruct (reg_eq_dec r a) as [Era | NEra].
 
       (* First we take into consideration the case where a = r, we are adding a new isolated edge a = r --- r' *)
-      + subst. assert (Hin' := Hin). assert (Hin'' := Hin). rewrite <- ig_insert_node_edge_ig_insert_edge.
-        apply ig_insert_edge_singleton with (u := r') in Hin. rewrite <- ig_insert_edge_comm.
-        rewrite <- ig_insert_edges_ig_insert_edge. apply ig_insert_node_singleton in Hin'. rewrite <- Hin'.
-        eapply SimplicialAddNeighbor. now apply SimplicialAddSingleton.
-        admit. admit. admit. *)
+      + subst.
+        assert (Hin' := Hin). assert (Hin'' := Hin).
+        rewrite <- ig_insert_node_edge_ig_insert_edge.
+        apply ig_insert_edge_not_in with (u := r') in Hin;
+        try now apply ig_remove_node_wf.
+        rewrite <- ig_insert_edge_comm.
+        rewrite <- ig_insert_edges_ig_insert_edge.
+        apply ig_insert_node_singleton in Hin';
+        try now apply ig_remove_node_wf.
+        rewrite <- Hin'.
+        eapply SimplicialAddNeighbor.
+        now apply SimplicialAddSingleton.
+        now apply in_not_in_neq with (b := a) in Hinedge'.
 
 (*
   Then we take into consideration the case where a <> r, we are connecting the new node a to an already existing node r'
@@ -637,82 +697,149 @@ Proof.
 
 *)
 
-      (* + destruct (reg_eq_dec r r').
+      + destruct (reg_eq_dec r r') as [Err' | NErr'].
         (* 1 *)
         -- destruct (InterfGraph.get g' r) as [| x xs] eqn:nbors.
 
           (* 1.1 *)
-          ** subst. rewrite <- ig_insert_edges_ig_insert_edge. rewrite <- nbors. apply SimplicialAddNeighbor.
-            apply invert_isolated in nbors. destruct nbors as [g'' [nborsIn nborsEq]]. rewrite <- nborsEq.
-            apply SimplicialAddSingleton. assumption. symmetry. assumption.
+          ** subst. remember (ig_remove_node g a) as g'.
+            rewrite <- ig_insert_edges_ig_insert_edge; try (symmetry; assumption).
+            rewrite <- nbors.
+            apply SimplicialAddNeighbor.
+            apply invert_isolated in nbors.
+            destruct nbors as [g'' [nborsIn nborsEq]].
+            rewrite <- nborsEq. apply SimplicialAddSingleton. assumption.
 
           (* 1.2 *)
-          ** subst. destruct (reg_eq_dec a x) as [Eax | NEax].
-            ++ rewrite <- Eax in nbors. assert (In a (InterfGraph.get g' r')). rewrite nbors. apply in_eq.
-              apply ig_get_in in H. contradiction.
-            ++ destruct (reg_eq_dec x r') as [Exr' | NExr'] eqn:EDxr'.
-              --- rewrite ig_insert_edge_comm in Hb. rewrite ig_insert_edge_nbors in Hb. rewrite nbors in Hb. assert (Hin' := Hin).
-                apply ig_insert_edge_singleton with (u := r') in Hin. cbn in Hb.
-
-                (*
-                  Now the contradiction in `Hb` should be that `a` is not connected to `xs`,
-                  but if `xs = []` we cannot derive the contradiction, in that case in fact
-                  we have a --- (r' = x) which is simplicial
-                *)
-                destruct xs as [| y ys].
-                *** subst. cbn in Hb. rewrite <- ig_insert_edges_ig_insert_edge by now auto. rewrite ig_insert_edges_double. rewrite <- nbors.
-                  apply SimplicialAddNeighbor. apply invert_loop in nbors. destruct nbors as [g'' [Hinr'g'' Hr'r']]. assert (Hinr'g''' := Hinr'g'').
-                  rewrite <- Hr'r'. rewrite <- ig_insert_node_edge_ig_insert_edge by now assumption. rewrite <- ig_insert_edges_ig_insert_edge by now admit.
-                  apply ig_insert_node_singleton in Hinr'g''. rewrite <- Hinr'g''. apply SimplicialAddNeighbor. apply SimplicialAddSingleton.
-                  assumption. admit.
-
-                *** remember (are_neighborsb (ig_insert_edge g' r' a) a (a :: x :: y :: ys)) as Contr.
-                assert
-                  (fold_left (fun (b : bool) (x0 : reg) => b && are_neighborsb (ig_insert_edge g' r' a) x0 (a :: x :: y :: ys)) (y :: ys)
-                    (Contr && are_neighborsb (ig_insert_edge g' r' a) x (a :: x :: y :: ys)) = true) as Hb'
-                by now rewrite HeqContr. clear Hb.
-                unfold are_neighborsb in HeqContr. cbn in HeqContr.
-                remember (((a =? y) || regs_mem y (InterfGraph.get (ig_insert_edge g' r' a) a))) as Contr'.
-                pose proof in_elt as Iny. specialize (Iny reg y [x] ys). change ([x] ++ y :: ys) with (x :: y :: ys) in Iny. rewrite <- nbors in Iny. apply ig_get_in in Iny.
-                assert (a <> y) as NEay. intros Eay. rewrite <- Eay in Iny. contradiction. apply Nat.eqb_neq in NEay. rewrite NEay in HeqContr'.
-                cbn in HeqContr'. admit.
-                (* rewrite Hin in HeqContr'. cbn in HeqContr'. rewrite <- Exr' in HeqContr'.
-                pose proof (ig_get_nodup_invariant) as ND. specialize (ND g' r'). rewrite nbors in ND. apply nodup_neq in ND. apply Nat.eqb_neq in ND.
-                destruct (reg_eq_dec y x) as [Eyx | NEyx]. rewrite Eyx in ND. rewrite Nat.eqb_refl in ND. discriminate.
-                rewrite HeqContr' in HeqContr. rewrite andb_false_r in HeqContr. rewrite fold_left_false in HeqContr. rewrite andb_false_r in HeqContr.
-                rewrite HeqContr in Hb'. rewrite andb_false_l in Hb'. rewrite fold_left_false in Hb'. discriminate. *)
+          ** subst r'.
+            destruct (reg_eq_dec a x) as [Eax | NEax].
+            rewrite <- Eax in nbors.
+            assert (In a (InterfGraph.get g' r)).
+            rewrite nbors. apply in_eq.
+            apply ig_get_in in H. contradiction.
+            destruct (reg_eq_dec x r) as [Exr' | NExr'].
+            ++ rewrite <- Hedge' in Hb.
+              rewrite ig_insert_edge_comm in Hb.
+              rewrite ig_insert_edge_nbors in Hb.
+              rewrite nbors in Hb. assert (Hin' := Hin).
+              apply ig_insert_edge_not_in with (u := r) in Hin;
+              try now apply ig_remove_node_wf.
+              cbn in Hb.
 
               (*
-                We prove by contradiction that if we add a neighbor `a` to an `r` such that `a` is not in the graph
-                and `r` is simplicial and has neighbors, then `r` is no longer simplicial
+                Now the contradiction in `Hb` should be that `a` is not connected to `xs`,
+                but if `xs = []` we cannot derive the contradiction, in that case in fact
+                we have a --- (r' = x) which is simplicial
               *)
-              --- rewrite ig_insert_edge_comm in Hb. rewrite ig_insert_edge_nbors in Hb. rewrite nbors in Hb. assert (Hin' := Hin).
-                apply ig_insert_edge_singleton with (u := r') in Hin. cbn in Hb.
-                remember (are_neighborsb (ig_insert_edge g' r' a) a (a :: x :: xs)) as Contr.
+              destruct xs as [| y ys].
+              --- subst.
+                assert (well_formed (ig_remove_node g a)) as HWF.
+                apply ig_remove_node_wf. assumption.
+                destruct HWF as [_ [_ [_ [_ [_ HWF]]]]].
+                specialize (HWF r).
+                rewrite nbors in HWF.
+                cbn in HWF.
+                apply Decidable.not_or in HWF.
+                destruct HWF as [HWF _].
+                contradiction.
+
+              --- remember (are_neighborsb (ig_insert_edge g' r a) a (a :: x :: y :: ys)) as Contr.
                 assert
-                  (fold_left (fun (b : bool) (x0 : reg) => b && are_neighborsb (ig_insert_edge g' r' a) x0 (a :: x :: xs)) xs
-                    (Contr && are_neighborsb (ig_insert_edge g' r' a) x (a :: x :: xs)) = true) as Hb'
+                  (fold_left (fun (b : bool) (x0 : reg) => b && are_neighborsb (ig_insert_edge g' r a) x0 (a :: x :: y :: ys)) (y :: ys)
+                    (Contr && are_neighborsb (ig_insert_edge g' r a) x (a :: x :: y :: ys)) = true) as Hb'
                 by now rewrite HeqContr. clear Hb.
                 unfold are_neighborsb in HeqContr. cbn in HeqContr.
-                remember ((a =? x) || regs_mem x (InterfGraph.get (ig_insert_edge g' r' a) a)) as Contr'.
-                rewrite Hin in HeqContr'. apply Nat.eqb_neq in NEax. rewrite NEax in HeqContr'. cbn in HeqContr'. rewrite EDxr' in HeqContr'.
-                rewrite HeqContr' in HeqContr. rewrite andb_false_r in HeqContr. rewrite fold_left_false in HeqContr. rewrite andb_false_r in HeqContr.
-                rewrite HeqContr in Hb'. cbn in Hb'. rewrite fold_left_false in Hb'. discriminate.
+                remember (((a =? y) || regs_mem y (InterfGraph.get (ig_insert_edge g' r a) a))) as Contr'.
+                pose proof in_elt as Iny.
+                specialize (Iny reg y [r] ys).
+                change ([r] ++ y :: ys) with (r :: y :: ys) in Iny.
+                assert (In y (InterfGraph.get g' r)).
+                rewrite nbors. rewrite Exr'. assumption.
+                apply ig_get_in in H.
+                assert (a <> y) as NEay.
+                intros Eay. rewrite <- Eay in H. contradiction.
+                apply Nat.eqb_neq in NEay.
+                rewrite NEay in HeqContr'.
+                rewrite orb_false_l in HeqContr'.
+                apply ig_insert_edge_not_in with (u := r) in Hin'.
+                rewrite Hin' in HeqContr'.
+                cbn in HeqContr'.
+                destruct (reg_eq_dec y r). subst x y.
+                apply ig_remove_node_wf with (u := a) in WF.
+                rewrite Hrem in WF. destruct WF as [_ [_ [_ [WF _]]]].
+                specialize (WF r). rewrite nbors in WF. apply nodup_neq in WF.
+                contradiction.
+                rewrite HeqContr' in HeqContr.
+                rewrite andb_false_r in HeqContr.
+                rewrite fold_left_false in HeqContr.
+                rewrite andb_false_r in HeqContr.
+                rewrite HeqContr in Hb'.
+                rewrite andb_false_l in Hb'.
+                rewrite fold_left_false in Hb'. discriminate.
+                rewrite <- Hrem. apply ig_remove_node_wf. assumption.
+
+              --- rewrite <- Hrem.
+                apply ig_remove_node_wf.
+                assumption.
+
+            (*
+              We prove by contradiction that if we add a neighbor `a` to an `r` such that `a` is not in the graph
+              and `r` is simplicial and has neighbors, then `r` is no longer simplicial
+            *)
+          ++ rewrite <- Hedge' in Hb.
+            rewrite ig_insert_edge_comm in Hb.
+            rewrite ig_insert_edge_nbors in Hb.
+            rewrite nbors in Hb. assert (Hin' := Hin).
+            apply ig_insert_edge_not_in with (u := r) in Hin;
+            try (rewrite <- Hrem; apply ig_remove_node_wf; assumption).
+            cbn in Hb.
+            remember (are_neighborsb (ig_insert_edge g' r a) a (a :: x :: xs)) as Contr.
+            assert
+              (fold_left (fun (b : bool) (x0 : reg) => b && are_neighborsb (ig_insert_edge g' r a) x0 (a :: x :: xs)) xs
+                (Contr && are_neighborsb (ig_insert_edge g' r a) x (a :: x :: xs)) = true) as Hb'
+            by now rewrite HeqContr. clear Hb.
+            unfold are_neighborsb in HeqContr. cbn in HeqContr.
+                destruct (InterfGraph.key_eq_dec a a); try contradiction.
+                destruct (InterfGraph.key_eq_dec r a); try contradiction.
+            remember ((a =? x) || regs_mem x (InterfGraph.get (ig_insert_edge g' r a) a)) as Contr'.
+            apply Nat.eqb_neq in NEax.
+            rewrite NEax in HeqContr'.
+            rewrite orb_false_l in HeqContr'.
+            apply ig_insert_edge_not_in with (u := r) in Hin';
+            try (rewrite <- Hrem; apply ig_remove_node_wf; assumption).
+            rewrite Hin' in HeqContr'.
+            cbn in HeqContr'.
+            destruct (reg_eq_dec x r). subst x. contradiction.
+            rewrite HeqContr' in HeqContr.
+            rewrite andb_false_r in HeqContr.
+            rewrite fold_left_false in HeqContr.
+            rewrite andb_false_r in HeqContr.
+            rewrite HeqContr in Hb'.
+            rewrite fold_left_false in Hb'. discriminate.
 
         (* 2 - 3 *)
-        -- subst. eapply SimplicialAddEdge; eauto. rewrite ig_insert_edge_isolated_nbors in Hb by now assumption.
-          apply nbors_is_cliqueb_ig_insert_edge in Hb; eauto. unfold is_simplicialb in IHV. specialize (IHV r).
-          rewrite Ha in IHV. rewrite Hb in IHV. cbn in IHV. specialize (IHV eq_refl). assumption. *)
-Admitted.
+        -- eapply SimplicialAddEdge; eauto.
+          rewrite <- Hedge' in Hb.
+          rewrite ig_insert_edge_isolated_nbors in Hb by now assumption.
+          apply nbors_is_cliqueb_ig_insert_edge in Hb; eauto.
+          unfold is_simplicialb in IHV.
+          assert (well_formed g') as WF'.
+          rewrite <- Hrem. apply ig_remove_node_wf. assumption.
+          specialize (IHV r WF').
+          rewrite Ha, Hb in IHV. cbn in IHV.
+          specialize (IHV eq_refl). assumption.
+Qed.
 
 Lemma find_next_simplicial :
   forall (g : InterfGraph.dict) (r : reg),
-    find_next g = Some r -> is_simplicial r g
+    well_formed g ->
+    find_next g = Some r ->
+    is_simplicial r g
 .
 Proof.
-  intros g r. unfold find_next. intros H.
-  apply is_simplicialb_is_simplicial.
-  apply find_some in H. destruct H as [H1 H2]. assumption.
+  intros g r H H'. unfold find_next in H'.
+  apply is_simplicialb_is_simplicial. assumption.
+  apply find_some in H'. destruct H' as [H1 H2]. assumption.
 Qed.
 
 Inductive is_chordal : InterfGraph.dict -> Prop :=

@@ -13,16 +13,17 @@ Module InterfGraphParams <: DICT_PARAMS.
   Definition key := reg.
   Definition value := set reg.
   Definition default : value := nil.
-  Definition key_eq_dec := Nat.eq_dec.
+  Definition key_eq_dec := reg_eq_dec.
 End InterfGraphParams.
 
 Module InterfGraph := MakeDict InterfGraphParams.
 
 Definition ig_update_edge (f : reg -> set reg -> set reg) (g : InterfGraph.dict) (r r' : reg) : InterfGraph.dict :=
-  let regs  := InterfGraph.get g r in
-  let g     := InterfGraph.update g r (f r' regs) in
-  let regs  := InterfGraph.get g r' in
-  InterfGraph.update g r' (f r regs)
+  if reg_eq_dec r r' then g else
+    let regs  := InterfGraph.get g r in
+    let g     := InterfGraph.update g r (f r' regs) in
+    let regs  := InterfGraph.get g r' in
+    InterfGraph.update g r' (f r regs)
 .
 Definition ig_remove_edge := ig_update_edge regs_remove.
 Definition ig_insert_edge := ig_update_edge regs_add.
@@ -61,10 +62,7 @@ Qed.
 Fixpoint ig_insert_edges (g : InterfGraph.dict) (r : reg) (regs : list reg) : InterfGraph.dict :=
   match regs with
   | nil => ig_insert_node g r
-  | r' :: tl =>
-    if r =? r'
-    then ig_insert_edges (ig_insert_node g r) r tl
-    else ig_insert_edges (ig_insert_edge g r r') r tl
+  | r' :: tl => ig_insert_edges (ig_insert_edge g r r') r tl
   end
 .
 
