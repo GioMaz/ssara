@@ -659,7 +659,10 @@ Proof.
       rewrite Hkeys in Ha. cbn in Ha.
       destruct (reg_eq_dec r a) as [Era | NEra].
 
-      (* First we take into consideration the case where a = r, we are adding a new isolated edge a = r --- r' *)
+      (*
+        We take into consideration the case where a = r,
+        we are adding a new isolated edge a = r --- r'
+      *)
       + subst.
         assert (Hin' := Hin). assert (Hin'' := Hin).
         rewrite <- ig_insert_node_edge_ig_insert_edge.
@@ -674,34 +677,21 @@ Proof.
         now apply SimplicialAddSingleton.
         now apply in_not_in_neq with (b := a) in Hinedge'.
 
-(*
-  Then we take into consideration the case where a <> r, we are connecting the new node a to an already existing node r'
-  We analyze the following cases for r':
-
-  1) a --- (r = r') --- ?
-
-    1.1) a --- (r = r')                         (r still simplicial)
-
-    1.2) a --- (r = r') --- nbors (clique)
-
-      1.2.1) a --- (r = r') --- nbors (clique)  (r not simplicial anymore)
-                     \-/
-
-      1.2.2) a --- (r = r') --- nbors (clique)  (r not simplicial anymore)
-
-  2) a     r --- nbors (clique)                 (r still simplicial)
-      \---------/
-
-  3) a     r --- nbors (clique)     r'          (r still simplicial)
-      \----------------------------/
-
-*)
-
+      (*
+        Now we take into consideration the case where a <> r,
+        we are connecting the new node a to an already existing node r'.
+      *)
       + destruct (reg_eq_dec r r') as [Err' | NErr'].
-        (* 1 *)
+        (*
+          Case 1:
+          a --- (r = r') --- nbors (clique)
+        *)
         -- destruct (InterfGraph.get g' r) as [| x xs] eqn:nbors.
 
-          (* 1.1 *)
+          (*
+            Case 1.1: (r still simplicial)
+            a --- (r = r')
+          *)
           ** subst. remember (ig_remove_node g a) as g'.
             rewrite <- ig_insert_edges_ig_insert_edge; try (symmetry; assumption).
             rewrite <- nbors.
@@ -710,7 +700,10 @@ Proof.
             destruct nbors as [g'' [nborsIn nborsEq]].
             rewrite <- nborsEq. apply SimplicialAddSingleton. assumption.
 
-          (* 1.2 *)
+          (*
+            Case 1.2: (r is not simplicial anymore)
+            a --- (r = r') --- nbors (clique)
+          *)
           ** subst r'.
             destruct (reg_eq_dec a x) as [Eax | NEax].
             rewrite <- Eax in nbors.
@@ -718,6 +711,12 @@ Proof.
             rewrite nbors. apply in_eq.
             apply ig_get_in in H. contradiction.
             destruct (reg_eq_dec x r) as [Exr' | NExr'].
+
+            (*
+              Case 1.2.1: (r is not simplicial anymore)
+              a --- (r = r') --- nbors (clique)
+                     \-/
+            *)
             ++ rewrite <- Hedge' in Hb.
               rewrite ig_insert_edge_comm in Hb.
               rewrite ig_insert_edge_nbors in Hb.
@@ -725,13 +724,15 @@ Proof.
               apply ig_insert_edge_not_in with (u := r) in Hin;
               try now apply ig_remove_node_wf.
               cbn in Hb.
+              destruct xs as [| y ys].
 
               (*
                 Now the contradiction in `Hb` should be that `a` is not connected to `xs`,
                 but if `xs = []` we cannot derive the contradiction, in that case in fact
-                we have a --- (r' = x) which is simplicial
+                we have a --- (r' = x) which is simplicial, but the problem this time is
+                the fact that since `x = r = r'` there is a self-loop, which is not allowed
+                by well-formedness, we can then still derive a contradiction
               *)
-              destruct xs as [| y ys].
               --- subst.
                 assert (well_formed (ig_remove_node g a)) as HWF.
                 apply ig_remove_node_wf. assumption.
@@ -743,6 +744,11 @@ Proof.
                 destruct HWF as [HWF _].
                 contradiction.
 
+              (*
+                We prove by contradiction that if we add a neighbor `a` to an `r`
+                such that `a` is not in the graph and `r` is simplicial and has neighbors,
+                then `r` is no longer simplicial
+              *)
               --- remember (are_neighborsb (ig_insert_edge g' r a) a (a :: x :: y :: ys)) as Contr.
                 assert
                   (fold_left (fun (b : bool) (x0 : reg) => b && are_neighborsb (ig_insert_edge g' r a) x0 (a :: x :: y :: ys)) (y :: ys)
@@ -782,10 +788,15 @@ Proof.
                 apply ig_remove_node_wf.
                 assumption.
 
-            (*
-              We prove by contradiction that if we add a neighbor `a` to an `r` such that `a` is not in the graph
-              and `r` is simplicial and has neighbors, then `r` is no longer simplicial
-            *)
+          (*
+            Case 1.2.2: (r not simplicial anymore)
+            a --- (r = r') --- nbors (clique)
+          *)
+          (*
+            We prove by contradiction that if we add a neighbor `a` to an `r`
+            such that `a` is not in the graph and `r` is simplicial and has neighbors,
+            then `r` is no longer simplicial
+          *)
           ++ rewrite <- Hedge' in Hb.
             rewrite ig_insert_edge_comm in Hb.
             rewrite ig_insert_edge_nbors in Hb.
@@ -817,7 +828,13 @@ Proof.
             rewrite HeqContr in Hb'.
             rewrite fold_left_false in Hb'. discriminate.
 
-        (* 2 - 3 *)
+        (*
+          Case 2 and 3: (r is still simplicial)
+          a     r --- nbors (clique)
+           \---------/
+          a     r --- nbors (clique)     r'
+           \----------------------------/
+        *)
         -- eapply SimplicialAddEdge; eauto.
           rewrite <- Hedge' in Hb.
           rewrite ig_insert_edge_isolated_nbors in Hb by now assumption.
