@@ -543,6 +543,7 @@ Qed.
 
 Lemma ig_remove_node_ig_insert_node_not_in :
   forall g u,
+    InterfGraph.get g u = [] ->
     ig_insert_node (ig_remove_node g u) u = g
 .
 Proof.
@@ -561,6 +562,7 @@ Proof.
   rewrite Heqg'. apply ig_remove_node_in. assumption.
   rewrite Heqg'. rewrite ig_remove_node_ig_insert_node_not_in.
   reflexivity.
+  assumption.
 Qed.
 
 (* TODO: this depends on the implementation *)
@@ -829,8 +831,6 @@ Proof.
                 (Contr && are_neighborsb (ig_insert_edge g' r a) x (a :: x :: xs)) = true) as Hb'
             by now rewrite HeqContr. clear Hb.
             unfold are_neighborsb in HeqContr. cbn in HeqContr.
-                destruct (InterfGraph.key_eq_dec a a); try contradiction.
-                destruct (InterfGraph.key_eq_dec r a); try contradiction.
             remember ((a =? x) || regs_mem x (InterfGraph.get (ig_insert_edge g' r a) a)) as Contr'.
             apply Nat.eqb_neq in NEax.
             rewrite NEax in HeqContr'.
@@ -885,21 +885,64 @@ Inductive is_chordal : InterfGraph.dict -> Prop :=
     is_chordal g
 .
 
-Lemma ig_remove_node_not_in :
-  forall g r, ~ In r (InterfGraph.keys g) -> ig_remove_node g r = g
+Lemma is_chordal_is_simplicial :
+  forall g u,
+    is_chordal g ->
+    is_simplicial u g ->
+    is_chordal (ig_remove_node g u)
+.
+Proof.
+  intros g u Hch Hsm.
+Admitted.
+
+Lemma is_simplicial_is_simplicialb :
+  forall g r,
+    well_formed g ->
+    is_simplicial r g ->
+    is_simplicialb g r = true
 .
 Proof.
 Admitted.
 
-Lemma is_simplicial_interchangable :
+Lemma ig_insert_node_in_in :
   forall g u v,
-    is_simplicial u g ->
-    is_simplicial v g ->
-    is_chordal (ig_remove_node g u) ->
-    is_chordal (ig_remove_node g v)
+    In u (InterfGraph.keys g) ->
+    In u (InterfGraph.keys (ig_insert_node g v))
+.
+Proof.
+  intros g u v H1.
+  cbn in *.
+  apply set_add_intro1 with (Aeq_dec := reg_eq_dec) (b := v) in H1.
+  assumption.
+Qed.
+
+Lemma ig_insert_edge_in_in :
+  forall g u v w,
+    In u (InterfGraph.keys g) ->
+    In u (InterfGraph.keys (ig_insert_edge g v w))
 .
 Proof.
 Admitted.
+
+Lemma ig_insert_edges_in_in :
+  forall g u v vs,
+    In u (InterfGraph.keys g) ->
+    In u (InterfGraph.keys (ig_insert_edges g v vs))
+.
+Proof.
+Admitted.
+
+Lemma is_simplicial_in :
+  forall g r,
+    is_simplicial r g -> In r (InterfGraph.keys g)
+.
+Proof.
+  intros g r H. induction H.
+  apply ig_insert_node_in.
+  apply ig_insert_node_in_in. assumption.
+  apply ig_insert_edge_in_in. assumption.
+  apply ig_insert_edges_in_in. assumption.
+Qed.
 
 Theorem eliminate_step_invariant :
   forall g,
@@ -912,27 +955,20 @@ Theorem eliminate_step_invariant :
 .
 Proof.
   intros g WF Hch.
+  assert (Hch' := Hch).
   induction Hch.
   - now cbn.
   - unfold eliminate_step.
     destruct (find_next g) eqn:Efn.
-    + destruct H as [r' [H1 H2]].
-      destruct (reg_eq_dec r r'). subst. assumption.
-      apply find_next_simplicial in Efn; try assumption.
-      (*
-        Now the problem is the following, we know that:
-        - r is simplicial
-        - r' is simplicial
-        and finally:
-        - G \ { r' } is chordal
-        is it true that if I remove r instead of r' the graph still chordal?
-      *)
-      apply is_simplicial_interchangable with (u := r') (v := r);
-      try assumption.
-    + destruct H as [r [H1 H2]].
+    * apply find_next_simplicial in Efn; try assumption.
+      apply is_chordal_is_simplicial; try assumption.
+    * destruct H as [r [H1 H2]].
       unfold find_next in Efn.
-      unfold find in Efn.
-Admitted.
+      apply find_none with (x := r) in Efn.
+      apply is_simplicial_is_simplicialb in H1; try assumption.
+      rewrite H1 in Efn. discriminate.
+      apply is_simplicial_in. assumption.
+Qed.
 
 Inductive is_clique : InterfGraph.dict -> list reg -> Prop :=
   | CliqueEmpty : forall g, is_clique g []
