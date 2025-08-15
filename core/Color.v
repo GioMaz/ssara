@@ -30,31 +30,6 @@ Definition preg_compl (colors : list IRPreg.reg) : option IRPreg.reg :=
   hd_error (IRPreg.regs_diff preg_allowed colors)
 .
 
-(* Lemma set_diff_not_in :
-  forall {A : Type} Aeq_dec (l l' : set A) (a : A),
-    ~ In a l -> ~ In a (set_diff Aeq_dec l l')
-.
-Proof.
-  intros A Aeq_dec l l' a H.
-  induction l as [| x xs].
-  - unfold set_diff. assumption.
-  - unfold not. intros H'.
-    apply set_diff_elim1 in H'.
-    contradiction.
-Qed.
-
-Lemma hd_error_not_in :
-  forall {A : Type} (l : set A) (a : A),
-    ~ In a l -> hd_error l <> Some a
-.
-Proof.
-  intros A l a H.
-  destruct l as [| x xs].
-  - cbn. discriminate.
-  - cbn. apply Decidable.not_or in H. destruct H as [H1 H2].
-    injection. intros Contr. contradiction.
-Qed. *)
-
 Lemma hd_error_in :
   forall {A : Type} (l : set A) (a : A),
     hd_error l = Some a -> In a l
@@ -80,10 +55,6 @@ Proof.
   assumption.
 Qed.
 
-(*
-  IMPORTANT: by definition of PEO the `nbors` list contains all the neighbors of `v`
-  TODO: prove this
-*)
 Definition get_color (v : IRVreg.reg) (g : InterfGraph.dict) (c : Coloring.dict) : option IRPreg.reg :=
   let nbors := InterfGraph.get g v in
   let used := IRPreg.regs_of_list (map (Coloring.get c) nbors) in (* UNASSIGNED; ...; UNASSIGNED; RBX; UNASSIGNED; ...; UNASSIGNED; *)
