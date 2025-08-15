@@ -1,6 +1,7 @@
 From Stdlib Require Import PeanoNat.
 From Stdlib Require Import ListSet.
 From Ssara.Core Require Import IR.
+From Ssara.Core Require Import Utils.
 From Stdlib Require Import Lists.List.
 Import ListNotations.
 
@@ -66,39 +67,36 @@ End IRPregParams.
 Module IRPreg := MakeIR(IRPregParams).
 
 Definition preg_all : set preg :=
-  [RAX; RBX; RCX; RDX; RSI; RDI; RSP; RBP; R8; R9; R10; R11; R12; R13; R14; R15]
+  [RAX; RBX; RCX; RDX; RSI; RDI; RSP; RBP; R8; R9; R10; R11; R12; R13; R14; R15; UNASSIGNED]
 .
 
 Lemma preg_all_in :
-  forall p, p <> UNASSIGNED -> In p preg_all.
+  forall p, In p preg_all.
 Proof.
-  intros []; simpl; intros H;
-  try congruence; repeat (left; reflexivity) || right; try reflexivity.
+  intro p.
+  destruct p; simpl; tauto.
 Qed.
 
-(* Temporary register to perform swaps *)
-Definition tmp : preg := RAX.
+(* Registers that are forbidden during register assignment *)
+Definition unassigned : preg  := UNASSIGNED.
+Definition tmp : preg         := RAX.
+Definition rsp : preg         := RSP.
+Definition rbp : preg         := RBP.
+Definition preg_forbidden := [unassigned; tmp; rsp; rbp].
 
-Definition preg_all_minus_tmp := IRPreg.regs_diff preg_all [tmp].
-Lemma preg_all_minus_tmp_in :
-  forall p,
-    p <> UNASSIGNED ->
-    p <> tmp ->
-    In p preg_all_minus_tmp.
-Proof.
-  intros []; unfold tmp; intros H;
-  try congruence; repeat (left; reflexivity) || right; try reflexivity.
-Qed.
+Definition preg_allowed := IRPreg.regs_diff preg_all preg_forbidden.
 
-Definition preg_all_minus_tmp_minus_stack := IRPreg.regs_diff preg_all [tmp; RSP; RBP].
-Lemma preg_all_minus_tmp_minus_stack_in :
+Lemma preg_allowed_in :
   forall p,
-    p <> UNASSIGNED ->
-    p <> tmp ->
-    p <> RSP ->
-    p <> RBP ->
-    In p preg_all_minus_tmp_minus_stack.
+    ~ In p preg_forbidden <-> In p preg_allowed.
 Proof.
-  intros []; unfold tmp; intros H;
-  try congruence; repeat (left; reflexivity) || right; try reflexivity.
+  split.
+  intros H.
+  unfold preg_allowed.
+  apply set_diff_intro.
+  apply preg_all_in.
+  assumption.
+  intros H.
+  apply set_diff_elim2 in H.
+  assumption.
 Qed.

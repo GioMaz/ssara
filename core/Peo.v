@@ -530,9 +530,9 @@ Axiom ig_insert_edge_comm :
   forall g u v, ig_insert_edge g u v = ig_insert_edge g v u
 .
 
-Lemma ig_remove_node_in :
+Lemma ig_remove_node_not_in :
   forall g u,
-    well_formed g -> ~ In u(InterfGraph.keys (ig_remove_node g u))
+    well_formed g -> ~ In u (InterfGraph.keys (ig_remove_node g u))
 .
 Proof.
   intros g u WF.
@@ -559,7 +559,7 @@ Proof.
   intros g r WF H.
   remember (ig_remove_node g r) as g'.
   exists g'. split.
-  rewrite Heqg'. apply ig_remove_node_in. assumption.
+  rewrite Heqg'. apply ig_remove_node_not_in. assumption.
   rewrite Heqg'. rewrite ig_remove_node_ig_insert_node_not_in.
   reflexivity.
   assumption.
@@ -969,19 +969,47 @@ Qed.
 
 Lemma is_chordal_ig_remove_node :
   forall g u,
-    is_chordal g -> is_chordal (ig_remove_node g u)
+    well_formed g ->
+    is_chordal g ->
+    is_chordal (ig_remove_node g u)
 .
 Proof.
+  intros g.
+  remember (InterfGraph.keys g) as V eqn:EV. revert g EV.
+  induction V as [| a].
+  - intros g Hn r WF Hc.
+    unfold ig_remove_node.
+    rewrite <- Hn. cbn. 
+    destruct WF as [_ [_ [_ [_ [WF _]]]]].
+    assert (forall x, InterfGraph.get g x = []) as FE.
+    intros x. specialize (WF x). rewrite <- Hn in WF.
+    pose proof in_nil. specialize (H reg x).
+    specialize (WF H). assumption.
+    apply functional_extensionality in FE.
+    unfold InterfGraph.get in FE.
+    rewrite application_remove with (f := snd g) in FE.
+    rewrite FE.
+    apply ChordalEmpty.
+  - intros g H r WF Hc.
+    assert (H' := H).
+    apply invert_keys in H.
+    destruct H as [g' [[Hsing | Hedge] [Hkeys [Hin Hrem]]]].
+    * specialize (IHV g').
+      rewrite Hkeys in H'. injection H' as H'.
+      specialize (IHV H' r).
+      apply ig_remove_node_wf with (u := a) in WF. rewrite Hrem in WF.
+      specialize (IHV WF).
 Admitted.
 
 Lemma is_chordal_is_simplicial :
   forall g u,
+    well_formed g ->
     is_chordal g ->
     is_simplicial u g ->
     is_chordal (ig_remove_node g u)
 .
 Proof.
-  intros g u Hc Hs.
+  intros g u WF Hc Hs.
   induction Hs; apply is_chordal_ig_remove_node; assumption.
 Qed.
 

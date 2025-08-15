@@ -2,6 +2,7 @@ From Ssara.Core Require Import LivenessInfo.
 From Ssara.Core Require Import InterfGraph.
 From Ssara.Core Require Import Peo.
 From Ssara.Core Require Import Dict.
+From Ssara.Core Require Import Utils.
 From Stdlib Require Import ZArith.
 From Stdlib Require Import Lists.List.
 From Stdlib Require Import ListSet.
@@ -26,11 +27,58 @@ Module Coloring := MakeDict ColoringParams.
   - For each node in the peo reinsert it into the graph and color it differently wrt its neighbors
 *)
 Definition preg_compl (colors : list IRPreg.reg) : option IRPreg.reg :=
-  match IRPreg.regs_diff preg_all_minus_tmp_minus_stack colors with
-  | nil => None
-  | c :: _ => Some c
-  end
+  hd_error (IRPreg.regs_diff preg_allowed colors)
 .
+
+(* Lemma set_diff_not_in :
+  forall {A : Type} Aeq_dec (l l' : set A) (a : A),
+    ~ In a l -> ~ In a (set_diff Aeq_dec l l')
+.
+Proof.
+  intros A Aeq_dec l l' a H.
+  induction l as [| x xs].
+  - unfold set_diff. assumption.
+  - unfold not. intros H'.
+    apply set_diff_elim1 in H'.
+    contradiction.
+Qed.
+
+Lemma hd_error_not_in :
+  forall {A : Type} (l : set A) (a : A),
+    ~ In a l -> hd_error l <> Some a
+.
+Proof.
+  intros A l a H.
+  destruct l as [| x xs].
+  - cbn. discriminate.
+  - cbn. apply Decidable.not_or in H. destruct H as [H1 H2].
+    injection. intros Contr. contradiction.
+Qed. *)
+
+Lemma hd_error_in :
+  forall {A : Type} (l : set A) (a : A),
+    hd_error l = Some a -> In a l
+.
+Proof.
+  intros A l a H.
+  destruct l as [| x xs].
+  - discriminate.
+  - cbn in H. injection H as H. rewrite H. cbn. left. reflexivity.
+Qed.
+
+Lemma preg_compl_not_forbidden :
+  forall colors p,
+    preg_compl colors = Some p ->
+    ~ In p preg_forbidden
+.
+Proof.
+  intros colors p H.
+  unfold preg_compl in H.
+  apply preg_allowed_in .
+  apply hd_error_in in H.
+  apply set_diff_elim1 in H.
+  assumption.
+Qed.
 
 (*
   IMPORTANT: by definition of PEO the `nbors` list contains all the neighbors of `v`
@@ -41,6 +89,16 @@ Definition get_color (v : IRVreg.reg) (g : InterfGraph.dict) (c : Coloring.dict)
   let used := IRPreg.regs_of_list (map (Coloring.get c) nbors) in (* UNASSIGNED; ...; UNASSIGNED; RBX; UNASSIGNED; ...; UNASSIGNED; *)
   preg_compl used
 .
+
+Lemma get_color_not_forbidden :
+  forall v g c p,
+    get_color v g c = Some p ->
+    ~ In p preg_forbidden
+.
+Proof.
+  intros v g c.
+  apply preg_compl_not_forbidden.
+Qed.
 
 (*
   The None constructor is returned if there aren't enough physical registers
