@@ -345,7 +345,7 @@ Proof.
   - intros r.
     destruct (WFg) as [_ [_ [_ [_ [_ WFg1]]]]].
     specialize (WFg1 r).
-    cbn. destruct InterfGraph.key_eq_dec as [Eur | Neur].
+    cbn. destruct InterfGraph.key_eq_dec as [Eur | NEur].
     rewrite Eur. assumption.
     assumption.
 Qed.
@@ -880,19 +880,43 @@ Qed.
 
 Inductive is_chordal : InterfGraph.dict -> Prop :=
   | ChordalEmpty : is_chordal InterfGraph.empty
-  | ChordalAddEdge : forall g,
+  | ChordalStep : forall g,
     (exists r, is_simplicial r g /\ is_chordal (ig_remove_node g r)) ->
     is_chordal g
 .
 
-Lemma is_chordal_is_simplicial :
+Lemma ig_insert_node_ig_remove_node_not_in :
   forall g u,
-    is_chordal g ->
-    is_simplicial u g ->
-    is_chordal (ig_remove_node g u)
+    ~ In u (InterfGraph.keys g) ->
+    ig_remove_node (ig_insert_node g u) u = g
 .
 Proof.
-  intros g u Hch Hsm.
+Admitted.
+
+Lemma ig_insert_node_chordal :
+  forall g u,
+    is_chordal (ig_insert_node g u) ->
+    ~ In u (InterfGraph.keys g) ->
+    is_chordal g
+.
+Proof.
+Admitted.
+
+Lemma ig_insert_node_ig_remove_node :
+  forall g g' u,
+    ig_insert_node g' u = g ->
+    ig_remove_node g u = g'
+.
+Proof.
+Admitted.
+
+Lemma ig_remove_node_simplicial :
+  forall g u v,
+    u <> v ->
+    is_simplicial u g ->
+    is_simplicial u (ig_remove_node g v)
+.
+Proof.
 Admitted.
 
 Lemma is_simplicial_is_simplicialb :
@@ -910,8 +934,7 @@ Lemma ig_insert_node_in_in :
     In u (InterfGraph.keys (ig_insert_node g v))
 .
 Proof.
-  intros g u v H1.
-  cbn in *.
+  intros g u v H1. cbn.
   apply set_add_intro1 with (Aeq_dec := reg_eq_dec) (b := v) in H1.
   assumption.
 Qed.
@@ -942,6 +965,24 @@ Proof.
   apply ig_insert_node_in_in. assumption.
   apply ig_insert_edge_in_in. assumption.
   apply ig_insert_edges_in_in. assumption.
+Qed.
+
+Lemma is_chordal_ig_remove_node :
+  forall g u,
+    is_chordal g -> is_chordal (ig_remove_node g u)
+.
+Proof.
+Admitted.
+
+Lemma is_chordal_is_simplicial :
+  forall g u,
+    is_chordal g ->
+    is_simplicial u g ->
+    is_chordal (ig_remove_node g u)
+.
+Proof.
+  intros g u Hc Hs.
+  induction Hs; apply is_chordal_ig_remove_node; assumption.
 Qed.
 
 Theorem eliminate_step_invariant :
