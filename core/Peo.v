@@ -3,6 +3,7 @@ From Ssara.Core Require Import Dict.
 From Ssara.Core Require Import Utils.
 From Stdlib Require Import ZArith.
 From Stdlib Require Import Lists.List.
+From Stdlib Require Import ListSet.
 Import ListNotations.
 From Stdlib Require Import Bool.
 
@@ -115,119 +116,6 @@ Fixpoint eliminate_fuel (g : InterfGraph.dict) (fuel : nat) : list reg :=
     is_simplicial r g -> forall r', let nbors := InterfGraph.get g r in
     is_simplicial r (ig_insert_edges g r' (r :: nbors))
 . *)
-Inductive is_simplicial (r : reg) : InterfGraph.dict -> Prop :=
-  | SimplicialAddSingleton (g : InterfGraph.dict):
-    ~ In r (InterfGraph.keys g) -> is_simplicial r (ig_insert_node g r)
-  | SimplicialAddNode (g : InterfGraph.dict):
-    is_simplicial r g -> forall r', r <> r' ->
-    is_simplicial r (ig_insert_node g r')
-  | SimplicialAddEdge (g : InterfGraph.dict) :
-    is_simplicial r g -> forall r' r'', r <> r' -> r <> r'' ->
-    is_simplicial r (ig_insert_edge g r' r'')
-  | SimplicialAddNeighbor (g : InterfGraph.dict) :
-    is_simplicial r g -> forall a, let nbors := InterfGraph.get g r in
-    is_simplicial r (ig_insert_edges g a (r :: nbors))
-.
-
-From Stdlib Require Import Sorting.Permutation.
-
-Definition ig_eq (g : InterfGraph.dict) (g' : InterfGraph.dict) : Prop :=
-  Permutation (InterfGraph.keys g) (InterfGraph.keys g') /\
-  forall r, Permutation (InterfGraph.get g r) (InterfGraph.get g' r)
-.
-
-(*
-  Given a predicate on a list of Xs state that every pair of lists of Xs such
-  that they are permutations also satisfy that predicate
-*)
-Definition perm_invariant {X : Type} (P : list X -> Prop) : Prop :=
-  forall xs ys, Permutation xs ys -> P xs <-> P ys
-.
-
-Definition ig_perm_invariant (P : InterfGraph.dict -> Prop) : Prop :=
-  forall g g',
-    Permutation (InterfGraph.keys g) (InterfGraph.keys g') ->
-    (forall r, Permutation (InterfGraph.get g r) (InterfGraph.get g' r)) ->
-    P g <-> P g'
-.
-
-Lemma is_simplicial_perm_inveriant : forall r,
-  ig_perm_invariant (fun g => is_simplicial r g)
-.
-Proof.
-Admitted.
-
-(*
-  Prove that `is_cliqueb` is permutation invariant, that is for every two lists
-  that are permutations `is_cliqueb xs = true` iff `is_cliqueb ys = true`
-*)
-Lemma is_cliqueb_perm_inveriant : forall g,
-  perm_invariant (fun regs => is_cliqueb g regs = true)
-.
-Proof.
-Admitted.
-
-(* (*
-  Graph:
-  0
-*)
-Goal is_simplicial 0 (ig_insert_node InterfGraph.empty 0).
-  apply SimplicialAddNode. apply SimplicialEmpty. reflexivity.
-Qed.
-
-(*
-  Graph:
-     0
-   / | \
-  1--2--3
-   \---/
-*)
-
-Definition example_ig_1 : InterfGraph.dict :=
-  (ig_insert_edges
-    (ig_insert_edges
-      (ig_insert_edges
-        (ig_insert_edges InterfGraph.empty 0 []) 1 [0]) 2 [0; 1]) 3 [0; 1; 2])
-.
-
-Goal is_simplicial 0 example_ig_1.
-  unfold example_ig_1.
-  apply SimplicialAddNeighbor.
-  apply SimplicialAddNeighbor.
-  apply SimplicialAddNeighbor.
-  apply SimplicialAddNode.
-  apply SimplicialEmpty.
-  simpl. reflexivity.
-Qed.
-
-(*
-  Graph:
-  0 1 2
-*)
-Definition example_ig_2 : InterfGraph.dict :=
-  (ig_insert_node (ig_insert_node (ig_insert_node InterfGraph.empty 2) 1) 0)
-.
-Goal is_simplicial 2 example_ig_2.
-  unfold example_ig_2.
-  apply SimplicialAddNode.
-  apply SimplicialAddNode.
-  apply SimplicialAddNode.
-  apply SimplicialEmpty. reflexivity.
-Qed.
-*)
-
-From Stdlib Require Import ListSet.
-
-Lemma invert_keys : forall g a V',
-  a :: V' = InterfGraph.keys g -> exists g',
-    (ig_insert_node g' a = g \/ exists r', (In r' (InterfGraph.keys g')) /\ ig_insert_edge g' a r' = g)
-    /\ InterfGraph.keys g = a :: (InterfGraph.keys g')
-    /\ ~ In a (InterfGraph.keys g')
-    /\ ig_remove_node g a = g'
-    (* /\ (forall b, a <> b -> Permutation (InterfGraph.get g b) (InterfGraph.get g' b)) *)
-.
-Proof.
-Admitted.
 
 Lemma nbors_is_cliqueb_ig_insert_node :
   forall g r a, r <> a ->
@@ -247,7 +135,7 @@ Admitted.
 
 Lemma set_add_elim {A : Type} :
   forall Aeq_dec (a b : A) l,
-    ~ set_In b (set_add Aeq_dec a l) -> ~ set_In b l /\ a <> b
+    ~ In b (set_add Aeq_dec a l) -> ~ set_In b l /\ a <> b
 .
 Proof.
   intros Aeq_dec a b l Hnotin.
@@ -352,6 +240,118 @@ Qed.
 
 Lemma ig_remove_node_wf :
   forall g u, well_formed g -> well_formed (ig_remove_node g u)
+.
+Proof.
+Admitted.
+
+Inductive is_simplicial (r : reg) : InterfGraph.dict -> Prop :=
+  | SimplicialAddSingleton (g : InterfGraph.dict):
+    ~ In r (InterfGraph.keys g) -> is_simplicial r (ig_insert_node g r)
+  | SimplicialAddNode (g : InterfGraph.dict):
+    is_simplicial r g -> forall r', r <> r' ->
+    is_simplicial r (ig_insert_node g r')
+  | SimplicialAddEdge (g : InterfGraph.dict) :
+    is_simplicial r g -> forall r' r'', r <> r' -> r <> r'' ->
+    is_simplicial r (ig_insert_edge g r' r'')
+  | SimplicialAddNeighbor (g : InterfGraph.dict) :
+    is_simplicial r g -> forall a, let nbors := InterfGraph.get g r in
+    is_simplicial r (ig_insert_edges g a (r :: nbors))
+.
+
+From Stdlib Require Import Sorting.Permutation.
+
+Definition ig_eq (g : InterfGraph.dict) (g' : InterfGraph.dict) : Prop :=
+  Permutation (InterfGraph.keys g) (InterfGraph.keys g') /\
+  forall r, Permutation (InterfGraph.get g r) (InterfGraph.get g' r)
+.
+
+(*
+  Given a predicate on a list of Xs state that every pair of lists of Xs such
+  that they are permutations also satisfy that predicate
+*)
+Definition perm_invariant {X : Type} (P : list X -> Prop) : Prop :=
+  forall xs ys, Permutation xs ys -> P xs <-> P ys
+.
+
+Definition ig_perm_invariant (P : InterfGraph.dict -> Prop) : Prop :=
+  forall g g',
+    Permutation (InterfGraph.keys g) (InterfGraph.keys g') ->
+    (forall r, Permutation (InterfGraph.get g r) (InterfGraph.get g' r)) ->
+    P g <-> P g'
+.
+
+Lemma is_simplicial_perm_inveriant : forall r,
+  ig_perm_invariant (fun g => is_simplicial r g)
+.
+Proof.
+Admitted.
+
+(*
+  Prove that `is_cliqueb` is permutation invariant, that is for every two lists
+  that are permutations `is_cliqueb xs = true` iff `is_cliqueb ys = true`
+*)
+Lemma is_cliqueb_perm_inveriant : forall g,
+  perm_invariant (fun regs => is_cliqueb g regs = true)
+.
+Proof.
+Admitted.
+
+(* (*
+  Graph:
+  0
+*)
+Goal is_simplicial 0 (ig_insert_node InterfGraph.empty 0).
+  apply SimplicialAddNode. apply SimplicialEmpty. reflexivity.
+Qed.
+
+(*
+  Graph:
+     0
+   / | \
+  1--2--3
+   \---/
+*)
+
+Definition example_ig_1 : InterfGraph.dict :=
+  (ig_insert_edges
+    (ig_insert_edges
+      (ig_insert_edges
+        (ig_insert_edges InterfGraph.empty 0 []) 1 [0]) 2 [0; 1]) 3 [0; 1; 2])
+.
+
+Goal is_simplicial 0 example_ig_1.
+  unfold example_ig_1.
+  apply SimplicialAddNeighbor.
+  apply SimplicialAddNeighbor.
+  apply SimplicialAddNeighbor.
+  apply SimplicialAddNode.
+  apply SimplicialEmpty.
+  simpl. reflexivity.
+Qed.
+
+(*
+  Graph:
+  0 1 2
+*)
+Definition example_ig_2 : InterfGraph.dict :=
+  (ig_insert_node (ig_insert_node (ig_insert_node InterfGraph.empty 2) 1) 0)
+.
+Goal is_simplicial 2 example_ig_2.
+  unfold example_ig_2.
+  apply SimplicialAddNode.
+  apply SimplicialAddNode.
+  apply SimplicialAddNode.
+  apply SimplicialEmpty. reflexivity.
+Qed.
+*)
+
+Lemma invert_keys : forall g a V',
+  a :: V' = InterfGraph.keys g -> exists g',
+    (ig_insert_node g' a = g \/ exists r', (In r' (InterfGraph.keys g')) /\ ig_insert_edge g' a r' = g)
+    /\ InterfGraph.keys g = a :: (InterfGraph.keys g')
+    /\ ~ In a (InterfGraph.keys g')
+    /\ ig_remove_node g a = g'
+    (* /\ (forall b, a <> b -> Permutation (InterfGraph.get g b) (InterfGraph.get g' b)) *)
 .
 Proof.
 Admitted.
@@ -477,12 +477,11 @@ Proof.
 Qed.
 
 Lemma set_add_in :
-  forall {A : Type} (u : A) (s : set A)
-    (Aeq_dec : forall x y : A, {x = y} + {x <> y}),
-    In u (set_add Aeq_dec u s)
+  forall {A : Type} Aeq_dec (a : A) (s : set A),
+    In a (set_add Aeq_dec a s)
 .
 Proof.
-  intros A u s Aeq_dec. apply set_add_intro2. reflexivity.
+  intros A a s Aeq_dec. apply set_add_intro2. reflexivity.
 Qed.
 
 Lemma ig_insert_edge_in :
@@ -492,7 +491,7 @@ Lemma ig_insert_edge_in :
 Proof.
   intros g u v H. cbn.
   remember (set_add InterfGraph.key_eq_dec u (InterfGraph.keys g)) as g' eqn:Eg'.
-  pose proof (set_add_in u (InterfGraph.keys g) InterfGraph.key_eq_dec) as H'.
+  pose proof (set_add_in InterfGraph.key_eq_dec u (InterfGraph.keys g)) as H'.
   unfold InterfGraph.keys, ig_insert_edge, ig_update_edge.
   destruct (reg_eq_dec u v). contradiction.
   apply set_add_intro1. assumption.
@@ -881,6 +880,7 @@ Qed.
 Inductive is_chordal : InterfGraph.dict -> Prop :=
   | ChordalEmpty : is_chordal InterfGraph.empty
   | ChordalStep : forall g,
+    well_formed g ->
     (exists r, is_simplicial r g /\ is_chordal (ig_remove_node g r)) ->
     is_chordal g
 .
@@ -895,11 +895,37 @@ Admitted.
 
 From Stdlib Require Import Program.Equality.
 
-(* Lemma is_simplicial_is_chordal :
+Lemma is_chordal_ig_insert_node :
+  forall g u,
+    ~ In u (InterfGraph.keys g) ->
+    is_chordal (ig_insert_node g u) -> is_chordal g
+.
+Proof.
+Admitted.
+
+Lemma is_simplicial_ig_insert_node :
   forall g u v,
     u <> v ->
-    is_simplicial v (ig_insert_node g u) ->
-    is_chordal () *)
+    is_simplicial v (ig_insert_node g u) -> is_simplicial v g
+.
+Proof.
+Admitted.
+
+Lemma ig_insert_node_ig_remove_node_comm :
+  forall g u v,
+    u <> v ->
+    ig_remove_node (ig_insert_node g u) v =
+    ig_insert_node (ig_remove_node g v) u
+.
+Proof.
+Admitted.
+
+Lemma set_remove_not_in :
+  forall {A : Type} Aeq_dec (s : set A) (a b : A) ,
+    a <> b -> ~ In a s -> ~ In a (set_remove Aeq_dec b s)
+.
+Proof.
+Admitted.
 
 Lemma is_chordal_ig_remove_node :
   forall g u,
@@ -914,13 +940,33 @@ Proof.
   - dependent induction Hc.
     * assert (In u (set_add InterfGraph.key_eq_dec u (InterfGraph.keys g))) as Contr.
       apply set_add_in. rewrite <- x in Contr. contradiction.
-    * destruct H0 as [r [H1 H2]].
+    * destruct H0 as [r [Hs Hc]].
       destruct (reg_eq_dec u r) as [Eur | NEur].
       subst; assumption.
+      apply ChordalStep.
+      apply ig_remove_node_wf; assumption.
       assert (Hin := H).
       apply ig_insert_node_ig_remove_node_not_in in Hin.
-      rewrite Hin.
-      apply SimplicialAddSingleton in H.
+      rewrite Hin. exists r. split.
+      apply is_simplicial_ig_insert_node with (u := u); assumption.
+      rewrite ig_insert_node_ig_remove_node_comm in Hc; try assumption.
+      assert (~ In u (InterfGraph.keys (ig_remove_node g r))).
+      cbn.
+      apply set_remove_not_in; assumption.
+      apply is_chordal_ig_insert_node in Hc; assumption.
+  - dependent induction Hc.
+    * pose proof (set_add_in InterfGraph.key_eq_dec r' (InterfGraph.keys g)) as Contr.
+      rewrite <- x in Contr.
+      contradiction.
+    * destruct H0 as [r [Hs' Hc']].
+      rewrite ig_insert_node_ig_remove_node_comm; try (symmetry; assumption).
+
+
+
+      (* assert (is_simplicial u (ig_remove_node g r)).
+      rewrite ig_insert_node_ig_remove_node_comm in H2; try assumption.
+      admit. *)
+
 
   (* intros g.
   remember (InterfGraph.keys g) as V eqn:EV. revert g EV.
@@ -1035,7 +1081,7 @@ Theorem eliminate_step_invariant :
 Proof.
   intros g WF Hch.
   assert (Hch' := Hch).
-  induction Hch.
+  induction Hch as [| g WF' H].
   - now cbn.
   - unfold eliminate_step.
     destruct (find_next g) eqn:Efn.
