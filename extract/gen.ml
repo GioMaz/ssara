@@ -148,7 +148,6 @@ let gen_nullinst out opcode =
   Since we are generating x86 assembly where the ALU instructions take only two
   arguments we have to convert our three address code instructions to fit into
   the x86 ones.
-  TODO: prove this
 *)
 let gen_3ac_2ac out opcode r r' v =
   if r = r' then
@@ -156,18 +155,18 @@ let gen_3ac_2ac out opcode r r' v =
   else
     match v with
 
-    (* r(0) <- r(1) + (Imm 100) *)
+    (* r(0) <- r(1) / i(100) *)
     | IRPreg.Imm x ->
       gen_bininst out MOV     (string_of_reg r) (string_of_reg r');
       gen_bininst out opcode  (string_of_reg r) (string_of_int x)
 
-    (* r(0) <- r(1) + (Reg 2) *)
+    (* r(0) <- r(1) / r(2) *)
     | IRPreg.Reg r'' ->
       gen_bininst out MOV     (string_of_reg tmp) (string_of_reg r');
       gen_bininst out opcode  (string_of_reg tmp) (string_of_reg r'');
       gen_bininst out MOV     (string_of_reg r)   (string_of_reg tmp);
 
-    (* r(0) <- r(1) + (Ptr 100) *)
+    (* r(0) <- r(1) / p(100) *)
     | IRPreg.Ptr p ->
       gen_bininst out MOV     (string_of_reg r) (string_of_reg r');
       gen_bininst out opcode  (string_of_reg r) (string_of_int p)

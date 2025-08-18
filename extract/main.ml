@@ -1,10 +1,10 @@
-open Regalloc
+open Regassign
 open Ssara
 open Oracles
 
 let compare_vm_native irvreg_program =
   let rv_vm = (Vm.get_reg (Vm.run Vm.vm_empty irvreg_program fuel_vm) 0) in
-  let rv_native = regalloc_and_run_native irvreg_program in
+  let rv_native = regassign_and_run_native irvreg_program in
   Printf.printf "%s: vm_result: %d, native_result: %d\n"
     (if rv_vm = rv_native then "Success" else "Failure")
     rv_vm rv_native

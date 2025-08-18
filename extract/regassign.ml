@@ -2,17 +2,17 @@ open Ssara
 open Gen
 open Oracles
 
-let regalloc irvreg_program =
+let regassign irvreg_program =
   let (programinfo, _) = analyze_program irvreg_program fuel_analyze in (* Get liveness info *)
   let interfgraph = get_ig programinfo in                               (* Get interference graph *)
   let peo = eliminate interfgraph in                                    (* Get peo *)
   let coloring =                                                        (* Get coloring *)
     match get_coloring peo interfgraph with
     | Some c -> c
-    | None -> failwith "Not enough registers to complete allocation"
+    | None -> failwith "Not enough registers to complete assignment"
   in
   let irpreg_program = color_program coloring irvreg_program in         (* Color program *)
-  ssa_destruct fuel_destruct  irpreg_program                            (* SSA destruction *)
+  ssa_destruct fuel_destruct irpreg_program                             (* SSA destruction *)
 ;;
 
 let command_fail cmd =
@@ -49,6 +49,6 @@ let run_native irpreg_program =
   rv
 ;;
 
-let regalloc_and_run_native irvreg_program =
-  irvreg_program |> regalloc |> run_native
+let regassign_and_run_native irvreg_program =
+  irvreg_program |> regassign |> run_native
 ;;

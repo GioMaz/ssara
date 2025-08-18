@@ -41,7 +41,7 @@ Extraction "ssara.ml"
   Color.color_program
   Destruct.ssa_destruct
 
-  (* Example programs *)
+  (* Some example programs *)
   Color.Example1.example_block_1
   Color.Example2.example_block_1
   Color.Example3.example_block_1

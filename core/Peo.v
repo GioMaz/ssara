@@ -169,6 +169,17 @@ Definition well_formed (g : InterfGraph.dict) : Prop :=
   (forall r, ~ In r (InterfGraph.get g r))
 .
 
+Lemma empty_wf :
+  well_formed InterfGraph.empty
+.
+Proof.
+  unfold well_formed. repeat (split; auto).
+  - cbn. apply NoDup_nil.
+  - intros r. cbn.
+    unfold InterfGraph.default, InterfGraphParams.default.
+    apply NoDup_nil.
+Qed.
+
 Lemma ig_insert_node_not_in :
   forall g u v, well_formed g ->
     ~ In v (InterfGraph.keys (ig_insert_node g u)) ->
@@ -208,8 +219,8 @@ Proof.
     specialize (H1 g u r WFg H) as [H1 H2].
     specialize (WFg1 r r' H1).
     cbn. destruct (InterfGraph.key_eq_dec u r') as [Eur' | NEur'].
-    + rewrite Eur'. assumption.
-    + assumption.
+    * rewrite Eur'. assumption.
+    * assumption.
   - intros r r' H.
     destruct (WFg) as [_ [WFg1 _]].
     specialize (WFg1 r r').
@@ -244,9 +255,70 @@ Lemma ig_remove_node_wf :
 Proof.
 Admitted.
 
+Lemma ig_insert_edge_ig_insert_node :
+  forall g u,
+    ig_insert_edge g u u = g
+.
+Proof.
+  intros g u.
+  unfold ig_insert_edge, ig_update_edge.
+  destruct (reg_eq_dec u u).
+  reflexivity.
+  contradiction.
+Qed.
+
+Lemma ig_insert_edge_wf :
+  forall g u v, well_formed g -> well_formed (ig_insert_edge g u v)
+.
+Proof.
+  intros g u v WF. unfold well_formed. repeat split.
+  - intros r r' H.
+    destruct WF as [WF _].
+    specialize (WF r r').
+    destruct (reg_eq_dec u v) as [Euv | NEuv].
+    * subst.
+      rewrite ig_insert_edge_ig_insert_node in H.
+      rewrite ig_insert_edge_ig_insert_node.
+      specialize (WF H).
+      assumption.
+    * unfold ig_insert_edge, ig_update_edge in H.
+      destruct (reg_eq_dec u v) as [Contr | _]. contradiction.
+      cbn in H.
+      apply set_add_elim in H as [H NEvr].
+      apply set_add_elim in H as [H NEur].
+      specialize (WF H).
+      unfold ig_insert_edge, ig_update_edge.
+      destruct (reg_eq_dec u v) as [Contr | _]. contradiction.
+      cbn.
+      unfold InterfGraph.key_eq_dec, InterfGraphParams.key_eq_dec.
+      destruct (reg_eq_dec v r') as [Evr' | NEvr'].
+      + destruct (reg_eq_dec u v) as [Contr | _]. contradiction.
+        subst.
+        intros Hin.
+        apply set_add_elim2 in Hin.
+        contradiction.
+        symmetry; assumption.
+      + destruct (reg_eq_dec u r') as [Eur' | NEur'].
+        subst.
+        intros Hin.
+        apply set_add_elim2 in Hin.
+        contradiction.
+        symmetry; assumption.
+        assumption.
+  - intros r r' H.
+Admitted.
+
+Lemma ig_insert_edges_wf :
+  forall g u vs, well_formed g -> well_formed (ig_insert_edges g u vs)
+.
+Proof.
+Admitted.
+
 Inductive is_simplicial (r : reg) : InterfGraph.dict -> Prop :=
   | SimplicialAddSingleton (g : InterfGraph.dict):
-    ~ In r (InterfGraph.keys g) -> is_simplicial r (ig_insert_node g r)
+    well_formed g ->
+    ~ In r (InterfGraph.keys g) ->
+    is_simplicial r (ig_insert_node g r)
   | SimplicialAddNode (g : InterfGraph.dict):
     is_simplicial r g -> forall r', r <> r' ->
     is_simplicial r (ig_insert_node g r')
@@ -257,6 +329,29 @@ Inductive is_simplicial (r : reg) : InterfGraph.dict -> Prop :=
     is_simplicial r g -> forall a, let nbors := InterfGraph.get g r in
     is_simplicial r (ig_insert_edges g a (r :: nbors))
 .
+
+Lemma is_simplicial_wf :
+  forall g r,
+    is_simplicial r g -> well_formed g
+.
+Proof.
+  intros g r H.
+  induction H.
+  apply ig_insert_node_wf; assumption.
+  apply ig_insert_node_wf; assumption.
+  apply ig_insert_edge_wf; assumption.
+  apply ig_insert_edges_wf; assumption.
+Qed.
+
+Lemma is_simplicial_nbors :
+  forall g u v w,
+    is_simplicial u g ->
+    In v (InterfGraph.get g u) ->
+    In w (InterfGraph.get g v) ->
+    In u (InterfGraph.get g w)
+.
+Proof.
+Admitted.
 
 From Stdlib Require Import Sorting.Permutation.
 
@@ -476,6 +571,15 @@ Proof.
   rewrite surjective_pairing. reflexivity.
 Qed.
 
+Lemma ig_insert_edge_already_in :
+  forall g u v,
+    In u (InterfGraph.get g v) ->
+    In v (InterfGraph.get g u) ->
+    ig_insert_edge g u v = g
+.
+Proof.
+Admitted.
+
 Lemma set_add_in :
   forall {A : Type} Aeq_dec (a : A) (s : set A),
     In a (set_add Aeq_dec a s)
@@ -650,7 +754,8 @@ Proof.
       unfold is_simplicialb in H. apply andb_prop in H as [Ha Hb].
       rewrite <- Hsing.
       rewrite Hkeys in Ha. cbn in Ha. destruct (reg_eq_dec r a).
-      + subst. now apply SimplicialAddSingleton.
+      + subst. apply SimplicialAddSingleton; try assumption.
+        admit.
       + apply SimplicialAddNode; try assumption.
         apply IHV.
         rewrite <- Hrem. now apply ig_remove_node_wf.
@@ -694,7 +799,8 @@ Proof.
         try now apply ig_remove_node_wf.
         rewrite <- Hin'.
         eapply SimplicialAddNeighbor.
-        now apply SimplicialAddSingleton.
+        apply SimplicialAddSingleton; try assumption.
+        admit.
         now apply in_not_in_neq with (b := a) in Hinedge'.
 
       (*
@@ -717,7 +823,8 @@ Proof.
             apply SimplicialAddNeighbor.
             apply invert_isolated in nbors.
             destruct nbors as [g'' [nborsIn nborsEq]].
-            rewrite <- nborsEq. apply SimplicialAddSingleton. assumption.
+            rewrite <- nborsEq. apply SimplicialAddSingleton; try assumption.
+            admit.
             rewrite Heqg'. apply ig_remove_node_wf. assumption.
 
           (*
@@ -863,7 +970,7 @@ Proof.
           specialize (IHV r WF').
           rewrite Ha, Hb in IHV. cbn in IHV.
           specialize (IHV eq_refl). assumption.
-Qed.
+Admitted.
 
 Lemma find_next_simplicial :
   forall (g : InterfGraph.dict) (r : reg),
@@ -880,7 +987,10 @@ Qed.
 Inductive is_chordal : InterfGraph.dict -> Prop :=
   | ChordalEmpty : is_chordal InterfGraph.empty
   | ChordalStep : forall g,
-    well_formed g ->
+    (*
+      Here well-formedness is not an assumption because the existance of a
+      simplicial node already implies well-fromedness
+    *)
     (exists r, is_simplicial r g /\ is_chordal (ig_remove_node g r)) ->
     is_chordal g
 .
@@ -889,24 +999,6 @@ Lemma ig_insert_node_ig_remove_node_not_in :
   forall g u,
     ~ In u (InterfGraph.keys g) ->
     ig_remove_node (ig_insert_node g u) u = g
-.
-Proof.
-Admitted.
-
-From Stdlib Require Import Program.Equality.
-
-Lemma is_chordal_ig_insert_node :
-  forall g u,
-    ~ In u (InterfGraph.keys g) ->
-    is_chordal (ig_insert_node g u) -> is_chordal g
-.
-Proof.
-Admitted.
-
-Lemma is_simplicial_ig_insert_node :
-  forall g u v,
-    u <> v ->
-    is_simplicial v (ig_insert_node g u) -> is_simplicial v g
 .
 Proof.
 Admitted.
@@ -927,39 +1019,236 @@ Lemma set_remove_not_in :
 Proof.
 Admitted.
 
-Lemma is_chordal_ig_remove_node :
+Lemma ig_remove_node_not_in_2 :
+  forall g u,
+    ~ In u (InterfGraph.keys g) ->
+    ig_remove_node g u = g
+.
+Proof.
+Admitted.
+
+Lemma is_simplicial_ig_insert_node :
+  forall g u v,
+    u <> v ->
+    is_simplicial u (ig_insert_node g v) -> is_simplicial u g
+.
+Proof.
+Admitted.
+
+Lemma is_simplicial_ig_remove_node :
+  forall g u v,
+    u <> v ->
+    is_simplicial u g -> is_simplicial u (ig_remove_node g v)
+.
+Proof.
+Admitted.
+
+From Stdlib Require Import Program.Equality.
+
+Lemma is_chordal_inversion :
+  forall g u,
+    is_chordal g -> is_chordal (ig_insert_node g u)
+.
+Proof.
+Admitted.
+
+Lemma is_chordal_ig_insert_node :
   forall g u,
     well_formed g ->
+    is_chordal (ig_insert_node g u) <-> is_chordal g
+.
+Proof.
+  intros g u WF.
+  split.
+  - intros H.
+    destruct (in_dec InterfGraph.key_eq_dec u (InterfGraph.keys g)) as [Inug | NInug].
+    apply ig_insert_node_already_in in Inug.
+    rewrite Inug in H.
+    assumption.
+    inversion H as [| g' Hc Egg'].
+    * assert (In u (set_add InterfGraph.key_eq_dec u (InterfGraph.keys g))) as Contr.
+      apply set_add_in. rewrite <- H0 in Contr. contradiction.
+    * destruct Hc as [r [H1 H2]].
+      destruct (InterfGraph.key_eq_dec u r) as [Eur | NEur]; subst.
+
+      (* Trivial with u = r *)
+      apply ig_insert_node_ig_remove_node_not_in in NInug.
+      rewrite NInug in H2. assumption.
+
+      (*
+        Non-trivial with u <> r:
+        I have to prove that u is also simplicial and that, if I remove it,
+        I get another chordal graph.
+      *)
+      assert (Hin := NInug).
+      apply SimplicialAddSingleton in NInug; try assumption.
+      apply ChordalStep.
+      exists r. split.
+      apply is_simplicial_ig_insert_node with (v := u); try (symmetry; assumption).
+      assumption.
+      inversion H2 as [| g'' Hc' Egg'].
+      (* Contradiction *) admit.
+      destruct Hc' as [r' [H1' H2']].
+      apply ChordalStep.
+      exists r'.
+      destruct (InterfGraph.key_eq_dec u r'); subst; split.
+      + admit.
+      + admit.
+      + admit.
+      + admit.
+
+
+
+
+
+
+
+
+
+
+
+Admitted.
+
+Lemma is_simplicial_ig_insert_edge :
+  forall g u v,
+    u <> v ->
+    ~ In u (InterfGraph.keys g) ->
+    is_simplicial u (ig_insert_edge g u v)
+.
+Proof.
+Admitted.
+
+Inductive even : nat -> Prop :=
+| E0 : even 0
+| E2: forall n, even n -> even (S (S n)).
+
+Inductive property : nat -> Prop :=
+| P0 : property 0
+| PS : forall n, property n -> property (S n).
+
+Goal forall n, even n -> property n.
+  intros n H.
+  induction H.
+  - apply P0.
+  - apply PS. apply PS. assumption.
+Qed.
+
+Lemma is_chordal_ig_remove_node :
+  forall g u,
     is_simplicial u g ->
     is_chordal g ->
     is_chordal (ig_remove_node g u)
 .
 Proof.
-  intros g u WF Hs Hc.
+  intros g u Hs Hc.
   induction Hs.
   - dependent induction Hc.
     * assert (In u (set_add InterfGraph.key_eq_dec u (InterfGraph.keys g))) as Contr.
       apply set_add_in. rewrite <- x in Contr. contradiction.
-    * destruct H0 as [r [Hs Hc]].
+    * destruct H1 as [r [Hs Hc]].
       destruct (reg_eq_dec u r) as [Eur | NEur].
       subst; assumption.
+
+      (*
+        r simplicial  chordal
+              r
+              |\
+            u | X      u   X
+              |/          /
+              X          X
+        _____________________?
+               chordal
+                  r
+                  |\
+                  | X
+                  |/
+                  X
+      *)
       apply ChordalStep.
-      apply ig_remove_node_wf; assumption.
-      assert (Hin := H).
+      assert (Hin := H0).
       apply ig_insert_node_ig_remove_node_not_in in Hin.
       rewrite Hin. exists r. split.
-      apply is_simplicial_ig_insert_node with (u := u); assumption.
+      apply is_simplicial_ig_insert_node with (v := u);
+      apply not_eq_sym in NEur; assumption.
       rewrite ig_insert_node_ig_remove_node_comm in Hc; try assumption.
       assert (~ In u (InterfGraph.keys (ig_remove_node g r))).
       cbn.
       apply set_remove_not_in; assumption.
-      apply is_chordal_ig_insert_node in Hc; assumption.
-  - dependent induction Hc.
-    * pose proof (set_add_in InterfGraph.key_eq_dec r' (InterfGraph.keys g)) as Contr.
-      rewrite <- x in Contr.
-      contradiction.
-    * destruct H0 as [r [Hs' Hc']].
-      rewrite ig_insert_node_ig_remove_node_comm; try (symmetry; assumption).
+      apply is_chordal_ig_insert_node in Hc. assumption.
+      apply ig_remove_node_wf; assumption.
+
+    (*
+      u simplicial  chordal
+                       r'
+          u---X      u---X
+           \ /        \ /
+            X          X
+      _____________________?
+             chordal
+                r'
+                  X
+                 /
+                X
+    *)
+  - apply is_chordal_ig_insert_node in Hc.
+    specialize (IHHs Hc).
+    rewrite ig_insert_node_ig_remove_node_comm; try (symmetry; assumption).
+    apply is_chordal_ig_insert_node.
+    apply ig_remove_node_wf, is_simplicial_wf with (r := u); assumption.
+    assumption.
+    apply is_simplicial_wf with (r := u); assumption.
+
+    (*
+      u simplicial  chordal
+                     r'--r''
+          u---X      u---X
+           \ /        \ /
+            X          X
+      _____________________?
+             chordal
+              r'--r''
+                  X
+                 /
+                X
+      In particular, for the second assumption we have the following cases:
+      chordal
+      (which implies the conclusion if u is already removed)
+       u---r'
+        \ /
+         r''
+      chordal
+      (which implies the conclusion if u is already removed and then we
+      remove r'')
+       u---r'--r''
+        \ /
+         X
+      chordal
+      (which implies the conclusion if u is already removed and then we
+      remove r')
+       u---r''-r'
+        \ /
+         X
+      chordal
+      (which implies the conclusion if u is already removed and then we
+      remove r' and r'')
+       r'--r''
+       u---X
+        \ /
+         X
+
+    *)
+  - destruct
+      (in_dec InterfGraph.key_eq_dec r' (InterfGraph.get g u)) as [Inrn' | NInrn'],
+      (in_dec InterfGraph.key_eq_dec r'' (InterfGraph.get g u)) as [Inrn'' | NInrn''].
+    * assert (ig_insert_edge g r' r'' = g) as Hg.
+      admit.
+      rewrite Hg.
+      rewrite Hg in Hc.
+      specialize (IHHs Hc). assumption.
+    * assert (WF := Hs); apply is_simplicial_wf in WF.
+      destruct (in_dec InterfGraph.key_eq_dec r'' (InterfGraph.keys g)) as [Inrk | NInrk].
+      apply ig_insert_edge_not_in with (u := r') (v := r'') in WF; try assumption.
+
 
 
 
@@ -1047,7 +1336,15 @@ Lemma ig_insert_edge_in_in :
     In u (InterfGraph.keys (ig_insert_edge g v w))
 .
 Proof.
-Admitted.
+  intros g u v w H.
+  unfold InterfGraph.keys, ig_insert_edge, ig_update_edge.
+  destruct (reg_eq_dec v w).
+  - unfold InterfGraph.keys in H. assumption.
+  - cbn.
+    apply set_add_intro1.
+    apply set_add_intro1.
+    assumption.
+Qed.
 
 Lemma ig_insert_edges_in_in :
   forall g u v vs,
@@ -1081,7 +1378,7 @@ Theorem eliminate_step_invariant :
 Proof.
   intros g WF Hch.
   assert (Hch' := Hch).
-  induction Hch as [| g WF' H].
+  induction Hch as [| g H].
   - now cbn.
   - unfold eliminate_step.
     destruct (find_next g) eqn:Efn.
@@ -1100,12 +1397,6 @@ Inductive is_clique : InterfGraph.dict -> list reg -> Prop :=
   | CliqueAddNode : forall g r rs, is_clique g rs ->
     is_clique (ig_insert_edges g r rs) (r :: rs)
 .
-
-Lemma is_simplicial_nbors_is_clique :
-  forall g r, is_simplicial r g -> is_clique g (InterfGraph.get g r)
-.
-Proof.
-Admitted.
 
 (* Inductive is_peo : InterfGraph.dict -> list reg -> Prop :=
   | PeoEmpty : is_peo InterfGraph.empty []

@@ -114,7 +114,7 @@ Module MakeIR (IR: IR_PARAMS).
     deal with illegal basic blocks
   *)
   Inductive phi : Type :=
-    | Phi (r : reg) (rs: list phi_arg)
+    | Phi : reg -> list phi_arg -> phi
   .
 
   Definition phi_reg (p : phi) : reg :=

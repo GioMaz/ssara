@@ -38,7 +38,9 @@ Definition ig_remove_node (g : InterfGraph.dict) (r : reg) : InterfGraph.dict :=
 .
 
 Lemma regs_size_decrease :
-  forall (r : reg) (rs : list reg), In r rs -> length (regs_remove r rs) < length rs
+  forall (r : reg) (rs : list reg),
+    In r rs ->
+    length (regs_remove r rs) < length rs
 .
 Proof.
   intros r rs H. generalize dependent r.
