@@ -191,7 +191,7 @@ Proof.
   cbn in H. apply set_add_elim in H. assumption.
 Qed.
 
-Lemma ig_insert_node_get :
+Lemma ig_insert_node_nbors :
   forall g u v,
     InterfGraph.get g u = InterfGraph.get (ig_insert_node g v) u
 .
@@ -224,15 +224,15 @@ Proof.
   - intros r r' H.
     destruct (WFg) as [_ [WFg1 _]].
     specialize (WFg1 r r').
-    rewrite <- ig_insert_node_get in H.
-    rewrite <- ig_insert_node_get.
+    rewrite <- ig_insert_node_nbors in H.
+    rewrite <- ig_insert_node_nbors.
     apply WFg1. assumption.
   - destruct (WFg) as [_ [_ [WFg1 _]]].
     cbn. apply set_add_nodup. assumption.
   - intros r.
     destruct (WFg) as [_ [_ [_ [WFg1 _]]]].
     specialize (WFg1 r).
-    rewrite <- ig_insert_node_get.
+    rewrite <- ig_insert_node_nbors.
     assumption.
   - intros r H.
     destruct (WFg) as [_ [_ [_ [_ [WFg1 _]]]]].
@@ -342,16 +342,6 @@ Proof.
   apply ig_insert_edge_wf; assumption.
   apply ig_insert_edges_wf; assumption.
 Qed.
-
-Lemma is_simplicial_nbors :
-  forall g u v w,
-    is_simplicial u g ->
-    In v (InterfGraph.get g u) ->
-    In w (InterfGraph.get g v) ->
-    In u (InterfGraph.get g w)
-.
-Proof.
-Admitted.
 
 From Stdlib Require Import Sorting.Permutation.
 
@@ -550,15 +540,6 @@ Proof.
   rewrite surjective_pairing. reflexivity.
 Qed.
 
-Lemma ig_insert_edge_already_in :
-  forall g u v,
-    In u (InterfGraph.get g v) ->
-    In v (InterfGraph.get g u) ->
-    ig_insert_edge g u v = g
-.
-Proof.
-Admitted.
-
 Lemma set_add_in :
   forall {A : Type} Aeq_dec (a : A) (s : set A),
     In a (set_add Aeq_dec a s)
@@ -683,20 +664,8 @@ Proof.
   apply HNIn. left. reflexivity.
 Qed.
 
-Lemma ig_insert_edges_double :
-  forall g u v, ig_insert_edges g u [v] = ig_insert_edges g u [v; v]
-.
-Proof.
-Admitted.
-
 Lemma ig_insert_edge_isolated_nbors :
   forall g a b c, a <> b -> a <> c -> InterfGraph.get (ig_insert_edge g b c) a = InterfGraph.get g a
-.
-Proof.
-Admitted.
-
-Lemma ig_not_in_nbors :
-  forall g u, ~ In u (InterfGraph.keys g) -> InterfGraph.get g u = []
 .
 Proof.
 Admitted.
@@ -958,7 +927,7 @@ Inductive is_chordal : InterfGraph.dict -> Prop :=
     is_chordal g
 .
 
-Lemma ig_insert_node_ig_remove_node_not_in :
+(* Lemma ig_insert_node_ig_remove_node_not_in :
   forall g u,
     ~ In u (InterfGraph.keys g) ->
     ig_remove_node (ig_insert_node g u) u = g
@@ -1048,7 +1017,7 @@ Lemma ig_remove_node_simplicial :
     is_simplicial u (ig_remove_node g v)
 .
 Proof.
-Admitted.
+Admitted. *)
 
 Lemma ig_insert_node_in_in :
   forall g u v,
@@ -1096,61 +1065,6 @@ Proof.
   apply ig_insert_edge_in_in. assumption.
   apply ig_insert_edges_in_in. assumption.
 Qed.
-
-Lemma is_chordal_ig_insert_node :
-  forall g u,
-    well_formed g ->
-    is_chordal (ig_insert_node g u) <-> is_chordal g
-.
-Proof.
-  (* intros g u WF.
-  split.
-  - intros H.
-    destruct (in_dec InterfGraph.key_eq_dec u (InterfGraph.keys g)) as [Inug | NInug].
-    apply ig_insert_node_already_in in Inug.
-    rewrite Inug in H.
-    assumption.
-    inversion H as [| g' Hc Egg'].
-    * assert (In u (set_add InterfGraph.key_eq_dec u (InterfGraph.keys g))) as Contr.
-      apply set_add_in. rewrite <- H0 in Contr. contradiction.
-    *
-      destruct (InterfGraph.key_eq_dec u r) as [Eur | NEur]; subst.
-
-      (* Trivial with u = r *)
-      apply ig_insert_node_ig_remove_node_not_in in NInug.
-      rewrite NInug in H2. assumption.
-
-      (*
-        Non-trivial with u <> r:
-        I have to prove that u is also simplicial and that, if I remove it,
-        I get another chordal graph.
-      *)
-      assert (Hin := NInug).
-      apply SimplicialAddSingleton in NInug; try assumption.
-      apply ChordalStep.
-      exists r. split.
-      apply is_simplicial_ig_insert_node with (v := u); try (symmetry; assumption).
-      assumption.
-      inversion H2 as [| g'' Hc' Egg'].
-      (* Contradiction *) admit.
-      destruct Hc' as [r' [H1' H2']].
-      apply ChordalStep.
-      exists r'.
-      destruct (InterfGraph.key_eq_dec u r'); subst; split.
-      + admit.
-      + admit.
-      + admit.
-      + admit. *)
-Admitted.
-
-Lemma is_chordal_ig_insert_edge :
-  forall g u v,
-    ~ In v (InterfGraph.keys g) ->
-    is_chordal g ->
-    is_chordal (ig_insert_edge g u v) (* Because then all you need to do is remove v first*)
-.
-Proof.
-Admitted.
 
 Lemma is_chordal_ig_remove_node :
   forall g u,
@@ -1263,13 +1177,6 @@ Proof.
       (in_dec InterfGraph.key_eq_dec r'' (InterfGraph.keys g)) as [Inrk | NInrk].
       + assert (is_chordal g) as NContr. admit. (* Then prove also for ~ is_chordal g *)
         specialize (IHHs NContr). *)
-Admitted.
-
-Lemma ig_insert_node_nbors :
-  forall g u v,
-    InterfGraph.get g u = InterfGraph.get (ig_insert_node g v) u
-.
-Proof.
 Admitted.
 
 Lemma ig_insert_edge_nbors :
