@@ -71,25 +71,34 @@ Proof.
   apply preg_compl_not_forbidden.
 Qed.
 
+Definition get_coloring_aux_step (r : IRVreg.reg) (g : InterfGraph.dict) (c : Coloring.dict) : option Coloring.dict :=
+  match get_color r g c with
+  | Some p => Some (Coloring.update c r p)
+  | None => None
+  end
+.
+
 (*
   The None constructor is returned if there aren't enough physical registers
   for the coloring to happen, this may happen if we don't perform spilling
   before the coloring.
 *)
-Definition get_coloring (peo : list IRVreg.reg) (g : InterfGraph.dict) : option Coloring.dict :=
-  let fix get_coloring_aux (peo : list IRVreg.reg) (c : Coloring.dict) : option Coloring.dict :=
-    match peo with
-    | nil => Some c
-    | v :: peo =>
-      match get_color v g c with
-      | Some p =>
-        let c := Coloring.update c v p in
-        get_coloring_aux peo c
-      | None => None
-      end
+Fixpoint get_coloring_aux (peo : list IRVreg.reg) (g : InterfGraph.dict) (c : Coloring.dict) : option Coloring.dict :=
+  match peo with
+  | nil => Some c
+  | v :: peo =>
+    match get_color v g c with
+    | Some p =>
+      let c := Coloring.update c v p in
+      get_coloring_aux peo g c
+    | None => None
     end
-  in
-  get_coloring_aux (rev peo) Coloring.empty
+  end
+.
+
+
+Definition get_coloring (peo : list IRVreg.reg) (g : InterfGraph.dict) : option Coloring.dict :=
+  get_coloring_aux (rev peo) g Coloring.empty
 .
 
 (*
