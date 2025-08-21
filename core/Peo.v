@@ -1299,18 +1299,18 @@ Lemma conjunction_in_1 :
 Proof.
 Admitted.
 
-Lemma conjunction_true :
-  forall {A : Type} (f : A -> bool) (l : list A),
-    conjunction f l = true <->
-    forall a, In a l -> f a = true
+Lemma conjunction_in_2 :
+  forall {A : Type} Aeq_dec (a1 a2 : A) (l1 l2 : list A),
+    conjunction (fun x => set_mem Aeq_dec x l2) l1 = true ->
+    conjunction (fun x => set_mem Aeq_dec x (set_add Aeq_dec a2 (set_add Aeq_dec a1 l2))) l1 = true
 .
 Proof.
 Admitted.
 
-Lemma conjunction_in_2 :
-  forall {A : Type} Aeq_dec (b : bool) (a : A) (l : list A),
-    conjunction (fun x => b || set_mem Aeq_dec x l) l = true ->
-    conjunction (fun x => b || set_mem Aeq_dec x (set_add Aeq_dec a l)) l = true
+Lemma conjunction_true :
+  forall {A : Type} (f : A -> bool) (l : list A),
+    conjunction f l = true <->
+    forall a, In a l -> f a = true
 .
 Proof.
 Admitted.
@@ -1383,12 +1383,10 @@ Proof.
     apply andb_true_iff in Hc; destruct Hc as [Hc1 Hc2].
     apply andb_true_iff; split.
     unfold InterfGraph.keys, ig_insert_edge, ig_update_edge.
-    cbn.
-    unfold InterfGraph.key_eq_dec, InterfGraphParams.key_eq_dec.
     destruct (reg_eq_dec r' r'') as [Err | NErr].
-    * unfold InterfGraph.keys in Hc1. assumption.
-    * assumption.
+    unfold InterfGraph.keys in Hc1. assumption.
     cbn.
+    apply conjunction_in_2. assumption.
     apply conjunction_true. intros a Hina.
     pose proof (conjunction_true
       (fun x : reg =>
@@ -1408,7 +1406,23 @@ Proof.
     apply orb_true_iff in Hct'.
     destruct Hct' as [Hct1 | Hct2].
     * left. assumption.
-    * right. rewrite if_then_else_unchanged_eq. assumption.
+    * right.
+      unfold InterfGraph.get, ig_insert_edge, ig_update_edge.
+      cbn. unfold InterfGraph.key_eq_dec, InterfGraphParams.key_eq_dec.
+      destruct (reg_eq_dec r' r'').
+      unfold InterfGraph.get in Hct2. assumption.
+      cbn. unfold InterfGraph.key_eq_dec, InterfGraphParams.key_eq_dec.
+      destruct (reg_eq_dec r'' a).
+      + subst.
+        apply set_mem_correct1 in Hct2.
+        apply set_mem_correct2.
+        apply set_add_intro1. assumption.
+      + destruct (reg_eq_dec r' a).
+        -- subst.
+          apply set_mem_correct1 in Hct2.
+          apply set_mem_correct2.
+          apply set_add_intro1. assumption.
+        -- assumption.
   - assert (WFg := Hs); apply is_simplicial_wf in WFg. specialize (IHHs WFg).
     unfold is_simplicialb; apply andb_true_iff; split.
     assert (Hin := Hs); apply is_simplicial_in in Hin.
@@ -1418,7 +1432,7 @@ Proof.
     apply andb_true_iff in IHHs; destruct IHHs as [Hin Hc].
     apply is_cliqueb_ig_insert_edges.
     assumption.
-Admitted.
+Qed.
 
 Theorem eliminate_step_invariant_1 :
   forall g g' r,
