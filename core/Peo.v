@@ -1273,13 +1273,26 @@ Proof.
 Admitted.
 
 Lemma ig_insert_edge_nbors :
-  forall g u v' v'',
-    u <> v' ->
-    u <> v'' ->
-    InterfGraph.get g u = InterfGraph.get (ig_insert_edge g v' v'') u
+  forall g u v w,
+    u <> v ->
+    u <> w ->
+    InterfGraph.get g u = InterfGraph.get (ig_insert_edge g v w) u
 .
 Proof.
-Admitted.
+  intros g u v w H1 H2.
+  unfold InterfGraph.get, ig_insert_edge, ig_update_edge, InterfGraph.update.
+  cbn.
+  unfold InterfGraph.key_eq_dec, InterfGraphParams.key_eq_dec.
+  destruct (reg_eq_dec v w).
+  - reflexivity.
+  - cbn.
+    destruct (reg_eq_dec w u) as [Evw | NEvw].
+    rewrite Evw in H2. contradiction.
+    destruct (reg_eq_dec v u) as [Evu | NEvu].
+    rewrite Evu in H1. contradiction.
+    unfold InterfGraph.get.
+    reflexivity.
+Qed.
 
 Lemma is_cliqueb_ig_insert_edges :
   forall g u v,
