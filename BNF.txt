@@ -1,0 +1,40 @@
+<lbl> ::= "Normal" <nat> | "Point1" <nat> | "Point2" <nat>
+<val> ::= "i(" <int> ")" | "r(" <reg> ")" | "p(" <ptr> ")"
+<expr> ::=
+    | <val>
+    | "load" <val>
+    | "r(" <reg> ")" "+" <val>
+    | "r(" <reg> ")" "-" <val>
+    | "r(" <reg> ")" "*" <val>
+    | "r(" <reg> ")" "/" <val>
+
+<phi_args> ::=
+    | (<reg>, <lbl>) ";" <phi_args>
+    | (<reg>, <lbl>)
+<phi> ::=
+    | r(<reg>) "<-" [<phi_args>]
+<phis> ::=
+    | <phi> ";" <phis>
+<phis_or_empty> ::=
+    | <phis>
+    | ""
+
+<inst> ::=
+    | "r(" <reg> ")" "<-" <expr>
+    | "store" "r(" <reg> ")" "r(" <reg> ")"
+<insts> ::=
+    | <inst> ";" <insts>
+    | <inst>
+<insts_or_empty> ::=
+    | <insts>
+    | ""
+
+<cond> ::=
+    | "Jeq" | "Jne" | "Jlt" | "Jle" | "Jgt" | "Jge"
+<jinst> ::=
+    | "if" <cond> <reg> <val> "then" <block> "else" <block>
+    | "jump" <block>
+    | "ret" "r(" <reg> ")"
+
+<block> ::=
+    "Block" "(" <lbl> ")" [<phis_or_empty>] [<insts_or_empty>] "(" <jinst> ")"

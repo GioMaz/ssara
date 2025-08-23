@@ -106,12 +106,12 @@ Module Vm.
     let neb x y := negb (Z.eqb x y) in
     let op :=
       match c with
-      | Jeq => Z.eqb
-      | Jne => neb
-      | Jlt => Z.ltb
-      | Jle => Z.leb
-      | Jgt => Z.gtb
-      | Jge => Z.geb
+      | CondEq => Z.eqb
+      | CondNe => neb
+      | CondLt => Z.ltb
+      | CondLe => Z.leb
+      | CondGt => Z.gtb
+      | CondGe => Z.geb
       end
     in
     let x := (get_reg m r) in

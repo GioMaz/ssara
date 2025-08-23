@@ -67,12 +67,12 @@ let string_of_opcode i =
 
 let opcode_of_cond c =
   match c with
-  | Jeq -> JE
-  | Jne -> JNE
-  | Jlt -> JL
-  | Jle -> JLE
-  | Jgt -> JG
-  | Jge -> JGE
+  | CondEq -> JE
+  | CondNe -> JNE
+  | CondLt -> JL
+  | CondLe -> JLE
+  | CondGt -> JG
+  | CondGe -> JGE
 ;;
 
 let string_of_reg reg =

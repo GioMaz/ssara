@@ -39,9 +39,6 @@ Proof.
   intros g n. unfold find_next. apply find_some.
 Qed.
 
-From Stdlib Require Import FunInd.
-From Stdlib Require Import Recdef.
-
 Definition eliminate_step (g : InterfGraph.dict) : option (reg * InterfGraph.dict):=
   match find_next g with
   | Some next =>
@@ -59,6 +56,8 @@ Definition eliminate_step (g : InterfGraph.dict) : option (reg * InterfGraph.dic
   Or
   InterfGraph.dict is empty
 *)
+
+From Stdlib Require Import Recdef.
 
 Function eliminate (g : InterfGraph.dict) {measure InterfGraph.size g} : list reg :=
   match eliminate_step g with

@@ -6,7 +6,7 @@ Import ListNotations.
 From Stdlib Require Import Sets.Ensembles.
 
 (* Register independent definitions *)
-Inductive cond : Type := Jeq | Jne | Jlt | Jle | Jgt | Jge.
+Inductive cond : Type := CondEq | CondNe | CondLt | CondLe | CondGt | CondGe.
 
 Inductive lbl : Type :=
   | Normal : nat -> lbl
@@ -49,14 +49,17 @@ Defined.
 (* Register dependent definitions *)
 Module Type IR_PARAMS.
   Parameter reg : Set.
-  Parameter reg_eqb : reg -> reg -> bool.
   Parameter reg_eq_dec : forall r r' : reg, {r = r'} + {r <> r'}.
 End IR_PARAMS.
 
 Module MakeIR (IR: IR_PARAMS).
   Definition reg := IR.reg.
-  Definition reg_eqb := IR.reg_eqb.
   Definition reg_eq_dec := IR.reg_eq_dec.
+  Definition reg_eqb (r r' : reg) : bool :=
+    match reg_eq_dec r r' with
+    | left _ => true
+    | right _ => false
+    end.
 
   Definition ptr := nat.
 
@@ -301,34 +304,34 @@ Module MakeIR (IR: IR_PARAMS).
     (Store x y) (at level 50).
 
   Notation "'if' 'r(' x ) = 'r(' y ) 'then' b1 'else' b2" :=
-    (CondJump Jeq x (Reg y) b1 b2) (at level 50).
+    (CondJump CondEq x (Reg y) b1 b2) (at level 50).
   Notation "'if' 'r(' x ) = 'i(' y ) 'then' b1 'else' b2" :=
-    (CondJump Jeq x (Imm y) b1 b2) (at level 50).
+    (CondJump CondEq x (Imm y) b1 b2) (at level 50).
 
   Notation "'if' 'r(' x ) <> 'r(' y ) 'then' b1 'else' b2" :=
-    (CondJump Jne x (Reg y) b1 b2) (at level 50).
+    (CondJump CondNe x (Reg y) b1 b2) (at level 50).
   Notation "'if' 'r(' x ) <> 'i(' y ) 'then' b1 'else' b2" :=
-    (CondJump Jne x (Imm y) b1 b2) (at level 50).
+    (CondJump CondNe x (Imm y) b1 b2) (at level 50).
 
   Notation "'if' 'r(' x ) < 'r(' y ) 'then' b1 'else' b2" :=
-    (CondJump Jlt x (Reg y) b1 b2) (at level 50).
+    (CondJump CondLt x (Reg y) b1 b2) (at level 50).
   Notation "'if' 'r(' x ) < 'i(' y ) 'then' b1 'else' b2" :=
-    (CondJump Jlt x (Imm y) b1 b2) (at level 50).
+    (CondJump CondLt x (Imm y) b1 b2) (at level 50).
 
   Notation "'if' 'r(' x ) <= 'r(' y ) 'then' b1 'else' b2" :=
-    (CondJump Jle x (Reg y) b1 b2) (at level 50).
+    (CondJump CondLe x (Reg y) b1 b2) (at level 50).
   Notation "'if' 'r(' x ) <= 'i(' y ) 'then' b1 'else' b2" :=
-    (CondJump Jle x (Imm y) b1 b2) (at level 50).
+    (CondJump CondLe x (Imm y) b1 b2) (at level 50).
 
   Notation "'if' 'r(' x ) > 'r(' y ) 'then' b1 'else' b2" :=
-    (CondJump Jgt x (Reg y) b1 b2) (at level 50).
+    (CondJump CondGt x (Reg y) b1 b2) (at level 50).
   Notation "'if' 'r(' x ) > 'i(' y ) 'then' b1 'else' b2" :=
-    (CondJump Jgt x (Imm y) b1 b2) (at level 50).
+    (CondJump CondGt x (Imm y) b1 b2) (at level 50).
 
   Notation "'if' 'r(' x ) >= 'r(' y ) 'then' b1 'else' b2" :=
-    (CondJump Jge x (Reg y) b1 b2) (at level 50).
+    (CondJump CondGe x (Reg y) b1 b2) (at level 50).
   Notation "'if' 'r(' x ) >= 'i(' y ) 'then' b1 'else' b2" :=
-    (CondJump Jge x (Imm y) b1 b2) (at level 50).
+    (CondJump CondGe x (Imm y) b1 b2) (at level 50).
 
   Notation "'ret' 'r(' x )" :=
     (Ret x) (at level 50).
