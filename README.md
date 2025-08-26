@@ -1,1 +1,1 @@
-# SSARA (Single Static Assignment Register Allocator)
+# SSARA (Single Static Assignment Register Assignment)

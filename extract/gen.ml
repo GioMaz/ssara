@@ -162,9 +162,14 @@ let gen_3ac_2ac out opcode r r' v =
 
     (* r(0) <- r(1) / r(2) *)
     | IRPreg.Reg r'' ->
-      gen_bininst out MOV     (string_of_reg tmp) (string_of_reg r');
-      gen_bininst out opcode  (string_of_reg tmp) (string_of_reg r'');
-      gen_bininst out MOV     (string_of_reg r)   (string_of_reg tmp);
+      if r = r'' then (
+        gen_bininst out MOV     (string_of_reg tmp) (string_of_reg r');
+        gen_bininst out opcode  (string_of_reg tmp) (string_of_reg r'');
+        gen_bininst out MOV     (string_of_reg r)   (string_of_reg tmp)
+      ) else (
+        gen_bininst out MOV     (string_of_reg r) (string_of_reg r');
+        gen_bininst out opcode  (string_of_reg r) (string_of_reg r'')
+      )
 
     (* r(0) <- r(1) / p(100) *)
     | IRPreg.Ptr p ->

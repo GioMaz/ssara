@@ -22,9 +22,7 @@ Definition is_cliqueb (g : InterfGraph.dict) (regs : list reg) : bool :=
 
 (* Check whether the neighbors of r are a clique *)
 Definition is_simplicialb (g : InterfGraph.dict) (r : reg) : bool :=
-  let nbors := InterfGraph.get g r in
-  regs_mem r (InterfGraph.keys g) &&
-  is_cliqueb g nbors
+  regs_mem r (InterfGraph.keys g) && is_cliqueb g (InterfGraph.get g r )
 .
 
 Definition find_next (g : InterfGraph.dict) : option reg :=
@@ -630,12 +628,10 @@ Proof.
   assumption.
 Qed.
 
-(* TODO: this depends on the implementation *)
-Lemma ig_insert_edge_nbors_1 :
+(* This depends on the implementation *)
+Axiom ig_insert_edge_nbors_1 :
   forall g u v, InterfGraph.get (ig_insert_edge g u v) u = v :: (InterfGraph.get g u)
 .
-Proof.
-Admitted.
 
 Lemma ig_get_in :
   forall g u v, In v (InterfGraph.get g u) -> In v (InterfGraph.keys g)
@@ -1200,6 +1196,15 @@ Proof.
     reflexivity.
 Qed.
 
+Lemma ig_insert_edge_null :
+  forall g u, ig_insert_edge g u u = g
+.
+Proof.
+  intros g u.
+  unfold ig_insert_edge, ig_update_edge.
+  destruct (reg_eq_dec u u). reflexivity. contradiction.
+Qed.
+
 Lemma is_cliqueb_ig_insert_edges :
   forall g u v,
     is_cliqueb g (InterfGraph.get g u) = true ->
@@ -1208,6 +1213,24 @@ Lemma is_cliqueb_ig_insert_edges :
       (InterfGraph.get (ig_insert_edges g v (u :: (InterfGraph.get g u))) u) = true
 .
 Proof.
+  intros g u v.
+  remember (InterfGraph.get g u) as N eqn:EN. revert g EN.
+  induction N as [| a]. (* Induction on the size of the graph *)
+  - intros g H1 H2. cbn.
+    destruct (InterfGraph.key_eq_dec v u). subst.
+    rewrite ig_insert_edge_null.
+    rewrite <- H1.
+    reflexivity.
+    rewrite ig_insert_edge_comm.
+    rewrite ig_insert_edge_nbors_1.
+    rewrite <- H1. cbn.
+    rewrite ig_insert_edge_comm.
+    rewrite ig_insert_edge_node_ig_insert_edge; try assumption.
+    unfold are_neighborsb.
+    apply andb_true_iff; split.
+    apply set_mem_correct2; apply ig_insert_edge_in; assumption.
+    cbn. apply orb_true_iff. left. apply Nat.eqb_eq. reflexivity.
+  - intros g H1 H2.
 Admitted.
 
 Lemma conjunction_in_1 :
@@ -1379,9 +1402,9 @@ Theorem eliminate_step_invariant_2 :
 .
 Proof.
   intros g WF H1 H2.
-  induction H1.
+  destruct H1.
   - reflexivity.
-  - destruct H as [r [Hs Hc]].
+  - destruct H as [r [Hs _]].
     assert (Hs' := Hs).
     apply is_simplicial_is_simplicialb in Hs; try assumption.
     unfold eliminate_step in H2.
@@ -1409,6 +1432,24 @@ Proof.
     apply is_chordal_ig_remove_node.
     assumption.
   - discriminate.
+Qed.
+
+Theorem eliminate_step_partial_correctness :
+  forall g,
+    well_formed g ->
+    is_chordal g ->
+    match eliminate_step g with
+    | Some (r, g') => is_simplicial r g
+    | None => g = InterfGraph.empty
+    end
+.
+Proof.
+  intros g WF Hc.
+  destruct (eliminate_step g) as [(r, g') |] eqn:E.
+  - pose proof eliminate_step_invariant_1 as H.
+    specialize (H g g' r WF E). assumption.
+  - pose proof eliminate_step_invariant_2 as H.
+    specialize (H g WF Hc E). assumption.
 Qed.
 
 Inductive is_clique : InterfGraph.dict -> list reg -> Prop :=

@@ -86,23 +86,23 @@ Definition pmove (m : moves) (fuel : nat) : moves :=
   end
 .
 
-Fixpoint phi_to_move (pred : lbl) (dst : reg) (rs : list phi_arg) : option (reg * reg) :=
+Fixpoint phi_to_move (curr: lbl) (dst : reg) (rs : list phi_arg) : option (reg * reg) :=
   match rs with
   | nil => None
   | (src, l) :: tl =>
-    if lbl_eqb l pred
+    if lbl_eqb l curr
     then Some (src, dst)
-    else phi_to_move pred dst tl
+    else phi_to_move curr dst tl
   end
 .
 
-Fixpoint phis_to_moves (pred : lbl) (ps : list phi) : moves :=
+Fixpoint phis_to_moves (curr : lbl) (ps : list phi) : moves :=
   match ps with
   | nil => nil
   | (Phi r rs) :: tl =>
-    match phi_to_move pred r rs with
-    | Some m => m :: phis_to_moves pred tl
-    | None => phis_to_moves pred tl
+    match phi_to_move curr r rs with
+    | Some m => m :: phis_to_moves curr tl
+    | None => phis_to_moves curr tl
     end
   end
 .
@@ -119,14 +119,14 @@ Compute
   moves_to_insts ms
 .
 
-Definition succ_to_insts (pred : lbl) (succ : block) (fuel : nat) : list inst :=
-  let ms := phis_to_moves pred (get_phis succ) in
+Definition succ_to_insts (curr : lbl) (succ : block) (fuel : nat) : list inst :=
+  let ms := phis_to_moves curr (get_phis succ) in
   let ms := pmove ms fuel in
   moves_to_insts ms
 .
 
 Definition ssa_destruct (fuel : nat) (b : block) :=
-  let cofix ssa_destruct_aux (pred : lbl) (b : block) : block :=
+  let cofix ssa_destruct_aux (curr: lbl) (b : block) : block :=
     match b with
     | Block l ps is j =>
       match j with

@@ -57,7 +57,7 @@ Qed.
 
 Definition get_color (v : IRVreg.reg) (g : InterfGraph.dict) (c : Coloring.dict) : option IRPreg.reg :=
   let nbors := InterfGraph.get g v in
-  let used := IRPreg.regs_of_list (map (Coloring.get c) nbors) in (* UNASSIGNED; ...; UNASSIGNED; RBX; UNASSIGNED; ...; UNASSIGNED; *)
+  let used := map (Coloring.get c) nbors in
   preg_compl used
 .
 
@@ -71,13 +71,6 @@ Proof.
   apply preg_compl_not_forbidden.
 Qed.
 
-Definition get_coloring_aux_step (r : IRVreg.reg) (g : InterfGraph.dict) (c : Coloring.dict) : option Coloring.dict :=
-  match get_color r g c with
-  | Some p => Some (Coloring.update c r p)
-  | None => None
-  end
-.
-
 (*
   The None constructor is returned if there aren't enough physical registers
   for the coloring to happen, this may happen if we don't perform spilling
@@ -88,14 +81,11 @@ Fixpoint get_coloring_aux (peo : list IRVreg.reg) (g : InterfGraph.dict) (c : Co
   | nil => Some c
   | v :: peo =>
     match get_color v g c with
-    | Some p =>
-      let c := Coloring.update c v p in
-      get_coloring_aux peo g c
+    | Some p => get_coloring_aux peo g (Coloring.update c v p)
     | None => None
     end
   end
 .
-
 
 Definition get_coloring (peo : list IRVreg.reg) (g : InterfGraph.dict) : option Coloring.dict :=
   get_coloring_aux (rev peo) g Coloring.empty
@@ -306,7 +296,7 @@ Module Example4.
     Block (Normal 2) [
       r(2) <- phi [(0, Normal 1); (3, Normal 2)]
     ] [
-      r(3) <- r(2) + i(2)
+      r(3) <- r(2) + i(3)
     ] (
       if r(3) < r(1) then example_block_2 else example_block_3
     )
