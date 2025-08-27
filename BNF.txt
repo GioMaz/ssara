@@ -8,16 +8,16 @@
     | "r(" <reg> ")" "*" <val>
     | "r(" <reg> ")" "/" <val>
 
-<phi_args> ::=
-    | (<reg>, <lbl>) ";" <phi_args>
-    | (<reg>, <lbl>)
+<phi-args> ::=
+    | "(" <reg> "," <lbl> ")" ";" <phi-args>
+    | "(" <reg> "," <lbl> ")"
 <phi> ::=
-    | r(<reg>) "<-" [<phi_args>]
+    | "r(" <reg> ")" "<-" "[" <phi-args> "]"
 <phis> ::=
     | <phi> ";" <phis>
-<phis_or_empty> ::=
-    | <phis>
-    | ""
+<phis-or-nil> ::=
+    | "[" <phis> "]"
+    | "[" "]"
 
 <inst> ::=
     | "r(" <reg> ")" "<-" <expr>
@@ -25,16 +25,22 @@
 <insts> ::=
     | <inst> ";" <insts>
     | <inst>
-<insts_or_empty> ::=
-    | <insts>
-    | ""
+<insts-or-nil> ::=
+    | "[" <insts> "]"
+    | "[" "]"
 
 <cond> ::=
-    | "Jeq" | "Jne" | "Jlt" | "Jle" | "Jgt" | "Jge"
+    | "r(" <reg> ")" "=" <val>
+    | "r(" <reg> ")" "!=" <val>
+    | "r(" <reg> ")" "<" <val>
+    | "r(" <reg> ")" "<=" <val>
+    | "r(" <reg> ")" ">" <val>
+    | "r(" <reg> ")" ">=" <val>
+
 <jinst> ::=
-    | "if" <cond> <reg> <val> "then" <block> "else" <block>
+    | "if" <cond> "then" <block> "else" <block>
     | "jump" <block>
     | "ret" "r(" <reg> ")"
 
 <block> ::=
-    "Block" "(" <lbl> ")" [<phis_or_empty>] [<insts_or_empty>] "(" <jinst> ")"
+    "Block" "(" <lbl> ")" <phis-or-nil> <insts-or-nil> "(" <jinst> ")"
