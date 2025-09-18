@@ -346,11 +346,62 @@ Module Example5.
       Jump example_block_2
     )
   .
+End Example5.
 
-(* CoFixpoint double_lbl_1 : block := Block (Normal 0) [] [] (Jump double_lbl_2)
-  with double_lbl_2 : block := Block (Normal 0) [] [] (Jump double_lbl_1).
+(* Example 6 *)
+Module Example6.
+  Definition example_block_4 : block :=
+    Block (Normal 4) [] [] (ret r(11)).
 
-  Definition pi := let (pi, _) := analyze_program example_block_1 100 in pi.
+  Definition example_block_5 : block :=
+    Block (Normal 5) [] [] (ret r(11)).
+
+  Definition example_block_3 : block :=
+    Block (Normal 3) [
+      r(6) <- phi [(0, Normal 1); (3, Normal 2)];
+      r(7) <- phi [(1, Normal 1); (4, Normal 2)];
+      r(8) <- phi [(2, Normal 1); (5, Normal 2)]
+    ] [
+      r(9) <- r(6) + r(7);
+      r(10) <- r(9) + r(8);
+      r(11) <- r(10) * i(3)
+    ] (
+      if r(11) <= i(100) then example_block_4 else example_block_5
+    )
+  .
+
+  Definition example_block_2 : block :=
+    Block (Normal 2) [] [
+      r(3) <- i(3);
+      r(4) <- i(4);
+      r(5) <- i(5)
+    ] (
+      jump example_block_3
+      (* ret r(5) *)
+    )
+  .
+
+  Definition example_block_1 : block :=
+    Block (Normal 1) [] [
+      r(0) <- i(1);
+      r(1) <- i(2);
+      r(2) <- i(3)
+    ] (
+      jump example_block_3
+      (* ret r(2) *)
+    )
+  .
+
+  Definition example_block_999 : block :=
+    Block (Normal 999) [
+    ] [
+      r(999) <- i(0)
+    ] (
+      if r(999) < i(1000) then example_block_1 else example_block_2
+    )
+  .
+
+  Definition pi := let (pi, _) := analyze_program example_block_999 100 in pi.
   Definition ig := get_ig pi.
   Definition peo := eliminate_fuel ig 100.
   Definition coloring := get_coloring peo ig.
@@ -360,10 +411,117 @@ Module Example5.
     | None => None
     end
   .
-  Compute irpreg_program. *)
-End Example5.
+  Compute irpreg_program.
+End Example6.
 
-Module Example6.
+(* Example 7 *)
+Module Example7.
+  Definition example_block_4 : block :=
+    Block (Normal 4) [] [] (ret r(11)).
+
+  Definition example_block_5 : block :=
+    Block (Normal 5) [] [] (ret r(11)).
+
+  Definition example_block_3 : block :=
+    Block (Normal 3) [
+      r(4) <- phi [(0, Normal 1); (2, Normal 2)];
+      r(5) <- phi [(1, Normal 1); (3, Normal 2)]
+    ] [
+      r(6) <- r(4) * r(5);
+      r(7) <- r(6) + i(1)
+    ] (
+      if r(7) <= i(100) then example_block_4 else example_block_5
+    )
+  .
+
+  Definition example_block_2 : block :=
+    Block (Normal 2) [] [
+      r(2) <- i(2);
+      r(3) <- i(3)
+    ] (
+      jump example_block_3
+    )
+  .
+
+  Definition example_block_1 : block :=
+    Block (Normal 1) [] [
+      r(0) <- i(0);
+      r(1) <- i(1)
+    ] (
+      jump example_block_3
+    )
+  .
+
+  Definition example_block_999 : block :=
+    Block (Normal 999) [
+    ] [
+      r(999) <- i(0)
+    ] (
+      if r(999) < i(1000) then example_block_1 else example_block_2
+    )
+  .
+
+  Definition pi := let (pi, _) := analyze_program example_block_999 100 in pi.
+  Definition ig := get_ig pi.
+  Definition peo := eliminate_fuel ig 100.
+  Definition coloring := get_coloring peo ig.
+  Definition irpreg_program :=
+    match coloring with
+    | Some coloring => Some (IRPreg.visit_program (color_program coloring example_block_1) 3)
+    | None => None
+    end
+  .
+  Compute irpreg_program.
+End Example7.
+
+(* Example 8 *)
+Module Example8.
+  Definition example_block_3 : block :=
+    Block (Normal 3) [
+      r(4) <- phi [(2, Normal 1); (3, Normal 2)]
+    ] [
+      store r(0) r(1)
+    ] (
+      ret r(4)
+    ).
+
+  Definition example_block_2 : block :=
+    Block (Normal 2) [] [
+      r(3) <- r(0) + i(2)
+    ] (
+      jump example_block_3
+    ).
+
+  Definition example_block_1 : block :=
+    Block (Normal 1) [] [
+      r(2) <- r(0) + i(1)
+    ] (
+      jump example_block_3
+    ).
+
+  Definition example_block_0 : block :=
+    Block (Normal 0) [] [
+      r(0) <- i(5);
+      r(1) <- i(10)
+    ] (
+      if r(0) < r(1) then example_block_1 else example_block_2
+    ).
+
+  Definition pi := let (pi, _) := analyze_program example_block_0 100 in pi.
+  Definition ig := get_ig pi.
+  Compute InterfGraph.listify ig.
+  Definition peo := eliminate_fuel ig 100.
+  Definition coloring := get_coloring peo ig.
+  Definition irpreg_program :=
+    match coloring with
+    | Some coloring => Some (IRPreg.visit_program (color_program coloring example_block_1) 3)
+    | None => None
+    end
+  .
+  Compute irpreg_program.
+End Example8.
+
+(* Module Example8.
   Definition example_ig :=
     (ig_insert_edge
     (ig_insert_edge
@@ -389,4 +547,4 @@ Module Example6.
     | None => nil
     end
   .
-End Example6.
+End Example8. *)

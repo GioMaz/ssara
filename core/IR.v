@@ -333,6 +333,9 @@ Module MakeIR (IR: IR_PARAMS).
   Notation "'if' 'r(' x ) >= 'i(' y ) 'then' b1 'else' b2" :=
     (CondJump CondGe x (Imm y) b1 b2) (at level 50).
 
+  Notation "'jump' x" :=
+    (Jump x) (at level 50).
+
   Notation "'ret' 'r(' x )" :=
     (Ret x) (at level 50).
 

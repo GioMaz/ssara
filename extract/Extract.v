@@ -47,4 +47,5 @@ Extraction "ssara.ml"
   Color.Example3.example_block_1
   Color.Example4.example_block_1
   Color.Example5.example_block_1
+  Color.Example6.example_block_1
 .

@@ -7,67 +7,67 @@ Import IRVreg.
 
 (* TODO: Prove some facts about the virtual machine primitives *)
 Module Vm.
-  Definition cell : Type := Z.
+  Definition word : Type := Z.
 
   Inductive vm : Type :=
-    | Vm : (reg -> cell) -> list cell -> vm
+    | Vm : (reg -> word) -> list word -> vm
   .
 
   Definition vm_empty : vm := Vm (fun _ => Z0) nil.
 
   (* Virtual machine primitives *)
 
-  Definition get_reg (m : vm) (r : reg) : cell :=
+  Definition get_reg (m : vm) (r : reg) : word :=
     match m with
     | Vm regs _ => regs r
     end
   .
 
-  Definition set_reg (m : vm) (r : reg) (c : cell) : vm :=
+  Definition set_reg (m : vm) (r : reg) (c : word) : vm :=
     match m with
-    | Vm regs cells =>
-      Vm (fun r' => if r' =? r then c else regs r') cells
+    | Vm regs words =>
+      Vm (fun r' => if r' =? r then c else regs r') words
     end
   .
 
-  Definition get_cell (m : vm) (i : nat) : cell :=
-    let fix get_cell_aux (cells : list cell) (i : nat) : cell :=
-      match cells, i with
+  Definition get_word (m : vm) (i : nat) : word :=
+    let fix get_word_aux (words : list word) (i : nat) : word :=
+      match words, i with
       | nil, _ => Z0
       | c :: _, O => c
-      | _ :: cs, S i' => get_cell_aux cs i'
+      | _ :: cs, S i' => get_word_aux cs i'
       end
     in
     match m with
-    | Vm _ cells => get_cell_aux cells i
+    | Vm _ words => get_word_aux words i
     end
   .
 
-  Definition set_cell (m : vm) (i : nat) (c : cell) : vm :=
-    let fix set_cell_aux (cells : list cell) (i : nat) (c : cell) : list cell :=
-      match cells, i with
+  Definition set_word (m : vm) (i : nat) (c : word) : vm :=
+    let fix set_word_aux (words : list word) (i : nat) (c : word) : list word :=
+      match words, i with
       | nil, O => c :: nil
-      | nil, S i' => Z0 :: (set_cell_aux nil i' c)
+      | nil, S i' => Z0 :: (set_word_aux nil i' c)
       | _ :: xs, O => c :: xs
-      | x :: xs, S i' => x :: (set_cell_aux xs i' c)
+      | x :: xs, S i' => x :: (set_word_aux xs i' c)
       end
     in
     match m with
-    | Vm regs cells => Vm regs (set_cell_aux cells i c)
+    | Vm regs words => Vm regs (set_word_aux words i c)
     end
   .
 
   (* Inst semantics *)
 
-  Definition eval_binop (m : vm) (op : Z -> Z -> Z) (r : reg) (v : val) : cell :=
+  Definition eval_binop (m : vm) (op : Z -> Z -> Z) (r : reg) (v : val) : word :=
     match v with
     | Imm i => op (get_reg m r) i
     | Reg r' => op (get_reg m r) (get_reg m r')
-    | Ptr p => op (get_reg m r) (get_cell m p)
+    | Ptr p => op (get_reg m r) (get_word m p)
     end
   .
 
-  Definition eval_expr (m : vm) (e : expr) : cell :=
+  Definition eval_expr (m : vm) (e : expr) : word :=
     match e with
     | Val v =>
       match v with
@@ -78,9 +78,9 @@ Module Vm.
 
     | Load v =>
       match v with
-      | Imm i => get_cell m (Z.to_nat i)
-      | Reg r => get_cell m (Z.to_nat (get_reg m r))
-      | Ptr p => get_cell m p
+      | Imm i => get_word m (Z.to_nat i)
+      | Reg r => get_word m (Z.to_nat (get_reg m r))
+      | Ptr p => get_word m p
       end
 
     | Add r v => eval_binop m Z.add r v
@@ -94,7 +94,7 @@ Module Vm.
   Definition run_inst (m : vm) (i : inst) : vm :=
     match i with
     | Def r e => set_reg m r (eval_expr m e)
-    | Store r r' => set_cell m (Z.to_nat (get_reg m r)) (get_reg m r')
+    | Store r r' => set_word m (Z.to_nat (get_reg m r)) (get_reg m r')
     end
   .
 
@@ -119,7 +119,7 @@ Module Vm.
       match v with
       | Imm i => i
       | Reg r => (get_reg m r)
-      | Ptr p => (get_cell m p)
+      | Ptr p => (get_word m p)
       end
     in
     op x y
